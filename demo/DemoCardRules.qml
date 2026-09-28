@@ -96,9 +96,9 @@ Item {
                 "want": "time"
             },
             {
-                "name": "weather and moon forms belong only to their sources",
-                "got": [Rules.formsOffered(root.config, "value", "battery", null).some(f => ["weather", "weather_live", "moon", "sun"].includes(f)), Rules.formsOffered(root.config, "value", "weather", null), Rules.formsOffered(root.config, "value", "moon", null)],
-                "want": [false, ["weather_live", "weather"], ["moon"]]
+                "name": "weather is its own type, and moon forms belong only to their source",
+                "got": [Rules.formsOffered(root.config, "value", "battery", null).some(f => ["moon", "sun"].includes(f)), Rules.formsOffered(root.config, "weather", null, null), Rules.formsOffered(root.config, "value", "moon", null)],
+                "want": [false, ["sky", "temp"], ["moon"]]
             },
             {
                 "name": "variants list only sizes that fit next to neighbours",

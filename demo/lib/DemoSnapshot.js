@@ -114,3 +114,11 @@ function game(name, startedAgoMs, art) {
         "art": art ?? {}
     };
 }
+
+function weather(place, tempC, condition, extra) {
+    return Object.assign({
+        "place": place,
+        "temp_c": tempC,
+        "condition": condition
+    }, extra ?? {});
+}

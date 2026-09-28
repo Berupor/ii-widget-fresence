@@ -1,12 +1,12 @@
 //@ probe fresence -g 1300x760 -s 2500
 /**
- * The animated live weather tile (weather_live form + WeatherSky) at every condition,
+ * The animated live weather tile (sky form + WeatherSky) at every condition,
  * day and night, both sizes - plus a few tiles that isolate one axis each: light vs
- * heavy rain, windy vs calm, a cold vs a hot reading, and a waxing crescent vs a waxing
- * gibbous moon. arcMoments steps the sun and moon around their arcs: sunrise, morning,
- * noon, late afternoon and sunset by day, dusk, midnight and pre-dawn by night. A plain
- * weather form with a free-text value, and the moon and sun forms driven by fill, close
- * it out.
+ * heavy rain, windy vs calm, a cold vs a hot reading. arcMoments steps the sun and
+ * moon around their arcs: sunrise, morning, noon, late afternoon and sunset by day,
+ * dusk, midnight and pre-dawn by night, all against the same schematic sunrise/sunset
+ * so skyClock's mapping can be checked directly. The moon and sun value forms, driven
+ * by fill, close it out.
  */
 import ".."
 import "../CardLayouts.js" as CardLayouts
@@ -20,224 +20,166 @@ Item {
     readonly property int tileUnit: 96
     readonly property int gap: 8
 
+    // Real sunrise/sunset instants only matter through their offset from Fresence.now
+    // and from each other - sunriseMin/sunsetMin fix that offset in a schematic day,
+    // dayLengthMin how long it runs, elapsedFor() the reverse lookup a scene needs to
+    // land at a chosen minute of that day.
     readonly property int sunriseMin: 390
     readonly property int sunsetMin: 1170
+    readonly property int dayLengthMin: root.sunsetMin - root.sunriseMin
     readonly property int dayNowMin: 720
     readonly property int nightNowMin: 1320
 
-    function weatherValue(temp, code, precip, wind, windDir, sunrise, sunset, nowMin, moonIllum, moonPhase, city) {
-        const isDay = nowMin >= sunrise && nowMin < sunset ? 1 : 0;
-        return `${temp};${code};${precip};${wind};${windDir};${isDay};${moonIllum};${moonPhase};${sunrise};${sunset};${nowMin};${city}`;
+    function elapsedFor(nowMinDesired) {
+        return ((nowMinDesired - root.sunriseMin) % 1440 + 1440) % 1440;
+    }
+
+    function skyWeather(city, tempC, condition, wind, windDir, precip, nowMinDesired) {
+        const sunriseMs = Fresence.now - root.elapsedFor(nowMinDesired) * 60000;
+        return Demo.weather(city, tempC, condition, {
+            "wind_kmh": wind,
+            "wind_dir_deg": windDir,
+            "precip_mm": precip,
+            "sunrise": new Date(sunriseMs).toISOString(),
+            "sunset": new Date(sunriseMs + root.dayLengthMin * 60000).toISOString()
+        });
     }
 
     readonly property var conditions: [
         {
             "key": "clear",
-            "code": 113,
+            "condition": "clear",
             "temp": 22,
             "nightTemp": 12,
             "precip": 0,
             "wind": 8,
             "windDir": 200,
-            "city": "Barcelona",
-            "moonIllum": 28,
-            "moonPhase": "Waxing Crescent"
+            "city": "Barcelona"
         },
         {
             "key": "clouds",
-            "code": 119,
+            "condition": "clouds",
             "temp": 15,
             "nightTemp": 9,
             "precip": 0,
             "wind": 14,
             "windDir": 250,
-            "city": "Amsterdam",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Amsterdam"
         },
         {
             "key": "rain",
-            "code": 302,
+            "condition": "rain",
             "temp": 14,
             "nightTemp": 11,
             "precip": 3.5,
             "wind": 18,
             "windDir": 230,
-            "city": "Seattle",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Seattle"
         },
         {
             "key": "thunder",
-            "code": 389,
+            "condition": "thunder",
             "temp": 26,
             "nightTemp": 21,
             "precip": 6,
             "wind": 22,
             "windDir": 90,
-            "city": "Miami",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Miami"
         },
         {
             "key": "snow",
-            "code": 332,
+            "condition": "snow",
             "temp": -3,
             "nightTemp": -8,
             "precip": 2,
             "wind": 12,
             "windDir": 320,
-            "city": "Oslo",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Oslo"
         },
         {
             "key": "fog",
-            "code": 248,
+            "condition": "fog",
             "temp": 6,
             "nightTemp": 4,
             "precip": 0,
             "wind": 3,
             "windDir": 0,
-            "city": "London",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "London"
         }
     ]
 
     readonly property var variants: [
         {
             "key": "rain_light",
-            "code": 296,
+            "condition": "rain",
             "temp": 16,
             "precip": 0.5,
             "wind": 5,
             "windDir": 180,
-            "city": "Dublin",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Dublin"
         },
         {
             "key": "rain_heavy",
-            "code": 308,
+            "condition": "rain",
             "temp": 15,
             "precip": 8,
             "wind": 10,
             "windDir": 180,
-            "city": "Mumbai",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Mumbai"
         },
         {
             "key": "rain_windy",
-            "code": 302,
+            "condition": "rain",
             "temp": 13,
             "precip": 3,
             "wind": 45,
             "windDir": 90,
-            "city": "Wellington",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Wellington"
         },
         {
             "key": "rain_calm",
-            "code": 302,
+            "condition": "rain",
             "temp": 13,
             "precip": 3,
             "wind": 1,
             "windDir": 0,
-            "city": "Kyoto",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Kyoto"
         },
         {
             "key": "wind_ne",
-            "code": 302,
+            "condition": "rain",
             "temp": 13,
             "precip": 3,
             "wind": 20,
             "windDir": 43,
-            "city": "Helsinki",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Helsinki"
         },
         {
             "key": "wind_w",
-            "code": 302,
+            "condition": "rain",
             "temp": 13,
             "precip": 3,
             "wind": 20,
             "windDir": 270,
-            "city": "Lisbon",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Lisbon"
         },
         {
             "key": "clear_cold",
-            "code": 113,
+            "condition": "clear",
             "temp": -18,
             "precip": 0,
             "wind": 6,
             "windDir": 200,
-            "city": "Yakutsk",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Yakutsk"
         },
         {
             "key": "clear_hot",
-            "code": 113,
+            "condition": "clear",
             "temp": 41,
             "precip": 0,
             "wind": 6,
             "windDir": 200,
-            "city": "Phoenix",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
-        },
-        {
-            "key": "clear_full_moon",
-            "code": 113,
-            "temp": 8,
-            "precip": 0,
-            "wind": 5,
-            "windDir": 180,
-            "city": "Reykjavik",
-            "now": 1320,
-            "moonIllum": 96,
-            "moonPhase": "Waxing Gibbous"
-        },
-        {
-            "key": "possible_thunder_no_precip",
-            "code": 200,
-            "temp": 20,
-            "precip": 0,
-            "wind": 10,
-            "windDir": 150,
-            "city": "Denver",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
-        },
-        {
-            "key": "possible_rain_no_precip",
-            "code": 176,
-            "temp": 17,
-            "precip": 0,
-            "wind": 8,
-            "windDir": 140,
-            "city": "Nairobi",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
-        },
-        {
-            "key": "possible_rain_with_precip",
-            "code": 176,
-            "temp": 17,
-            "precip": 1.2,
-            "wind": 8,
-            "windDir": 140,
-            "city": "Nairobi",
-            "moonIllum": 50,
-            "moonPhase": "First Quarter"
+            "city": "Phoenix"
         }
     ]
 
@@ -253,9 +195,6 @@ Item {
         { "key": "arc_midnight", "temp": 8, "now": 0, "day": false },
         { "key": "arc_predawn", "temp": 7, "now": 330, "day": false }
     ]
-
-    readonly property string legacyKey: "weather_text"
-    readonly property string legacyValue: "9° Rain · Lisbon, PT"
 
     readonly property var fills: ({
             "moon_crescent": {
@@ -276,41 +215,49 @@ Item {
             }
         })
 
-    function fieldEntries() {
+    readonly property real knownNewMoonMs: Date.parse("2000-01-06T18:14:00Z")
+    readonly property real synodicMonthMs: 29.530588853 * 86400000
+
+    function sceneEntries() {
         const entries = {};
         for (const c of root.conditions) {
-            entries[`${c.key}_day`] = root.weatherValue(c.temp, c.code, c.precip, c.wind, c.windDir, root.sunriseMin, root.sunsetMin, root.dayNowMin, c.moonIllum, c.moonPhase, c.city);
-            entries[`${c.key}_night`] = root.weatherValue(c.nightTemp, c.code, c.precip, c.wind, c.windDir, root.sunriseMin, root.sunsetMin, root.nightNowMin, c.moonIllum, c.moonPhase, c.city);
+            entries[`${c.key}_day`] = root.skyWeather(c.city, c.temp, c.condition, c.wind, c.windDir, c.precip, root.dayNowMin);
+            entries[`${c.key}_night`] = root.skyWeather(c.city, c.nightTemp, c.condition, c.wind, c.windDir, c.precip, root.nightNowMin);
         }
         for (const v of root.variants)
-            entries[v.key] = root.weatherValue(v.temp, v.code, v.precip, v.wind, v.windDir, root.sunriseMin, root.sunsetMin, v.now ?? root.dayNowMin, v.moonIllum, v.moonPhase, v.city);
+            entries[v.key] = root.skyWeather(v.city, v.temp, v.condition, v.wind, v.windDir, v.precip, root.dayNowMin);
         for (const a of root.arcMoments)
-            entries[a.key] = root.weatherValue(a.temp, 113, 0, 6, 180, root.sunriseMin, root.sunsetMin, a.now, 62, "Waxing Gibbous", "Berlin");
-        entries[root.legacyKey] = root.legacyValue;
+            entries[a.key] = root.skyWeather("Berlin", a.temp, "clear", 6, 180, 0, a.now);
         return entries;
     }
-    readonly property var fields: root.fieldEntries()
+    readonly property var scenes: root.sceneEntries()
 
-    readonly property var device: {
-        const values = {};
-        for (const key in root.fields)
-            values[key] = {
-                "text": root.fields[key]
-            };
+    function deviceFor(key) {
         return {
-            "device_id": "dev-weather",
+            "device_id": `dev-${key}`,
             "online": true,
             "state": {
-                "values": Object.assign(values, root.fills)
+                "weather": root.scenes[key]
             }
         };
     }
 
-    function wallTile(source, cols, color, form) {
-        return Demo.value(source, [0, 0, cols, 1], {
-            "form": form ?? "weather_live",
-            "color": color
-        });
+    readonly property var fillsDevice: ({
+            "device_id": "dev-fills",
+            "online": true,
+            "state": {
+                "values": root.fills
+            }
+        })
+
+    function wallTile(key, cols, color) {
+        return {
+            "widget": Demo.widget("weather", [0, 0, cols, 1], {
+                "form": "sky",
+                "color": color
+            }),
+            "device": root.deviceFor(key)
+        };
     }
 
     readonly property var wallTiles: {
@@ -328,26 +275,32 @@ Item {
             tiles.push(root.wallTile(a.key, 1, color));
             tiles.push(root.wallTile(a.key, 2, color));
         }
-        tiles.push(root.wallTile(root.legacyKey, 2, "secondary_container", "weather"));
-        for (const key in root.fills)
-            tiles.push(root.wallTile(key, 1, "tertiary_container", key.startsWith("moon") ? "moon" : "sun"));
         return tiles;
     }
 
-    function tileFor(source, cols) {
-        return Items.tiles(wall).find(t => t.widget.source === source && (cols === undefined || t.widget.place.cols === cols)) ?? null;
+    function fillsWallTile(key) {
+        return Demo.value(key, [0, 0, 1, 1], {
+            "form": key.startsWith("moon") ? "moon" : "sun",
+            "color": "tertiary_container"
+        });
     }
 
-    function skyFor(source, cols) {
-        return Items.findAll(root.tileFor(source, cols), it => it.condition !== undefined && it.showsThunder !== undefined)[0] ?? null;
+    readonly property var fillsTiles: Object.keys(root.fills).map(key => root.fillsWallTile(key))
+
+    function tileFor(key, cols) {
+        return Items.tiles(wall).find(t => (t.widget.source === key || t.device?.device_id === `dev-${key}`) && (cols === undefined || t.widget.place.cols === cols)) ?? null;
     }
 
-    function textPartsOf(source, cols) {
-        return Items.findAll(root.tileFor(source, cols), it => it.text !== undefined && it.font !== undefined && it.visible && it.text.length > 0).map(it => it.text);
+    function skyFor(key, cols) {
+        return Items.findAll(root.tileFor(key, cols), it => it.condition !== undefined && it.showsThunder !== undefined)[0] ?? null;
     }
 
-    function bodyOf(source, cols, name) {
-        return Items.byName(root.tileFor(source, cols), name)[0] ?? null;
+    function textPartsOf(key, cols) {
+        return Items.findAll(root.tileFor(key, cols), it => it.text !== undefined && it.font !== undefined && it.visible && it.text.length > 0).map(it => it.text);
+    }
+
+    function bodyOf(key, cols, name) {
+        return Items.byName(root.tileFor(key, cols), name)[0] ?? null;
     }
 
     function checks() {
@@ -363,20 +316,17 @@ Item {
         const windW = root.skyFor("wind_w");
         const clearCold = root.skyFor("clear_cold");
         const clearHot = root.skyFor("clear_hot");
-        const possibleThunderNoPrecip = root.skyFor("possible_thunder_no_precip");
-        const possibleRainNoPrecip = root.skyFor("possible_rain_no_precip");
-        const possibleRainWithPrecip = root.skyFor("possible_rain_with_precip");
         const arcDayKeys = ["arc_sunrise", "arc_morning", "arc_noon", "arc_late_afternoon", "arc_sunset"];
         const arcNightKeys = ["arc_dusk", "arc_midnight", "arc_predawn"];
         const sunXs = arcDayKeys.map(k => root.bodyOf(k, 2, "weatherSun")?.x);
         const sunNoonY = root.bodyOf("arc_noon", 2, "weatherSun")?.y;
         const sunSunriseY = root.bodyOf("arc_sunrise", 2, "weatherSun")?.y;
-        const arcNoonFields = CardLayouts.weatherFieldsOf(root.fields.arc_noon);
+        const noonClock = CardLayouts.skyClock(root.scenes.arc_noon, Fresence.now);
         return [
             {
                 "name": "every wall tile renders one CardTile",
                 "got": Items.tiles(wall).length,
-                "want": root.wallTiles.length
+                "want": root.wallTiles.length + root.fillsTiles.length
             },
             {
                 "name": "every tile's form loads",
@@ -384,7 +334,7 @@ Item {
                 "want": []
             },
             {
-                "name": "the sky reads its condition and day/night off the compact value",
+                "name": "the sky reads its condition and day/night off state.weather",
                 "got": [clearDay?.condition, clearDay?.isDay, clearNight?.isDay, thunderDay?.showsThunder, thunderDay?.showsRain, snowNight?.showsSnow],
                 "want": ["clear", true, false, true, true, true]
             },
@@ -404,39 +354,14 @@ Item {
                 "want": [true, true, true]
             },
             {
-                "name": "code 200 ('thundery outbreaks possible') with no measured precipitation reads as clouds, not thunder",
-                "got": [possibleThunderNoPrecip?.condition, possibleThunderNoPrecip?.showsThunder, possibleThunderNoPrecip?.showsRain],
-                "want": ["clouds", false, false]
-            },
-            {
-                "name": "code 176 ('patchy rain nearby') with no measured precipitation reads as clouds",
-                "got": possibleRainNoPrecip?.condition,
-                "want": "clouds"
-            },
-            {
-                "name": "code 176 ('patchy rain nearby') with measured precipitation reads as rain",
-                "got": possibleRainWithPrecip?.condition,
-                "want": "rain"
-            },
-            {
                 "name": "a hot reading warms the tone further than a cold one",
                 "got": clearHot?.warmth > clearCold?.warmth,
                 "want": true
             },
             {
-                "name": "the compact value splits into a temperature and the city",
+                "name": "the sky's foreground text is the city and temperature",
                 "got": root.textPartsOf("clear_day", 1),
                 "want": ["Barcelona", "22°"]
-            },
-            {
-                "name": "a free-text weather value shows its temperature under the city, with no sky",
-                "got": [root.textPartsOf(root.legacyKey, 2), root.skyFor(root.legacyKey, 2)],
-                "want": [["Lisbon, PT", "9°"], null]
-            },
-            {
-                "name": "the compact value carries moon illumination and phase, a crescent waxing and a gibbous also waxing",
-                "got": [CardLayouts.weatherFieldsOf(root.fields.clear_night).moonIllum, CardLayouts.weatherFieldsOf(root.fields.clear_night).moonPhase, CardLayouts.weatherFieldsOf(root.fields.clear_full_moon).moonIllum, CardLayouts.weatherFieldsOf(root.fields.clear_full_moon).moonPhase],
-                "want": [28, "Waxing Crescent", 96, "Waxing Gibbous"]
             },
             {
                 "name": "the sun moves monotonically along its arc as the day progresses, peaking near the top at noon",
@@ -449,9 +374,20 @@ Item {
                 "want": [true, true, true, true, true, false, false, false]
             },
             {
-                "name": "the compact value parses sunrise, sunset and now in minutes since midnight",
-                "got": [arcNoonFields.sunriseMin, arcNoonFields.sunsetMin, arcNoonFields.nowMin],
-                "want": [root.sunriseMin, root.sunsetMin, 780]
+                "name": "skyClock pins sunrise at a fixed schematic minute and places sunset and now relative to it",
+                "got": [noonClock.sunriseMin, noonClock.sunsetMin, Math.round(noonClock.nowMin)],
+                "want": [360, 1140, 750]
+            },
+            {
+                "name": "moon phase illumination runs off the calendar date: 0 at the reference new moon, 1 a synodic month later",
+                "got": [CardLayouts.moonPhase(root.knownNewMoonMs).illumination, CardLayouts.moonPhase(root.knownNewMoonMs + root.synodicMonthMs / 2).illumination],
+                "want": [0, 1],
+                "tol": 0.001
+            },
+            {
+                "name": "the moon waxes through the first quarter and wanes through the last",
+                "got": [CardLayouts.moonPhase(root.knownNewMoonMs + root.synodicMonthMs / 4).waxing, CardLayouts.moonPhase(root.knownNewMoonMs + root.synodicMonthMs * 3 / 4).waxing],
+                "want": [true, false]
             },
             {
                 "name": "the moon form lights as much of the disc as its fill says",
@@ -491,10 +427,22 @@ Item {
             delegate: CardTile {
                 id: tileItem
                 required property var modelData
-                width: tileItem.modelData.place.cols === 2 ? root.tileUnit * 2 + root.gap : root.tileUnit
+                width: tileItem.modelData.widget.place.cols === 2 ? root.tileUnit * 2 + root.gap : root.tileUnit
                 height: root.tileUnit
-                widget: tileItem.modelData
-                device: root.device
+                widget: tileItem.modelData.widget
+                device: tileItem.modelData.device
+            }
+        }
+
+        Repeater {
+            model: root.fillsTiles
+            delegate: CardTile {
+                id: fillItem
+                required property var modelData
+                width: root.tileUnit
+                height: root.tileUnit
+                widget: fillItem.modelData
+                device: root.fillsDevice
             }
         }
     }

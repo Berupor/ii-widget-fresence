@@ -21,7 +21,6 @@ const builtinShapes = {
 };
 
 const sourceForms = {
-    "weather": ["weather_live", "weather"],
     "moon": ["moon"],
     "sun": ["sun"]
 };
@@ -34,7 +33,7 @@ const shapeForms = {
     "time": ["clock", "timer"]
 };
 
-const otherTypes = ["media", "game", "photo", "image"];
+const otherTypes = ["media", "game", "weather", "photo", "image"];
 
 const colors = ["primary", "secondary", "tertiary", "error", "primary_container", "secondary_container", "tertiary_container", "error_container"];
 
@@ -77,7 +76,6 @@ const sourceSymbols = {
     "uptime": "schedule",
     "alarm": "alarm",
     "meeting": "event_busy",
-    "weather": "partly_cloudy_day",
     "moon": "bedtime",
     "sun": "wb_sunny"
 };
@@ -92,6 +90,7 @@ const typeNames = {
     "value": "Value",
     "media": "Music and video",
     "game": "Game",
+    "weather": "Weather",
     "photo": "Photo",
     "image": "Image"
 };
@@ -100,6 +99,7 @@ const typeSymbols = {
     "value": "data_usage",
     "media": "music_note",
     "game": "sports_esports",
+    "weather": "partly_cloudy_day",
     "photo": "photo_camera",
     "image": "image"
 };
@@ -131,8 +131,8 @@ const formNames = {
     "big": "Large",
     "clock": "Clock",
     "banner": "Banner",
-    "weather": "Weather",
-    "weather_live": "Live weather",
+    "sky": "Sky",
+    "temp": "Temperature",
     "moon": "Moon",
     "sun": "Sun",
     "cover": "Cover",
@@ -221,7 +221,7 @@ function preferredSizes(form) {
     case "number":
     case "moon":
     case "sun":
-    case "weather":
+    case "temp":
         return [size(1, 1)];
     case "text":
     case "big":
@@ -234,7 +234,7 @@ function preferredSizes(form) {
     case "banner":
     case "player":
         return [size(2, 1), size(4, 1)];
-    case "weather_live":
+    case "sky":
         return [size(2, 1), size(4, 2)];
     case "cover":
     case "vinyl":
@@ -623,7 +623,6 @@ function problems(config) {
 
 function sampleValues(nowMs) {
     const at = ms => new Date(nowMs + ms).toISOString();
-    const dayMinute = Math.floor(nowMs / 60000) % 1440;
     return {
         "window": {
             "text": "Fresence - App.kt"
@@ -641,9 +640,6 @@ function sampleValues(nowMs) {
         },
         "meeting": {
             "time": at(40 * 60000)
-        },
-        "weather": {
-            "text": `12;116;0.0;14;220;1;63;Waxing Gibbous;402;1170;${dayMinute};London`
         },
         "status": {
             "text": "writing code"
@@ -717,6 +713,16 @@ function preview(config, state, nowMs) {
             "source": "steam",
             "id": "1145350",
             "started_at": new Date(nowMs - 67 * 60000).toISOString()
+        },
+        "weather": real.weather ?? {
+            "place": "London",
+            "temp_c": 12,
+            "condition": "partly",
+            "precip_mm": 0,
+            "wind_kmh": 14,
+            "wind_dir_deg": 220,
+            "sunrise": new Date(nowMs - 5 * 3600000).toISOString(),
+            "sunset": new Date(nowMs + 7 * 3600000).toISOString()
         },
         "values": Object.assign(values, real.values ?? {})
     });

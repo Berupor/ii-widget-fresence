@@ -22,7 +22,7 @@ Item {
     readonly property string form: CardLayouts.shownForm(root.widget)
     readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden
     readonly property bool hasData: !root.dimmed
-    readonly property bool placeholder: root.dimmed && root.type !== "value"
+    readonly property bool placeholder: root.dimmed && root.type !== "value" && root.type !== "weather"
     readonly property bool fullBleed: CardLayouts.fullBleed(root.widget) && !root.placeholder
     readonly property bool wide: root.width > root.height
 
@@ -30,6 +30,7 @@ Item {
     readonly property var value: CardLayouts.valueOf(root.widget, root.state)
     readonly property var media: root.state?.media ?? null
     readonly property var game: root.state?.game ?? null
+    readonly property var weather: root.state?.weather ?? null
     readonly property var photo: root.state?.photo ?? null
     readonly property string photoFile: root.device?.photo_file ?? ""
 
@@ -96,7 +97,7 @@ Item {
     }
 
     readonly property real radius: Appearance.rounding.large
-    readonly property bool showsSky: root.type === "value" && root.form === "weather_live"
+    readonly property bool showsSky: root.type === "weather" && root.form === "sky"
 
     Rectangle {
         visible: !root.fullBleed
@@ -124,7 +125,7 @@ Item {
             active: root.showsSky
 
             sourceComponent: WeatherSky {
-                value: root.value?.text ?? ""
+                weather: root.weather
                 tint: root.tint
                 contentColor: root.contentColor
                 running: root.animating

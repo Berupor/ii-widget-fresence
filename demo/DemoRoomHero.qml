@@ -76,8 +76,8 @@ Item {
                             "account": "Nomad",
                             "name": "phone",
                             "kind": "phone",
-                            "row": [Demo.widget("photo", [0, 0, 2, 1]), Demo.value("weather", [2, 0, 2, 1], {
-                                    "form": "weather_live"
+                            "row": [Demo.widget("photo", [0, 0, 2, 1]), Demo.widget("weather", [2, 0, 2, 1], {
+                                    "form": "sky"
                                 })],
                             "photo": FileUtils.trimFileProtocol(String(Qt.resolvedUrl("covers/rdr2-hero.jpg"))),
                             "state": {
@@ -89,9 +89,12 @@ Item {
                                     "height": 900,
                                     "expires_at": Demo.iso(Demo.minutes(40))
                                 },
-                                "values": {
-                                    "weather": root.text("24;113;0;9;120;1;62;Waxing Gibbous;420;1230;1080;Barcelona")
-                                }
+                                "weather": Demo.weather("Barcelona", 24, "clear", {
+                                    "wind_kmh": 9,
+                                    "wind_dir_deg": 120,
+                                    "sunrise": Demo.iso(-Demo.minutes(11 * 60)),
+                                    "sunset": Demo.iso(Demo.minutes(2 * 60 + 30))
+                                })
                             }
                         })]), Demo.member("acc-turing", [Demo.device({
                             "id": "dev-turing",
@@ -132,7 +135,7 @@ Item {
     }
 
     function checks() {
-        const weather = root.tilesOf("acc-nomad").find(t => t.widget.source === "weather");
+        const weather = root.tilesOf("acc-nomad").find(t => t.widget.type === "weather");
         const ghost = root.tilesOf("acc-ghost")[0];
         return [
             {
@@ -153,7 +156,7 @@ Item {
             {
                 "name": "the traveler's weather tile is live, sky and all",
                 "got": [weather?.form, Items.byName(weather, "tileWeatherSky")[0]?.active],
-                "want": ["weather_live", true]
+                "want": ["sky", true]
             },
             {
                 "name": "the game friend's row is the game, banner and all",

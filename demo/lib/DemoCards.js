@@ -52,8 +52,8 @@ const rows = {
             "color": "tertiary_container",
             "on_missing": "hide"
         }),
-        Demo.value("weather", [3, 0, 1, 1], {
-            "form": "weather",
+        Demo.widget("weather", [3, 0, 1, 1], {
+            "form": "temp",
             "color": "primary_container",
             "on_missing": "hide"
         })
@@ -108,8 +108,8 @@ const details = {
             "label": "Uptime",
             "on_missing": "dim"
         }),
-        Demo.value("weather", [3, 2, 1, 1], {
-            "form": "weather",
+        Demo.widget("weather", [3, 2, 1, 1], {
+            "form": "temp",
             "color": "tertiary_container",
             "on_missing": "dim"
         }),
@@ -150,8 +150,8 @@ const details = {
             "color": "primary_container",
             "on_missing": "dim"
         }),
-        Demo.value("weather", [3, 1, 1, 1], {
-            "form": "weather",
+        Demo.widget("weather", [3, 1, 1, 1], {
+            "form": "temp",
             "color": "secondary_container",
             "on_missing": "dim"
         }),
@@ -166,8 +166,8 @@ const details = {
         Demo.widget("photo", [0, 0, 2, 2], {
             "on_missing": "hide"
         }),
-        Demo.value("weather", [2, 0, 2, 2], {
-            "form": "weather",
+        Demo.widget("weather", [2, 0, 2, 2], {
+            "form": "temp",
             "color": "primary_container",
             "on_missing": "dim"
         }),
@@ -230,8 +230,8 @@ const details = {
             "color": "tertiary_container",
             "on_missing": "dim"
         }),
-        Demo.value("weather", [0, 2, 4, 1], {
-            "form": "weather",
+        Demo.widget("weather", [0, 2, 4, 1], {
+            "form": "temp",
             "color": "secondary_container",
             "on_missing": "dim"
         })
@@ -253,6 +253,7 @@ function state(name, photoPath) {
                 "header": DemoCovers.url("cp2077-header.jpg")
             }),
             "media": Demo.playing("Turn Off the Lights", "Nite Jewel", DemoCovers.url("nightcall.jpg"), 40000, 210000),
+            "weather": Demo.weather("Reykjavik", 7, "clear"),
             "values": {
                 "local_time": text("03:12"),
                 "window": text("◐ notes.md - nvim"),
@@ -262,7 +263,6 @@ function state(name, photoPath) {
                 },
                 "app": text("mpv"),
                 "uptime": text("27h"),
-                "weather": text("7° Clear · Reykjavik"),
                 "alarm": {
                     "time": Demo.iso(Demo.minutes(7 * 60 + 30))
                 },
@@ -275,10 +275,10 @@ function state(name, photoPath) {
     case "musicHead":
         return {
             "media": Demo.playing("Nightcall", "Kavinsky", DemoCovers.url("nightcall.jpg"), 78000, 258000),
+            "weather": Demo.weather("Seoul", 18, "clouds"),
             "values": {
                 "into_lately": text("synthwave"),
                 "local_time": text("21:40"),
-                "weather": text("18° Cloudy · Seoul"),
                 "uptime": text("4h")
             }
         };
@@ -292,9 +292,9 @@ function state(name, photoPath) {
                 "height": 800,
                 "expires_at": Demo.iso(Demo.minutes(50))
             },
+            "weather": Demo.weather("Barcelona", 24, "clear"),
             "values": {
                 "local_time": text("14:05"),
-                "weather": text("24° Sunny · Barcelona"),
                 "sun": {
                     "text": "07:30 · 20:40",
                     "fill": 0.55
@@ -320,11 +320,11 @@ function state(name, photoPath) {
         };
     default:
         return {
+            "weather": Demo.weather("Oslo", 12, "rain"),
             "values": {
                 "quote": text("Less, but better"),
                 "mood": text("🙂"),
-                "local_time": text("09:00"),
-                "weather": text("12° Rain · Oslo")
+                "local_time": text("09:00")
             }
         };
     }

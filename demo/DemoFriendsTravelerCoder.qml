@@ -103,7 +103,7 @@ Item {
             {
                 "name": "an expired photo is missing: its hidden tile drops out and the row closes the gap",
                 "got": expiredGrid.placed.map(p => [p.widget.type, p.col]),
-                "want": [["value", 0], ["value", 1]]
+                "want": [["value", 0], ["weather", 1]]
             },
             {
                 "name": "a caption tile wraps at word boundaries, not mid-word",

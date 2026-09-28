@@ -1,8 +1,8 @@
 //@ probe fresence -g 700x520 -s 1500
 /**
- * The README's live weather strip: a curated handful of weather_live
- * conditions - clear day and night side by side, rain, thunder, snow, fog
- * and a sunset - instead of DemoWeather's full debug wall.
+ * The README's live weather strip: a curated handful of sky conditions - clear
+ * day and night side by side, rain, thunder, snow, fog and a sunset - instead
+ * of DemoWeather's full debug wall.
  */
 import ".."
 import "lib/DemoSnapshot.js" as Demo
@@ -15,30 +15,50 @@ Item {
     readonly property int tileUnit: 150
     readonly property int gap: 12
 
-    readonly property int sunriseMin: 390
-    readonly property int sunsetMin: 1170
+    // The real sunrise/sunset instants only matter through their offset from now
+    // and from each other - dayLengthMin fixes how long the day is, sunriseAgoMin
+    // how far into it (or past sunset) each scene sits.
+    readonly property int dayLengthMin: 780
 
-    function weatherValue(temp, code, precip, wind, windDir, nowMin, moonIllum, moonPhase, city) {
-        const isDay = nowMin >= root.sunriseMin && nowMin < root.sunsetMin ? 1 : 0;
-        return `${temp};${code};${precip};${wind};${windDir};${isDay};${moonIllum};${moonPhase};${root.sunriseMin};${root.sunsetMin};${nowMin};${city}`;
+    function skyWeather(place, tempC, condition, wind, windDir, precip, sunriseAgoMin) {
+        return Demo.weather(place, tempC, condition, {
+            "wind_kmh": wind,
+            "wind_dir_deg": windDir,
+            "precip_mm": precip,
+            "sunrise": Demo.iso(-Demo.minutes(sunriseAgoMin)),
+            "sunset": Demo.iso(Demo.minutes(root.dayLengthMin - sunriseAgoMin))
+        });
     }
 
-    readonly property var fields: ({
-            "clear_day": root.weatherValue(22, 113, 0, 8, 200, 720, 28, "Waxing Crescent", "Barcelona"),
-            "rain": root.weatherValue(14, 302, 3.5, 18, 230, 720, 50, "First Quarter", "Seattle"),
-            "thunder": root.weatherValue(26, 389, 6, 22, 90, 720, 50, "First Quarter", "Miami"),
-            "fog": root.weatherValue(6, 248, 0, 3, 0, 720, 50, "First Quarter", "London"),
-            "snow": root.weatherValue(-3, 332, 2, 12, 320, 720, 50, "First Quarter", "Oslo"),
-            "clouds": root.weatherValue(15, 119, 0, 14, 250, 720, 50, "First Quarter", "Amsterdam"),
-            "twilight": root.weatherValue(15, 113, 0, 6, 180, root.sunsetMin - 1, 62, "Waxing Gibbous", "Berlin"),
-            "clear_night": root.weatherValue(12, 113, 0, 8, 200, 1320, 28, "Waxing Crescent", "Barcelona")
+    readonly property var scenes: ({
+            "clear_day": root.skyWeather("Barcelona", 22, "clear", 8, 200, 0, 330),
+            "rain": root.skyWeather("Seattle", 14, "rain", 18, 230, 3.5, 330),
+            "thunder": root.skyWeather("Miami", 26, "thunder", 22, 90, 6, 330),
+            "fog": root.skyWeather("London", 6, "fog", 3, 0, 0, 330),
+            "snow": root.skyWeather("Oslo", -3, "snow", 12, 320, 2, 330),
+            "clouds": root.skyWeather("Amsterdam", 15, "clouds", 14, 250, 0, 330),
+            "twilight": root.skyWeather("Berlin", 15, "clear", 6, 180, 0, 779),
+            "clear_night": root.skyWeather("Barcelona", 12, "clear", 8, 200, 0, 930)
         })
 
-    function wallTile(source, cols, color) {
-        return Demo.value(source, [0, 0, cols, 1], {
-            "form": "weather_live",
-            "color": color
-        });
+    function deviceFor(key) {
+        return {
+            "device_id": `dev-${key}`,
+            "online": true,
+            "state": {
+                "weather": root.scenes[key]
+            }
+        };
+    }
+
+    function wallTile(key, cols, color) {
+        return {
+            "widget": Demo.widget("weather", [0, 0, cols, 1], {
+                "form": "sky",
+                "color": color
+            }),
+            "device": root.deviceFor(key)
+        };
     }
 
     readonly property var wallTiles: [
@@ -51,21 +71,6 @@ Item {
         root.wallTile("clear_night", 2, "tertiary_container"),
         root.wallTile("clouds", 1, "primary_container")
     ]
-
-    readonly property var device: {
-        const values = {};
-        for (const key in root.fields)
-            values[key] = {
-                "text": root.fields[key]
-            };
-        return {
-            "device_id": "dev-weather",
-            "online": true,
-            "state": {
-                "values": values
-            }
-        };
-    }
 
     function checks() {
         return [
@@ -100,11 +105,11 @@ Item {
             delegate: CardTile {
                 id: tileItem
                 required property var modelData
-                readonly property int cols: tileItem.modelData.place.cols
+                readonly property int cols: tileItem.modelData.widget.place.cols
                 width: tileItem.cols * root.tileUnit + (tileItem.cols - 1) * root.gap
                 height: root.tileUnit
-                widget: tileItem.modelData
-                device: root.device
+                widget: tileItem.modelData.widget
+                device: tileItem.modelData.device
             }
         }
     }

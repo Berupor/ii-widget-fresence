@@ -1,18 +1,17 @@
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
-import "CardLayouts.js" as CardLayouts
 
 TileNumber {
     id: form
-    readonly property var fields: CardLayouts.weatherFieldsOf(form.card.valueText)
+    readonly property var weather: form.card.weather
 
     // Keep this fraction matching WeatherSky's sceneStart: they split the same tile,
     // text on the left, sky scene on the right.
     readonly property real textFraction: 0.45
     readonly property bool wide: form.card.wide
-    readonly property string cityText: form.fields?.city ?? ""
-    readonly property string tempText: form.fields ? `${form.fields.temp}°` : form.card.valueText
+    readonly property string cityText: form.weather?.place ?? ""
+    readonly property string tempText: form.weather ? `${Math.round(form.weather.temp_c)}°` : "-"
     readonly property string shownTempText: form.card.hasData ? form.tempText : "-"
 
     // The form fills the whole tile no matter what width is set here - CardTile's

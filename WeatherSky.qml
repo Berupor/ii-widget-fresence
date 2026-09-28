@@ -7,7 +7,7 @@ import "CardLayouts.js" as CardLayouts
 
 Item {
     id: sky
-    required property string value
+    required property var weather
     required property color tint
     required property color contentColor
     required property bool running
@@ -22,17 +22,18 @@ Item {
     readonly property bool wide: sky.width > sky.height * 1.5
     readonly property real sceneStart: sky.wide ? sky.width * 0.45 : 0
 
-    readonly property var fields: CardLayouts.weatherFieldsOf(sky.value)
-    readonly property string condition: CardLayouts.weatherConditionOf(sky.value) ?? "clouds"
-    readonly property bool isDay: sky.fields ? sky.fields.isDay : true
-    readonly property real tempC: sky.fields ? sky.fields.temp : 15
-    readonly property real precipMM: sky.fields ? sky.fields.precipMM : (sky.condition === "snow" ? 1 : (sky.condition === "rain" || sky.condition === "thunder") ? 2 : 0)
-    readonly property real windKmph: sky.fields ? sky.fields.windKmph : 6
-    readonly property real windDirDeg: sky.fields ? sky.fields.windDirDeg : 0
+    readonly property var clock: CardLayouts.skyClock(sky.weather, Fresence.now)
+    readonly property var moonPhase: CardLayouts.moonPhase(Fresence.now)
+    readonly property string condition: sky.weather?.condition ?? "clouds"
+    readonly property bool isDay: sky.nowMin >= sky.sunriseMin && sky.nowMin < sky.sunsetMin
+    readonly property real tempC: sky.weather?.temp_c ?? 15
+    readonly property real precipMM: sky.weather?.precip_mm ?? (sky.condition === "snow" ? 1 : (sky.condition === "rain" || sky.condition === "thunder") ? 2 : 0)
+    readonly property real windKmph: sky.weather?.wind_kmh ?? 6
+    readonly property real windDirDeg: sky.weather?.wind_dir_deg ?? 0
 
-    readonly property real sunriseMin: sky.fields ? sky.fields.sunriseMin : 390
-    readonly property real sunsetMin: sky.fields ? sky.fields.sunsetMin : 1170
-    readonly property real nowMin: sky.fields ? sky.fields.nowMin : 780
+    readonly property real sunriseMin: sky.clock.sunriseMin
+    readonly property real sunsetMin: sky.clock.sunsetMin
+    readonly property real nowMin: sky.clock.nowMin
     // 0 at sunrise/sunset, up to 1 at the moment itself, over a ~50min approach on
     // either side - the horizon warms before the tone lifts off the temperature alone.
     readonly property real twilightWindow: 50
@@ -211,11 +212,8 @@ Item {
             x: moon.pos.x
             y: moon.pos.y
 
-            // Waning Gibbous/Last Quarter/Waning Crescent are the only named phases on
-            // the shrinking half; everything else (including New/Full, where the side
-            // does not read anyway) lights the near side first, i.e. waxing.
-            readonly property bool waxing: !["Waning Gibbous", "Last Quarter", "Waning Crescent"].includes(sky.fields?.moonPhase ?? "")
-            readonly property real illum: Math.max(0, Math.min(100, sky.fields?.moonIllum ?? 50)) / 100
+            readonly property bool waxing: sky.moonPhase.waxing
+            readonly property real illum: sky.moonPhase.illumination
             readonly property real r: moon.width / 2
             readonly property real terminatorRx: Math.abs(1 - 2 * moon.illum) * moon.r
             readonly property int outerSweep: moon.waxing ? 1 : 0

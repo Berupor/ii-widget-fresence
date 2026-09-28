@@ -19,8 +19,6 @@ const formFiles = {
         "banner": "TileBanner.qml",
         "clock": "TileClock.qml",
         "timer": "TileTimer.qml",
-        "weather": "TileWeather.qml",
-        "weather_live": "TileWeatherLive.qml",
         "moon": "TileMoon.qml",
         "sun": "TileSun.qml"
     },
@@ -33,6 +31,10 @@ const formFiles = {
     "game": {
         "banner": "TileGame.qml",
         "cover": "TileGame.qml"
+    },
+    "weather": {
+        "sky": "TileWeatherLive.qml",
+        "temp": "TileWeather.qml"
     },
     "photo": {},
     "image": {}
@@ -152,6 +154,8 @@ function missing(widget, device, nowMs) {
         return !state?.media;
     case "game":
         return !state?.game;
+    case "weather":
+        return !state?.weather;
     case "photo":
         return !photoValid(device, nowMs);
     case "image":
@@ -230,88 +234,41 @@ function mediaProgress(media, nowMs) {
     return media?.length_ms > 0 && position >= 0 ? Math.min(1, position / media.length_ms) : -1;
 }
 
-// Weather value as a custom command prints it: temp;code;precip;wind;windDir;isDay;moonIllum;moonPhase;sunrise;sunset;now;city
-const weatherCompactPattern = /^(-?\d+);(\d+);(\d+(?:\.\d+)?);(\d+(?:\.\d+)?);(\d+(?:\.\d+)?);([01]);(\d+);([^;]*);(\d+);(\d+);(\d+);(.*)$/;
+// The schematic day skyClock draws sunrise at, regardless of its real clock time -
+// only the elapsed time from sunrise/to sunset matters for the sun's arc.
+const sunriseAtMin = 360;
+const defaultSkyClock = {
+    "sunriseMin": 390,
+    "sunsetMin": 1170,
+    "nowMin": 780
+};
 
-function weatherFieldsOf(value) {
-    const m = weatherCompactPattern.exec(String(value));
-    if (!m)
-        return null;
+function wrapDay(min) {
+    return ((min % 1440) + 1440) % 1440;
+}
+
+// Maps real sunrise/sunset/now onto that schematic day; falls back to a fixed
+// midday when state.weather has no sunrise/sunset to place them by.
+function skyClock(weather, nowMs) {
+    const sunrise = Date.parse(weather?.sunrise ?? "");
+    const sunset = Date.parse(weather?.sunset ?? "");
+    if (isNaN(sunrise) || isNaN(sunset) || sunset <= sunrise)
+        return defaultSkyClock;
     return {
-        "temp": parseInt(m[1], 10),
-        "code": parseInt(m[2], 10),
-        "precipMM": parseFloat(m[3]),
-        "windKmph": parseFloat(m[4]),
-        "windDirDeg": parseFloat(m[5]),
-        "isDay": m[6] === "1",
-        "moonIllum": parseInt(m[7], 10),
-        "moonPhase": m[8],
-        "sunriseMin": parseInt(m[9], 10),
-        "sunsetMin": parseInt(m[10], 10),
-        "nowMin": parseInt(m[11], 10),
-        "city": m[12]
+        "sunriseMin": sunriseAtMin,
+        "sunsetMin": sunriseAtMin + (sunset - sunrise) / 60000,
+        "nowMin": wrapDay(sunriseAtMin + (nowMs - sunrise) / 60000)
     };
 }
 
-// wttr.in's weatherCode -> condition, https://www.worldweatheronline.com/weather-api/api/docs/weather-icons.aspx
-const weatherConditionByCode = {
-    113: "clear",
-    116: "clouds",
-    119: "clouds",
-    122: "clouds",
-    143: "fog",
-    176: "rain",
-    179: "snow",
-    182: "snow",
-    185: "snow",
-    200: "clouds",
-    227: "snow",
-    230: "snow",
-    248: "fog",
-    260: "fog",
-    263: "rain",
-    266: "rain",
-    281: "rain",
-    284: "rain",
-    293: "rain",
-    296: "rain",
-    299: "rain",
-    302: "rain",
-    305: "rain",
-    308: "rain",
-    311: "rain",
-    314: "rain",
-    317: "snow",
-    320: "snow",
-    323: "snow",
-    326: "snow",
-    329: "snow",
-    332: "snow",
-    335: "snow",
-    338: "snow",
-    350: "snow",
-    353: "rain",
-    356: "rain",
-    359: "rain",
-    362: "snow",
-    365: "snow",
-    368: "snow",
-    371: "snow",
-    374: "snow",
-    377: "snow",
-    386: "thunder",
-    389: "thunder",
-    392: "thunder",
-    395: "thunder"
-};
+const knownNewMoonMs = Date.parse("2000-01-06T18:14:00Z");
+const synodicMonthDays = 29.530588853;
 
-const possiblePrecipCodes = new Set([176, 179, 182, 185]);
-
-function weatherConditionOf(value) {
-    const fields = weatherFieldsOf(value);
-    if (!fields)
-        return null;
-    if (possiblePrecipCodes.has(fields.code) && !(fields.precipMM > 0))
-        return "clouds";
-    return weatherConditionByCode[fields.code] ?? null;
+function moonPhase(nowMs) {
+    const lunations = (nowMs - knownNewMoonMs) / 86400000 / synodicMonthDays;
+    const age = lunations - Math.floor(lunations);
+    return {
+        "illumination": (1 - Math.cos(2 * Math.PI * age)) / 2,
+        "waxing": age < 0.5
+    };
 }
