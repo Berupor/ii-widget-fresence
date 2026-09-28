@@ -170,8 +170,8 @@ function fits(place, grid) {
     return !!place && place.col >= 0 && place.row >= 0 && place.cols >= 1 && place.rows >= 1 && place.col + place.cols <= columns && place.row + place.rows <= rows;
 }
 
-// Hidden widgets leave no empty rows behind, and in a row grid no empty columns either,
-// the same way app/shared card/Grid.kt collapses them.
+// Widgets slide up and left into holes left by hidden ones, the same way app/shared
+// card/Grid.kt collapses them.
 function placed(widgets, grid, device, nowMs) {
     const shown = [];
     for (const widget of (widgets ?? [])) {
@@ -189,20 +189,26 @@ function placed(widgets, grid, device, nowMs) {
             "rows": widget.place.rows
         });
     }
-    const used = new Set();
-    for (const p of shown)
-        for (let r = p.row; r < p.row + p.rows; r++)
-            used.add(r);
-    for (const p of shown)
-        p.row = [...used].filter(r => r < p.row).length;
-    if (grid !== "row")
-        return shown;
-    let col = 0;
-    return shown.slice().sort((a, b) => a.col - b.col).map(p => {
-        p.col = col;
-        col += p.cols;
-        return p;
-    });
+    let moved;
+    do {
+        moved = false;
+        for (const p of shown.slice().sort((a, b) => a.row - b.row || a.col - b.col)) {
+            while (true) {
+                if (freeFor(shown, p, p.col, p.row - 1))
+                    p.row--;
+                else if (freeFor(shown, p, p.col - 1, p.row))
+                    p.col--;
+                else
+                    break;
+                moved = true;
+            }
+        }
+    } while (moved);
+    return shown;
+}
+
+function freeFor(shown, p, col, row) {
+    return col >= 0 && row >= 0 && shown.every(o => o === p || col >= o.col + o.cols || o.col >= col + p.cols || row >= o.row + o.rows || o.row >= row + p.rows);
 }
 
 function rowsUsed(items) {
