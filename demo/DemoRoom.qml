@@ -179,7 +179,6 @@ Item {
     readonly property var snapshot: Demo.snapshot(root.self, root.edge ? root.edgeRooms : root.plainRooms)
 
     property int step: 0
-    property int waited: 0
     property var seen: ({})
 
     function note(key: string, value): void {
@@ -197,7 +196,11 @@ Item {
             },
             "rooms": []
         };
-        return [Fresence.agentState, Fresence.placeholderText(), Items.byName(tab, "roomHeader")[0]?.visible ?? false].join("|");
+        return [Fresence.agentState, Fresence.placeholderText(), Items.byName(tab, "roomHeader")[0]?.visible ?? false, Fresence.placeholderAction].join("|");
+    }
+
+    function offerCode(offer): string {
+        return "fresence://" + Qt.btoa(JSON.stringify(offer)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
     }
 
     function advance(): void {
@@ -240,6 +243,18 @@ Item {
             }
             const kept = Fresence.snapshot;
             root.note("states", ["unlinked", "linking", "update_required"].map(s => root.stateText(s)));
+            root.stateText("unlinked");
+            root.note("unlinkedEntry", [Items.byName(tab, "codeEntry")[0]?.visible ?? false, Items.byName(tab, "codeButton")[0]?.mainText ?? ""]);
+            const offer = {
+                "kind": "invite",
+                "secret": "c2VjcmV0",
+                "server": "https://fresence.example"
+            };
+            root.note("offers", [root.offerCode(offer), root.offerCode(Object.assign({}, offer, {
+                    "kind": "link"
+                })), root.offerCode(Object.assign({}, offer, {
+                    "kind": "gift"
+                })), "fresence://not-json", "https://fresence.example"].map(c => Fresence.offerKind(c)));
             const connecting = JSON.parse(JSON.stringify(kept));
             connecting.status.state = "connecting";
             Fresence.snapshot = connecting;
@@ -248,7 +263,7 @@ Item {
             Fresence.binaryFound = true;
             Fresence.snapshot = null;
             Fresence.watchExitCode = 3;
-            root.note("notRunning", [Fresence.agentState, Fresence.placeholderText()]);
+            root.note("notRunning", [Fresence.agentState, Fresence.placeholderText(), Fresence.placeholderAction]);
             Fresence.watchExitCode = 1;
             root.note("brokenWatch", Fresence.agentState);
             Fresence.watchExitCode = 0;
@@ -257,9 +272,6 @@ Item {
             root.step = 4;
             break;
         case 4:
-            // Flipping binaryFound started and killed a real watch, whose exit clears the snapshot a beat later
-            if (++root.waited < 20)
-                return;
             Fresence.ingest(JSON.stringify(root.snapshot));
             root.step = 5;
             break;
@@ -333,7 +345,7 @@ Item {
             {
                 "name": "each state before a room says what is going on instead of the room",
                 "got": root.seen.states,
-                "want": ["unlinked|This device is not linked yet.\nfresence link, or fresence join with an invite|false", "linking|Linking this device…|false", "update_required|The agent needs updating to 9.9.9|false"]
+                "want": ["unlinked|This device is not linked yet.\nPaste an invite from a friend, or a code from \"Link a device\" on your other device|false|code", "linking|Linking this device…|false|", "update_required|The agent needs updating to 9.9.9|false|"]
             }
         ];
     }
@@ -406,7 +418,17 @@ Item {
             {
                 "name": "watch exiting with 3 means the agent is not running, any other exit is waiting",
                 "got": [root.seen.notRunning, root.seen.brokenWatch],
-                "want": [["not_running", "The fresence agent is not running.\nsystemctl --user start fresence"], "starting"]
+                "want": [["not_running", "The fresence agent is not running", "start"], "starting"]
+            },
+            {
+                "name": "an unlinked device takes a code in the tab, the button pastes one while the field is empty",
+                "got": root.seen.unlinkedEntry,
+                "want": [true, "Paste"]
+            },
+            {
+                "name": "a code says by its kind whether it joins a room or links a device, anything else is no code",
+                "got": root.seen.offers,
+                "want": ["invite", "link", "", "", ""]
             }
         ].concat(root.edge ? root.edgeChecks() : root.plainChecks());
     }

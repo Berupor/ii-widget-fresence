@@ -46,10 +46,12 @@ Settings → Widgets → Install a widget, paste:
 https://github.com/Berupor/ii-widget-fresence.git
 ```
 
-Needs the fresence agent running on this machine (`fresence run`, or its systemd user
-unit) and linked to an account (`fresence link` or `fresence join`). The widget holds no
-keys and never talks to the server: the room comes from `fresence watch`, hiding and
-sharing go through `fresence incognito` and `fresence photo`.
+Needs the fresence agent installed on this machine as its systemd user unit. Until it
+runs and is linked, the Room tab says what is missing: it starts the unit, and takes a
+`fresence://` code pasted into it, an invite from a friend or a code from "Link a device"
+on your other device. The widget holds no keys and never talks to the server: the room
+comes from `fresence watch`, joining and linking go through `fresence join` and
+`fresence link`, hiding and sharing through `fresence incognito` and `fresence photo`.
 
 What a card shows is up to its owner: the `row` and `detail` grids of each device live
 in the agent's config, edited from the fresence app. The widget draws them the way every

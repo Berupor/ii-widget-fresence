@@ -20,7 +20,9 @@ Singleton {
     property bool binaryFound: false
     readonly property bool available: root.binaryFound
     readonly property bool enabled: WidgetCatalog.isEnabled(root.widgetId)
-    readonly property bool shouldRun: root.enabled && root.available
+    // A demo scene feeds the singleton itself, a real agent on the machine would overwrite it
+    readonly property bool underHarness: (Quickshell.env("QS_HARNESS_OUT") ?? "") !== ""
+    readonly property bool shouldRun: root.enabled && root.available && !root.underHarness
 
     /// Widget option by manifest key, for every file of this widget
     function opt(key: string): var {
@@ -424,19 +426,96 @@ Singleton {
         case "missing":
             return Translation.tr("The fresence agent is not installed");
         case "not_running":
-            return Translation.tr("The fresence agent is not running.\nsystemctl --user start fresence");
+            return Translation.tr("The fresence agent is not running");
         case "starting":
             return Translation.tr("Waiting for the agent…");
         case "unlinked":
-            return Translation.tr("This device is not linked yet.\nfresence link, or fresence join with an invite");
+            return Translation.tr("This device is not linked yet.\nPaste an invite from a friend, or a code from \"Link a device\" on your other device");
         case "linking":
             return Translation.tr("Linking this device…");
         case "update_required":
             return root.snapshot?.status?.update ? Translation.tr("The agent needs updating to %1").arg(root.snapshot.status.update) : Translation.tr("The agent needs updating");
         }
         if (root.rooms.length === 0)
-            return root.online ? Translation.tr("Not in a room yet.\nfresence join with an invite") : Translation.tr("Connecting to the server…");
+            return root.online ? Translation.tr("Not in a room yet.\nPaste an invite from a friend") : Translation.tr("Connecting to the server…");
         return Translation.tr("Nobody around yet");
+    }
+
+    // What the empty tab offers to do about its state: install | start | code | ""
+    readonly property string placeholderAction: {
+        switch (root.agentState) {
+        case "missing":
+            return "install";
+        case "not_running":
+            return "start";
+        case "unlinked":
+            return "code";
+        }
+        return root.online && root.rooms.length === 0 ? "code" : "";
+    }
+
+    readonly property string installUrl: "https://github.com/Berupor/Fresence#clients"
+
+    function startAgent(): void {
+        startProc.running = true;
+    }
+
+    Process {
+        id: startProc
+        command: ["systemctl", "--user", "start", "fresence"]
+        onExited: exitCode => {
+            if (exitCode !== 0) {
+                root.notify(Translation.tr("Could not start the fresence agent"));
+                return;
+            }
+            root.retryDelay = root.retryMin;
+            restartTimer.restart();
+        }
+    }
+
+    /// invite | link for a fresence:// code, "" when it is not one
+    function offerKind(code: string): string {
+        const encoded = code.trim().match(/^fresence:\/\/([A-Za-z0-9_-]+)$/)?.[1];
+        if (!encoded)
+            return "";
+        const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+        try {
+            const kind = JSON.parse(Qt.atob(base64 + "=".repeat((4 - base64.length % 4) % 4)))?.kind;
+            return kind === "invite" || kind === "link" ? kind : "";
+        } catch (e) {
+            return "";
+        }
+    }
+
+    property bool redeeming: false
+    property string redeemError: ""
+
+    signal redeemed
+
+    function redeem(code: string): void {
+        const kind = root.offerKind(code);
+        if (!kind || root.redeeming)
+            return;
+        root.redeemError = "";
+        redeemProc.command = root.agentCommand([kind === "link" ? "link" : "join", code.trim()]);
+        root.redeeming = true;
+        redeemProc.running = true;
+    }
+
+    Process {
+        id: redeemProc
+        stderr: StdioCollector {
+            id: redeemErrors
+        }
+        onExited: exitCode => {
+            root.redeeming = false;
+            if (exitCode === 0) {
+                root.redeemed();
+                return;
+            }
+            const said = redeemErrors.text.trim().split("\n").pop().replace(/^fresence: /, "");
+            root.redeemError = root.failureText(exitCode, said || Translation.tr("Could not use the code"));
+        }
     }
 
     function headerText(): string {
