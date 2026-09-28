@@ -14,9 +14,10 @@ Item {
     readonly property bool video: form.media?.kind === "video"
     readonly property real positionMs: CardLayouts.mediaPositionMs(form.media, form.card.now)
     readonly property real progress: CardLayouts.mediaProgress(form.media, form.card.now)
-    readonly property bool showsTimes: form.progress >= 0 && form.height >= 70
+    readonly property bool showsTimes: !form.video && form.progress >= 0 && form.height >= 70
     readonly property real artHeight: Math.min(form.height, 64)
-    readonly property real artWidth: Math.min(form.video ? form.artHeight * 16 / 9 : form.artHeight, form.width * 0.3)
+    readonly property bool videoFrame: form.video && form.artHeight * 16 / 9 <= form.width * 0.3
+    readonly property real artWidth: form.videoFrame ? form.artHeight * 16 / 9 : Math.min(form.artHeight, form.width * 0.3)
 
     RowLayout {
         anchors.fill: parent
@@ -35,7 +36,7 @@ Item {
 
             Rectangle {
                 objectName: "playerLength"
-                visible: form.video && (form.media?.length_ms ?? 0) > 0
+                visible: form.videoFrame && (form.media?.length_ms ?? 0) > 0
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.margins: 4
