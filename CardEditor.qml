@@ -224,6 +224,35 @@ Item {
             visible: !!root.draft
             spacing: 12
 
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialTextField {
+                    Layout.fillWidth: true
+                    placeholderText: Fresence.nameOf(Fresence.account?.devices ?? []) || Translation.tr("Your name")
+                    text: root.draft?.account_name ?? ""
+                    onTextChanged: {
+                        if (text !== (root.draft?.account_name ?? ""))
+                            root.draft = Rules.withFields(root.draft, {
+                                "account_name": text
+                            });
+                    }
+                }
+
+                MaterialTextField {
+                    Layout.fillWidth: true
+                    placeholderText: Fresence.deviceNameFor(root.device) || Translation.tr("Device name")
+                    text: root.draft?.device_name ?? ""
+                    onTextChanged: {
+                        if (text !== (root.draft?.device_name ?? ""))
+                            root.draft = Rules.withFields(root.draft, {
+                                "device_name": text
+                            });
+                    }
+                }
+            }
+
             SecondaryTabBar {
                 id: gridTabs
                 Layout.fillWidth: true
