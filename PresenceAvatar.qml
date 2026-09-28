@@ -13,7 +13,9 @@ Item {
     property var account: null
     property bool offline: true
     property bool hidden: false
+    property bool away: false
     property bool interactive: false
+    property string shape: "Circle"
     readonly property bool isServer: Statusphere.isServer(root.account)
     readonly property string health: Statusphere.healthFor(root.account)
     property real holdProgress: 0
@@ -70,7 +72,15 @@ Item {
 
         MaterialShape {
             anchors.fill: parent
-            shape: MaterialShape.Shape.Circle
+            visible: root.shape !== "SineCookie"
+            shape: MaterialShape.Shape[root.shape] ?? MaterialShape.Shape.Circle
+            color: root.offline ? Appearance.colors.colLayer2 : Appearance.colors.colSecondaryContainer
+        }
+
+        SineCookie {
+            anchors.fill: parent
+            visible: root.shape === "SineCookie"
+            implicitSize: root.width
             color: root.offline ? Appearance.colors.colLayer2 : Appearance.colors.colSecondaryContainer
         }
 
@@ -113,10 +123,11 @@ Item {
         }
     }
 
-    Rectangle {
-        width: 12
-        height: 12
-        radius: 6
+    Rectangle { // Away punches a hole in the dot - a ring reads at this size, a moon glyph doesn't
+        id: badge
+        width: 13
+        height: 13
+        radius: 6.5
         anchors {
             right: parent.right
             bottom: parent.bottom
@@ -126,6 +137,8 @@ Item {
                 return Appearance.colors.colLayer2;
             if (root.hidden)
                 return Appearance.colors.colSecondary;
+            if (root.away)
+                return Appearance.colors.colSubtext;
             if (root.health === "crit")
                 return Appearance.colors.colError;
             if (root.health === "warn")
@@ -137,6 +150,19 @@ Item {
 
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 5
+            height: 5
+            radius: 2.5
+            color: Appearance.colors.colLayer2
+            opacity: (root.away && !root.offline && !root.hidden) ? 1 : 0
+
+            Behavior on opacity {
+                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+            }
         }
     }
 

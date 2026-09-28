@@ -10,6 +10,7 @@ import qs.modules.widgets
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "CardLayouts.js" as CardLayouts
 
 Singleton {
     id: root
@@ -18,6 +19,10 @@ Singleton {
     property bool registered: false
     property string selfAccountId: ""
     property string selfDeviceId: ""
+    property string cliVersion: ""
+    property bool cliVersionChecked: false
+    property bool cliCompatible: false
+    readonly property string minCliVersion: "0.11.0" // tag that first ships --version; bump on release
     readonly property bool available: root.binaryFound && root.registered
     readonly property bool enabled: WidgetCatalog.isEnabled("statusphere")
     readonly property bool shouldRun: root.enabled && root.available
@@ -91,38 +96,40 @@ Singleton {
     // A client that keeps saying "playing" while its position sits still lost the Spotify Connect
     // session to another device and never noticed, so watch the position advance per device.
     readonly property int stallTimeout: 8000
-    property var progressByDevice: ({})
+    // Mutated in place on every snapshot, never reassigned, so nothing binds to it:
+    // bindings read stalledDeviceIds, which changes only when a device stalls or recovers.
+    readonly property var progressByDevice: ({})
+    property var stalledDeviceIds: []
 
     function noteProgress(members): void {
         const now = Date.now();
-        const next = {};
-        let changed = false;
+        const progress = root.progressByDevice;
+        const playing = new Set();
         for (const m of members) {
             const id = m.device_id;
             if (!id || m.spotify_status !== "playing")
                 continue;
+            playing.add(id);
             const key = root.trackKey(m);
             const pos = m.spotify_position ?? 0;
-            const prev = root.progressByDevice[id];
-            const entry = (prev && prev.key === key && pos <= prev.pos) ? prev : {
-                "key": key,
-                "pos": pos,
-                "at": now
-            };
-            next[id] = entry;
-            if (entry !== prev)
-                changed = true;
+            const prev = progress[id];
+            if (!prev || prev.key !== key || pos > prev.pos)
+                progress[id] = {
+                    "key": key,
+                    "pos": pos,
+                    "at": now
+                };
         }
-        // Nobody playing is the common case, so skip the reassignment (and the accountsById
-        // recompute it triggers via stalled()) instead of replacing {} with {} every poll.
-        if (!changed && Object.keys(next).length === Object.keys(root.progressByDevice).length)
-            return;
-        root.progressByDevice = next;
+        for (const id of Object.keys(progress))
+            if (!playing.has(id))
+                delete progress[id];
+        const stalled = Object.keys(progress).filter(id => now - progress[id].at > root.stallTimeout).sort();
+        if (stalled.join("\n") !== root.stalledDeviceIds.join("\n"))
+            root.stalledDeviceIds = stalled;
     }
 
     function stalled(device): bool {
-        const seen = root.progressByDevice[device?.device_id];
-        return !!seen && Date.now() - seen.at > root.stallTimeout;
+        return root.stalledDeviceIds.includes(device?.device_id);
     }
 
     function compareDevices(a, b, newest): int {
@@ -234,7 +241,11 @@ Singleton {
         return root.hiddenLines[sum % root.hiddenLines.length];
     }
 
+    // A demo/preview account can carry its photo straight on the object - there is no
+    // account_id it could ingest a real photo line under.
     function currentPhotoFor(account): var {
+        if (account?._photo)
+            return account._photo;
         const p = root.photosByAccountId[account?.id];
         if (!p)
             return null;
@@ -347,6 +358,20 @@ Singleton {
         return (account?.primary?._kind ?? root.kindById[account?.id ?? ""] ?? "") === "server";
     }
 
+    // Reconnecting reorders accountIds (offline sinks to the bottom), which rebuilds the
+    // Repeater's delegates, and a shell reload drops the singleton too - so the collapsed
+    // state for a server's forced detail card is a widget option, keyed by account id,
+    // rather than state on the row or an in-memory property here.
+    function detailsCollapsedFor(accountId): bool {
+        return (root.opt("collapsedDetailIds") ?? []).includes(accountId);
+    }
+
+    function toggleDetailsCollapsed(accountId): void {
+        const ids = root.opt("collapsedDetailIds") ?? [];
+        const next = ids.includes(accountId) ? ids.filter(id => id !== accountId) : ids.concat([accountId]);
+        WidgetsStore.setOption("statusphere", "collapsedDetailIds", next);
+    }
+
     // The verdict is the machine's own, from ~/.config/statusphere/health.json there.
     function healthFor(account): string {
         return account?.primary?._health ?? "";
@@ -354,6 +379,14 @@ Singleton {
 
     function healthNoteFor(account): string {
         return account?.primary?._health_note ?? "";
+    }
+
+    // The agent reports how long the primary device has sat untouched; a game or a
+    // call still counts as present, so this never overrides what's already on the line.
+    function awayFor(account): bool {
+        if (!root.opt("away") || !account || account.offline || root.isServer(account))
+            return false;
+        return (account.primary?.idle_seconds ?? 0) >= root.opt("awayMinutes") * 60;
     }
 
     readonly property var serverIds: root.accountIds.filter(id => root.isServer(root.accountsById[id]))
@@ -437,15 +470,61 @@ Singleton {
         });
     }
 
-    // The photo badge's vocabulary - Now, 5m, 2h - except past a day, where it falls back
-    // to a calendar date. That reads as nonsense for a duration, so days carry on as days.
+    function videoDevices(account): var {
+        const seen = new Set();
+        return (account?.devices ?? []).filter(d => {
+            if (!d.video_status || !d.video_title)
+                return false;
+            const key = `${d.video_title}/${d.video_channel ?? ""}`;
+            if (seen.has(key))
+                return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function alarmDevices(account): var {
+        const seen = new Set();
+        return (account?.devices ?? []).filter(d => {
+            if (d.alarm_at === undefined)
+                return false;
+            const key = String(d.alarm_at);
+            if (seen.has(key))
+                return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function meetingDevices(account): var {
+        const seen = new Set();
+        return (account?.devices ?? []).filter(d => {
+            if (d.meeting_until === undefined)
+                return false;
+            const key = String(d.meeting_until);
+            if (seen.has(key))
+                return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
+    // The photo badge's vocabulary - Now, 5m, 2h, and a day count once a full day has
+    // elapsed. Elapsed, not calendar-day: a session started 13 minutes ago at 23:58
+    // reads "13m", not "Yesterday", so it never depends on when the clock is read.
     function sessionFor(startedMs: real): string {
         if (!(startedMs > 0))
             return "";
-        const days = Math.floor((Date.now() - startedMs) / 86400000);
+        const elapsedMs = root._now - startedMs;
+        const days = Math.floor(elapsedMs / 86400000);
         if (days >= 1)
             return Translation.tr("%1d").arg(days);
-        return NotificationUtils.getFriendlyNotifTimeString(startedMs);
+        if (elapsedMs < 60000)
+            return Translation.tr("Now");
+        const hours = Math.floor(elapsedMs / 3600000);
+        if (hours >= 1)
+            return Translation.tr("%1h").arg(hours);
+        return Translation.tr("%1m").arg(Math.floor(elapsedMs / 60000));
     }
 
     function gameFor(device): string {
@@ -460,7 +539,7 @@ Singleton {
         if (!isNaN(at))
             return at;
         const secs = device?.game_session_seconds ?? 0;
-        return secs > 0 ? Date.now() - secs * 1000 : 0;
+        return secs > 0 ? root._now - secs * 1000 : 0;
     }
 
     // The title belongs next to the person, not under their art: a stylised logo is
@@ -476,7 +555,18 @@ Singleton {
         return session ? Translation.tr("Playing %1 · %2").arg(name).arg(session) : Translation.tr("Playing %1").arg(name);
     }
 
-    function statusFor(account): string {
+    // Fields a currently visible tile already renders for this account, so the header
+    // above it does not say the same thing twice on the same surface.
+    function coveredFields(visibleSurfaces): var {
+        const fields = new Set();
+        for (const tiles of Object.values(visibleSurfaces ?? {}))
+            for (const t of tiles)
+                if (t.field)
+                    fields.add(t.field);
+        return fields;
+    }
+
+    function statusFor(account, visibleSurfaces): string {
         if (!account || account.offline)
             return "";
         if (root.hiddenFor(account))
@@ -484,19 +574,19 @@ Singleton {
         if (root.isServer(account))
             return root.healthNoteFor(account) || Translation.tr("All good");
         // The game is said here and only here; the card below is the picture of it.
-        // With the card switched off active_window says the same thing, so fall through.
-        if (root.opt("games") && root.gameDevices(account).length > 0)
+        if (root.gameDevices(account).length > 0)
             return root.gameLineFor(account);
         const playing = root.musicDevices(account);
         if (playing.length > 1)
             return Translation.tr("Listening on %1 devices").arg(playing.length);
+        const covered = root.coveredFields(visibleSurfaces);
         const p = account.primary;
-        if (p?.active_window)
+        if (p?.active_window && !covered.has("active_window"))
             return p.active_window;
-        if (p?.active_app)
+        if (p?.active_app && !covered.has("active_app"))
             return p.active_app;
-        if (p?.spotify_status)
-            return "";
+        if (root.awayFor(account))
+            return Translation.tr("Away · %1").arg(root.sessionFor(root._now - (p?.idle_seconds ?? 0) * 1000));
         return Translation.tr("Online");
     }
 
@@ -516,10 +606,6 @@ Singleton {
         return device.spotify_display || `${device.spotify_track ?? ""} — ${device.spotify_artist ?? ""}`;
     }
 
-    function weatherFor(account): string {
-        return account?.primary?.weather ?? "";
-    }
-
     function canSync(device): bool {
         return !!device?.spotify_uri && device.device_id !== root.selfDeviceId;
     }
@@ -527,7 +613,7 @@ Singleton {
     // Same mechanism as the TUI's sync action (client/internal/media/media.go): MPRIS OpenUri.
     function syncSpotify(device): void {
         const uri = device?.spotify_uri;
-        if (!uri)
+        if (!/^spotify:(track|episode|album|playlist):[A-Za-z0-9]+$/.test(uri ?? ""))
             return;
         Quickshell.execDetached(["dbus-send", "--session", "--type=method_call", "--dest=org.mpris.MediaPlayer2.spotify", "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2.Player.OpenUri", `string:${uri}`]);
     }
@@ -543,6 +629,8 @@ Singleton {
         return null;
     }
 
+    // A key without an entry here falls through to no icon rather than a generic one -
+    // a wrong icon reads worse than a bare label.
     function iconForField(key): string {
         switch (key) {
         case "cpu":
@@ -555,8 +643,22 @@ Singleton {
             return "storage";
         case "gpu":
             return "deployed_code";
+        case "project":
+            return "terminal";
+        case "workspace":
+            return "desktop_windows";
+        case "language":
+            return "code";
+        case "mood":
+            return "mood";
+        case "region":
+            return "location_on";
+        case "top_artist":
+            return "album";
+        case "genre":
+            return "library_music";
         default:
-            return "monitoring";
+            return "";
         }
     }
 
@@ -570,7 +672,7 @@ Singleton {
 
     // Metrics the cli collects itself, so custom.json does not have to shell out
     // for them. A custom field of the same name loses to these.
-    readonly property var nativeFieldKeys: ["cpu", "mem", "ram", "memory", "disk"]
+    readonly property var nativeFieldKeys: ["cpu", "mem", "ram", "memory", "disk", "load", "uptime", "workspace", "active_app", "active_window", "package_count"]
 
     function systemFieldsFor(device): var {
         const fields = [];
@@ -596,9 +698,18 @@ Singleton {
             fields.push({
                 "key": "disk",
                 "icon": "storage",
-                "label": device.disk_free_gb !== undefined ? Translation.tr("Disk · %1G free").arg(Math.round(device.disk_free_gb)) : Translation.tr("Disk"),
+                "label": Translation.tr("Disk"),
+                "note": device.disk_free_gb !== undefined ? Translation.tr("%1G free").arg(Math.round(device.disk_free_gb)) : "",
                 "value": `${Math.round(device.disk_used_percent)}%`,
                 "percent": device.disk_used_percent
+            });
+        if (device?.battery_percent !== undefined)
+            fields.push({
+                "key": "battery",
+                "icon": "battery_full",
+                "label": device.battery_charging ? Translation.tr("Charging") : Translation.tr("Battery"),
+                "value": `${Math.round(device.battery_percent)}%`,
+                "percent": device.battery_percent
             });
         if (device?.load_avg_1m !== undefined)
             fields.push({
@@ -619,42 +730,163 @@ Singleton {
         return fields;
     }
 
-    // Structured for the right-click detail card: percentage fields become
-    // { percent }, everything else (workspace, weather, uptime) stays text-only.
-    function detailFieldsFor(account): var {
-        if (!account || account.offline)
+    // Structured for the right-click detail card and for a scalar tile's field lookup:
+    // percentage fields become { percent }, everything else (workspace, uptime, any
+    // custom field) stays text-only.
+    function fieldsFor(device): var {
+        if (!device)
             return [];
-        const p = account.primary;
-        const fields = root.systemFieldsFor(p);
-        if (p?.active_workspace)
+        const fields = root.systemFieldsFor(device);
+        if (device.active_workspace)
             fields.push({
                 "key": "workspace",
                 "icon": "desktop_windows",
                 "label": Translation.tr("Workspace"),
-                "value": String(p.active_workspace),
+                "value": String(device.active_workspace),
                 "percent": null
             });
-        if (root.weatherFor(account))
+        if (device.active_window)
             fields.push({
-                "key": "weather",
-                "icon": "sunny",
-                "label": Translation.tr("Weather"),
-                "value": root.weatherFor(account),
+                "key": "active_window",
+                "icon": "web_asset",
+                "label": Translation.tr("Window"),
+                "value": device.active_window,
                 "percent": null
             });
-        for (const key of (p?.custom_fields ?? [])) {
-            if (key === "weather" || !p[key] || root.nativeFieldKeys.includes(key))
+        if (device.active_app)
+            fields.push({
+                "key": "active_app",
+                "icon": "apps",
+                "label": Translation.tr("App"),
+                "value": device.active_app,
+                "percent": null
+            });
+        if (device.package_count !== undefined)
+            fields.push({
+                "key": "package_count",
+                "icon": "inventory_2",
+                "label": Translation.tr("Packages"),
+                "value": String(device.package_count),
+                "percent": null
+            });
+        for (const key of (device.custom_fields ?? [])) {
+            if (!device[key] || root.nativeFieldKeys.includes(key))
                 continue;
-            const raw = String(p[key]);
+            const raw = String(device[key]);
             fields.push({
                 "key": key,
-                "icon": root.iconForField(key),
-                "label": key,
+                "icon": device[`${key}_icon`] || root.iconForField(key),
+                "label": root.labelForKey(key),
                 "value": raw,
-                "percent": root.percentForField(key, raw, p)
+                "percent": root.percentForField(key, raw, device)
             });
         }
         return fields;
+    }
+
+    // custom.json keys are snake_case by convention (matches nativeFieldKeys), a tile's
+    // label is read, so title-case it instead of printing the key verbatim.
+    function labelForKey(key: string): string {
+        return key.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    }
+
+    // A scalar field the card editor can write a literal value for: not the wildcard,
+    // not a metric the cli collects on its own.
+    function isCustomFieldKey(key: string): bool {
+        return key.length > 0 && key !== "*" && !root.nativeFieldKeys.includes(key);
+    }
+
+    // active_app/active_window already carry the row above (statusFor), so the fallback
+    // detail grid does not repeat them as a lone tile.
+    function detailFieldsFor(account): var {
+        if (!account || account.offline)
+            return [];
+        return root.fieldsFor(account.primary).filter(f => f.key !== "active_app" && f.key !== "active_window");
+    }
+
+    function fieldFor(device, key): var {
+        return root.fieldsFor(device).find(f => f.key === key) ?? null;
+    }
+
+    // A device's own layout is a snapshot field like any other, prefixed the way
+    // _kind/_health are: it never leaves this machine unless the owner published it.
+    // updated_at is a unix-seconds number, stamped by the editor on every save.
+    function layoutFor(account): var {
+        let best = null;
+        const devices = Array.isArray(account?.devices) ? account.devices : [];
+        for (const d of devices) {
+            const l = d?.[CardLayouts.layoutKey];
+            if (l && typeof l === "object" && (best === null || (l.updated_at ?? 0) > (best.updated_at ?? 0)))
+                best = l;
+        }
+        return best;
+    }
+
+    // row: [] is a deliberate "header only" choice, distinct from no row key at all,
+    // which falls back to the default row stack - detail has no such distinction, an
+    // empty or invalid detail always falls back to the standard card.
+    function ownsSurface(account, surface): bool {
+        return Array.isArray(root.layoutFor(account)?.[surface]);
+    }
+
+    function avatarShapeFor(account): string {
+        const shape = root.layoutFor(account)?.avatarShape;
+        return CardLayouts.shapes.includes(shape) ? shape : "Circle";
+    }
+
+    // A layout.json can be hand-edited or come from a stale client: an unrecognised
+    // type/size/form gets the tile dropped rather than mis-rendered.
+    function sanitizeTile(t): var {
+        const type = (t && typeof t === "object" && !Array.isArray(t)) ? CardLayouts.typeOf(t) : null;
+        if (!type)
+            return null;
+        if (t.size !== undefined && !CardLayouts.sizes.includes(t.size))
+            return null;
+        if (type.needsField && (typeof t.field !== "string" || t.field.length === 0))
+            return null;
+        const forms = Object.keys(type.forms);
+        if (forms.length > 0 && t.form !== undefined && !forms.includes(t.form))
+            return null;
+        const known = CardLayouts.withKnownBackground(t);
+        return type.sanitize ? type.sanitize(known) : known;
+    }
+
+    // A "*" field expands to every detail field the layout does not already name,
+    // so an owner's layout does not have to list every custom.json key by hand.
+    function expandWildcardTiles(tiles, account): var {
+        const clean = (Array.isArray(tiles) ? tiles : []).map(t => root.sanitizeTile(t)).filter(t => t !== null);
+        const named = new Set(clean.filter(t => t.field !== "*").map(t => t.field));
+        const out = [];
+        for (const t of clean) {
+            if (t.field !== "*") {
+                out.push(t);
+                continue;
+            }
+            for (const f of root.detailFieldsFor(account)) {
+                if (named.has(f.key))
+                    continue;
+                out.push(Object.assign({}, t, {
+                    "field": f.key
+                }));
+            }
+        }
+        return out;
+    }
+
+    function surfaceTiles(account, surface): var {
+        const custom = root.layoutFor(account);
+        const tiles = custom ? root.expandWildcardTiles(custom[surface], account) : [];
+        return surface === "detail" ? CardLayouts.fallbackDetail(tiles, root.detailFieldsFor(account)) : tiles;
+    }
+
+    function deviceForTile(account, tile): var {
+        if (!tile.device)
+            return account?.primary ?? null;
+        return (account?.devices ?? []).find(d => d.device_id === tile.device) ?? null;
+    }
+
+    function tileHasData(account, tile): bool {
+        return CardLayouts.typeOf(tile)?.hasData(root, account, tile) ?? false;
     }
 
     // The cli's stderr is a raw Go error (eg. "failed to connect: WebSocket dial: expected
@@ -680,11 +912,24 @@ Singleton {
         return oneLine.length > root.errorMaxLength ? oneLine.slice(0, root.errorMaxLength - 1) + "…" : oneLine;
     }
 
+    function versionAtLeast(current: string, minimum: string): bool {
+        const parse = v => v.replace(/^v/, "").split(/[-+]/)[0].split(".").map(n => parseInt(n, 10) || 0);
+        const c = parse(current);
+        const m = parse(minimum);
+        for (let i = 0; i < 3; i++) {
+            if (c[i] !== m[i])
+                return c[i] > m[i];
+        }
+        return true;
+    }
+
     function placeholderText(): string {
         if (!root.binaryFound)
             return Translation.tr("statusphere cli not found in ~/.local/bin");
         if (!root.registered)
             return Translation.tr("No statusphere account registered");
+        if (root.cliVersionChecked && !root.cliCompatible)
+            return Translation.tr("statusphere cli needs updating");
         if (!root.live)
             return root.friendlyError(root.lastError) || Translation.tr("Connecting…");
         return Translation.tr("Nobody else around yet");
@@ -725,6 +970,10 @@ Singleton {
         onTriggered: root.flush()
     }
 
+    function samePhoto(a, b): bool {
+        return a.account_id === b.account_id && a.path === b.path && a.created_at === b.created_at && a.expires_at === b.expires_at;
+    }
+
     function flush(): void {
         if (root._pendingMembers === null)
             return;
@@ -735,7 +984,8 @@ Singleton {
         root.noteProgress(members);
         root.noteKinds(members);
         root.members = members;
-        root.photos = photos;
+        if (!CardLayouts.sameArray(photos, root.photos, root.samePhoto))
+            root.photos = photos;
     }
 
     Process {
@@ -748,6 +998,19 @@ Singleton {
         running: true
         command: ["bash", "-c", "test -s \"${XDG_CONFIG_HOME:-$HOME/.config}/statusphere/config.json\""]
         onExited: exitCode => root.registered = (exitCode === 0)
+    }
+
+    Process {
+        running: true
+        command: ["bash", "-c", "\"$HOME/.local/bin/statusphere\" --version 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const v = text.trim();
+                root.cliVersion = v;
+                root.cliCompatible = v !== "" && root.versionAtLeast(v, root.minCliVersion);
+                root.cliVersionChecked = true;
+            }
+        }
     }
 
     Process {
@@ -770,7 +1033,7 @@ Singleton {
     }
 
     readonly property int retryMin: 2000
-    readonly property int retryMax: 120000
+    readonly property int retryMax: 30000
     property int retryDelay: root.retryMin
     property bool wantRunning: false
 

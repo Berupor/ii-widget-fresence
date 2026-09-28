@@ -9,13 +9,15 @@
 import ".." // The widget's own types and its Statusphere singleton, via its qmldir
 import qs.modules.common
 import QtQuick
+import "lib"
+import "lib/DemoCovers.js" as DemoCovers
 
 Item {
     id: root
 
     property string scenario: "plain"
 
-    // Art out of demo/covers/, so a shot needs no network and stays the same
+    // Photos play straight off demo/covers/, art urls get their cache from DemoCoverSeed: a shot needs no network
     function cover(file) {
         return String(Qt.resolvedUrl(`covers/${file}`));
     }
@@ -30,7 +32,8 @@ Item {
                     "device_name": "thinkpad",
                     "account_name": "You",
                     "_role": "owner",
-                    "last_seen": root.now
+                    "last_seen": root.now,
+                    "idle_seconds": 640 // Stepped away; dims the dot without touching the status line
                 },
                 {
                     "account_id": "acc-mira",
@@ -43,15 +46,15 @@ Item {
                     "spotify_artist": "Kavinsky",
                     "spotify_position": 78,
                     "spotify_length": 258,
-                    "spotify_art_url": root.cover("nightcall.jpg"),
+                    "spotify_art_url": DemoCovers.url("nightcall.jpg"),
                     "game_status": "playing",
                     "game_source": "steam",
                     "game_appid": "1174180",
                     "game_name": "Red Dead Redemption 2",
                     "game_display": "Red Dead Redemption 2",
-                    "game_hero_url": root.cover("rdr2-hero.jpg"),
-                    "game_header_url": root.cover("rdr2-header.jpg"),
-                    "game_logo_url": root.cover("rdr2-logo.png"),
+                    "game_hero_url": DemoCovers.url("rdr2-hero.jpg"),
+                    "game_header_url": DemoCovers.url("rdr2-header.jpg"),
+                    "game_logo_url": DemoCovers.url("rdr2-logo.png"),
                     "game_session_seconds": 5040
                 },
                 {
@@ -72,7 +75,7 @@ Item {
                     "spotify_artist": "Massive Attack",
                     "spotify_position": 12,
                     "spotify_length": 330,
-                    "spotify_art_url": root.cover("teardrop.jpg")
+                    "spotify_art_url": DemoCovers.url("teardrop.jpg")
                 },
                 {
                     "account_id": "acc-lena",
@@ -99,9 +102,9 @@ Item {
                     "game_source": "steam",
                     "game_appid": "2183900",
                     "game_name": "Warhammer 40,000: Space Marine 2",
-                    "game_hero_url": root.cover("sm2-hero.jpg"),
-                    "game_header_url": root.cover("sm2-header.jpg"),
-                    "game_logo_url": root.cover("sm2-logo.png"),
+                    "game_hero_url": DemoCovers.url("sm2-hero.jpg"),
+                    "game_header_url": DemoCovers.url("sm2-header.jpg"),
+                    "game_logo_url": DemoCovers.url("sm2-logo.png"),
                     "game_session_seconds": 359999 // The widest the clock ever gets
                 },
                 {
@@ -113,8 +116,8 @@ Item {
                     "game_appid": "1091500",
                     "game_name": "Cyberpunk 2077",
                     // No hero for this one: the card has to walk down to the header
-                    "game_hero_url": root.cover("no-such-hero.jpg"),
-                    "game_header_url": root.cover("cp2077-header.jpg"),
+                    "game_hero_url": DemoCovers.url("no-such-hero.jpg"),
+                    "game_header_url": DemoCovers.url("cp2077-header.jpg"),
                     "game_session_seconds": 47
                 },
                 {
@@ -182,8 +185,19 @@ Item {
 
     readonly property var room: root.rooms[root.scenario] ?? root.rooms.plain
 
+    function findAll(item, pred, out) {
+        if (pred(item))
+            out.push(item);
+        for (const c of item.children ?? [])
+            root.findAll(c, pred, out);
+        return out;
+    }
+
     function checks() {
         const many = Statusphere.accountsById["acc-many"];
+        const art = root.findAll(tab, it => it.resolvedSource !== undefined && it.cacheFilePath !== undefined, []);
+        const loadedArt = art.filter(it => it.status === Image.Ready);
+        const namelessGame = root.findAll(tab, it => it.hasBanner !== undefined && it.device?.account_id === "acc-nameless", [])[0] ?? null;
         return [
             {
                 "name": "the room is what was fed in",
@@ -216,14 +230,35 @@ Item {
                 "want": root.scenario === "edge" ? 1 : "Red Dead Redemption 2"
             },
             {
+                // Offsets from Statusphere._now, the same instant sessionFor reads
+                // internally - not Date.now(), which can have drifted from it since
+                // the singleton last refreshed and flip a floor-minute boundary.
                 "name": "a session reads like a photo's age, and keeps counting past a day",
-                "got": [Statusphere.sessionFor(0), Statusphere.sessionFor(Date.now() - 30000), Statusphere.sessionFor(Date.now() - 780000), Statusphere.sessionFor(Date.now() - 5040000), Statusphere.sessionFor(Date.now() - 359999000)],
+                "got": (() => {
+                    const now = Statusphere._now;
+                    return [Statusphere.sessionFor(0), Statusphere.sessionFor(now - 30000), Statusphere.sessionFor(now - 780000), Statusphere.sessionFor(now - 5040000), Statusphere.sessionFor(now - 359999000)];
+                })(),
                 "want": ["", "Now", "13m", "1h", "4d"]
             },
             {
                 "name": "the status line names the game, so the card is only its picture",
                 "got": Statusphere.statusFor(Statusphere.accountsById[root.scenario === "edge" ? "acc-nameless" : "acc-mira"]),
                 "want": root.scenario === "edge" ? "Playing Cyberpunk 2077 · Now" : "Playing Red Dead Redemption 2 · 1h"
+            },
+            {
+                "name": "an idle device marks its account away without hiding what it's doing",
+                "got": root.scenario === "plain" ? [Statusphere.awayFor(Statusphere.accountsById["acc-you"]), Statusphere.statusFor(Statusphere.accountsById["acc-you"])] : [true, ""],
+                "want": root.scenario === "plain" ? [true, "Away · 10m"] : [true, ""]
+            },
+            {
+                "name": "loaded art plays from the cover cache, never straight off its source url",
+                "got": loadedArt.length > 0 && loadedArt.every(it => it.resolvedSource.startsWith(Qt.resolvedUrl(Directories.coverArt))),
+                "want": true
+            },
+            {
+                "name": "a dead hero url falls back to the header, the game still shows a banner",
+                "got": root.scenario === "edge" ? namelessGame?.hasBanner : true,
+                "want": true
             },
             {
                 "name": "every row got drawn",
@@ -233,7 +268,10 @@ Item {
         ];
     }
 
-    Component.onCompleted: Statusphere.ingest(JSON.stringify(root.room))
+    DemoCoverSeed {
+        extraSeeds: ({ "no-such-hero.jpg": "cp2077-header.jpg" })
+        onSeeded: Statusphere.ingest(JSON.stringify(root.room))
+    }
 
     PresenceTab {
         id: tab

@@ -6,6 +6,7 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Layouts
+import "CardLayouts.js" as CardLayouts
 
 Rectangle {
     id: root
@@ -14,17 +15,21 @@ Rectangle {
     readonly property var account: Statusphere.accountsById[root.modelData] ?? null
     readonly property bool offline: root.account?.offline ?? true
     readonly property bool hidden: Statusphere.hiddenFor(root.account)
+    readonly property bool away: Statusphere.awayFor(root.account)
     readonly property bool isSelf: root.modelData === Statusphere.selfAccountId
     readonly property bool isServer: Statusphere.isServer(root.account)
     readonly property string health: root.offline ? "" : Statusphere.healthFor(root.account)
     readonly property bool canPick: root.isSelf && Statusphere.available && Statusphere.opt("incognito")
     readonly property var devices: root.account?.devices ?? []
     readonly property var playing: Statusphere.musicDevices(root.account)
-    readonly property var gaming: Statusphere.opt("games") ? Statusphere.gameDevices(root.account) : []
+    readonly property var gaming: Statusphere.gameDevices(root.account)
     readonly property var currentPhoto: Statusphere.currentPhotoFor(root.account)
-    readonly property bool hasPhoto: Statusphere.opt("photos") && root.currentPhoto !== null
+    readonly property bool hasPhoto: root.currentPhoto !== null
+    readonly property bool customLayout: Statusphere.ownsSurface(root.account, "row")
+    readonly property var rowTiles: root.customLayout ? Statusphere.surfaceTiles(root.account, "row") : []
+    readonly property var detailTiles: root.detailsShown ? Statusphere.surfaceTiles(root.account, "detail") : []
     readonly property bool canShare: root.isSelf && Statusphere.canShare
-    readonly property bool expandable: root.devices.length > 1
+    readonly property bool expandable: root.devices.length > 1 && !root.hidden
     property bool expanded: false
 
     // One picture slot per row, and the later event takes it: a photo just shared beats a
@@ -42,6 +47,21 @@ Rectangle {
 
     onExpandableChanged: if (!root.expandable)
         root.expanded = false
+
+    property var playingIds: []
+    property var deviceIds: []
+    onPlayingChanged: root.keepIds("playingIds", root.playing)
+    onDevicesChanged: root.keepIds("deviceIds", root.devices)
+    Component.onCompleted: {
+        root.keepIds("playingIds", root.playing);
+        root.keepIds("deviceIds", root.devices);
+    }
+
+    function keepIds(name, devices) {
+        const ids = devices.map(d => d.device_id);
+        if (!CardLayouts.sameArray(root[name], ids))
+            root[name] = ids;
+    }
 
     Layout.fillWidth: true
     implicitHeight: content.implicitHeight + 24
@@ -80,6 +100,8 @@ Rectangle {
                 account: root.account
                 offline: root.offline
                 hidden: root.hidden
+                away: root.away
+                shape: Statusphere.avatarShapeFor(root.account)
                 interactive: root.canPick
                 onHoldStarted: picker.open = true
                 onHoldMoved: (x, y) => {
@@ -134,7 +156,7 @@ Rectangle {
                                 return Appearance.colors.colTertiary;
                             return Appearance.colors.colSubtext;
                         }
-                        text: root.offline ? Statusphere.offlineLineFor(root.account) : Statusphere.statusFor(root.account)
+                        text: root.offline ? Statusphere.offlineLineFor(root.account) : Statusphere.statusFor(root.account, root.visibleSurfaces)
                     }
                 }
 
@@ -149,7 +171,7 @@ Rectangle {
             }
 
             Rectangle { // What the picture slot is not showing, and the way back to it
-                visible: root.bothPictures && !root.expanded
+                visible: !root.customLayout && !root.hidden && root.bothPictures && !root.expanded
                 Layout.alignment: Qt.AlignVCenter
                 radius: Appearance.rounding.full
                 color: swapArea.containsMouse ? Appearance.colors.colLayer2Hover : Appearance.colors.colLayer2
@@ -225,7 +247,7 @@ Rectangle {
         PresencePhoto {
             Layout.fillWidth: true
             Layout.topMargin: 8
-            visible: root.showPhoto && !root.expanded
+            visible: !root.customLayout && !root.hidden && root.showPhoto && !root.expanded
             photo: root.currentPhoto
         }
 
@@ -233,25 +255,37 @@ Rectangle {
             id: game
             Layout.fillWidth: true
             Layout.topMargin: 8
-            visible: root.showGame && !root.expanded
+            visible: !root.customLayout && !root.hidden && root.showGame && !root.expanded
             device: root.gaming[0] ?? null
         }
 
         Rectangle {
-            visible: music.visible && music.showingCompact && (root.showPhoto || root.showGame)
+            visible: (music.item?.showingCompact ?? false) && (root.showPhoto || root.showGame)
             Layout.fillWidth: true
             implicitHeight: 1
             color: Appearance.colors.colOutlineVariant
         }
 
-        PresenceMusic { // One art with the rest of the stack peeking out behind it, unless a photo already fills the space
+        Loader { // One art with the rest of the stack peeking out behind it, unless a photo already fills the space
             id: music
             Layout.fillWidth: true
-            visible: root.playing.length > 0 && !root.expanded
-            compact: root.showPhoto || root.showGame
-            device: root.playing[0] ?? null
-            stackedDevice: root.playing[1] ?? null
-            stackedCount: root.playing.length - 1
+            active: !root.customLayout && !root.hidden && root.playing.length > 0 && !root.expanded
+            visible: active
+            sourceComponent: PresenceMusic {
+                compact: root.showPhoto || root.showGame
+                device: root.playing[0] ?? null
+                stackedDevice: root.playing[1] ?? null
+                stackedCount: root.playing.length - 1
+            }
+        }
+
+        CardGrid { // The owner's own row layout, in place of the picture/music stack above
+            Layout.fillWidth: true
+            Layout.topMargin: 8
+            visible: root.customLayout && !root.hidden && root.rowTiles.length > 0 && !root.expanded
+            account: root.account
+            tiles: root.rowTiles
+            maxRows: CardLayouts.rowRows
         }
 
         ColumnLayout { // Expanded: the music once per track, then what each device is up to
@@ -261,11 +295,11 @@ Rectangle {
             spacing: 8
 
             Repeater {
-                model: root.expanded ? root.playing : []
+                model: root.expanded ? root.playingIds : []
 
                 delegate: ColumnLayout {
                     id: trackEntry
-                    required property var modelData
+                    required property string modelData
                     required property int index
 
                     Layout.fillWidth: true
@@ -280,7 +314,7 @@ Rectangle {
 
                     PresenceMusic {
                         Layout.fillWidth: true
-                        device: trackEntry.modelData
+                        device: root.playing.find(d => d.device_id === trackEntry.modelData) ?? null
                     }
                 }
             }
@@ -293,25 +327,30 @@ Rectangle {
             }
 
             Repeater {
-                model: root.expanded ? root.devices : []
+                model: root.expanded ? root.deviceIds : []
 
                 delegate: StyledText {
-                    required property var modelData
+                    id: deviceLine
+                    required property string modelData
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                     textFormat: Text.PlainText
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colSubtext
-                    text: Statusphere.deviceStatusFor(modelData)
+                    text: Statusphere.deviceStatusFor(root.devices.find(d => d.device_id === deviceLine.modelData) ?? null)
                 }
             }
         }
 
-        PresenceDetailCard { // Right click: the noisy stuff (cpu/mem/disk, workspace, weather)
+        Loader { // Right click: the noisy stuff (cpu/mem/disk, workspace, weather)
             Layout.fillWidth: true
             Layout.topMargin: 4
-            visible: root.showDetails || (root.serverDetailsForced && !root.serverDetailsCollapsed)
-            account: root.account
+            active: root.detailsShown
+            visible: active
+            sourceComponent: PresenceDetailCard {
+                account: root.account
+                tiles: root.detailTiles
+            }
         }
 
         PresenceActions { // Middle click, own card only
@@ -327,7 +366,21 @@ Rectangle {
     // Server cards show details by default (serverMetrics option), which used to make
     // them the one card right-click couldn't collapse - this tracks that dismissal separately
     readonly property bool serverDetailsForced: root.isServer && !root.offline && Statusphere.opt("serverMetrics")
-    property bool serverDetailsCollapsed: false
+    // Kept in the singleton, not here: a reconnect resorts accountIds and rebuilds this row
+    readonly property bool serverDetailsCollapsed: Statusphere.detailsCollapsedFor(root.modelData)
+
+    readonly property bool detailsShown: !root.hidden && (root.showDetails || (root.serverDetailsForced && !root.serverDetailsCollapsed))
+
+    // Must track the CardGrid `visible:` condition above - a surface only covers a field
+    // for the header while its tiles are actually on screen.
+    readonly property var visibleSurfaces: {
+        const surfaces = {};
+        if (root.customLayout && root.rowTiles.length > 0 && !root.expanded)
+            surfaces.row = root.rowTiles;
+        if (root.detailsShown)
+            surfaces.detail = root.detailTiles;
+        return surfaces;
+    }
 
     onCanShareChanged: if (!root.canShare)
         root.showActions = false
@@ -343,7 +396,7 @@ Rectangle {
                 return;
             }
             if (root.serverDetailsForced) {
-                root.serverDetailsCollapsed = !root.serverDetailsCollapsed;
+                Statusphere.toggleDetailsCollapsed(root.modelData);
                 return;
             }
             root.showDetails = !root.showDetails;

@@ -16,18 +16,20 @@ WidgetManifest {
         { "key": "incognitoIndicator", "default": true },
         { "key": "serverMetrics", "default": true },
         { "key": "serverPingSeconds", "default": 60 },
-        { "key": "games", "default": true },
-        { "key": "photos", "default": true },
-        { "key": "photoMinHeight", "default": 100 },
-        { "key": "photoMaxHeight", "default": 320 },
+        { "key": "away", "default": true },
+        { "key": "awayMinutes", "default": 5 },
         { "key": "photoShare", "default": true },
+        { "key": "pauseGifs", "default": true },
+        { "key": "gifPauseSeconds", "default": 4 },
         { "key": "wallpaperCard", "default": false },
         { "key": "wallpaperPlacement", "default": "free" },
         { "key": "wallpaperX", "default": 100 },
         { "key": "wallpaperY", "default": 500 },
         { "key": "wallpaperWidth", "default": 360 },
         { "key": "wallpaperHideOffline", "default": false },
-        { "key": "wallpaperMaxRows", "default": 0 }
+        { "key": "wallpaperMaxRows", "default": 0 },
+        { "key": "editorOwnedFields", "default": {} },
+        { "key": "collapsedDetailIds", "default": [] }
     ]
     slots: ({
         "barIndicator": "StatusphereIncognitoIndicator.qml",

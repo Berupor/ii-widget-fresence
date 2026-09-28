@@ -5,19 +5,35 @@ import qs.modules.common.widgets
 import qs.modules.common.functions
 import qs.modules.widgets
 import QtQuick
+import QtQuick.Window
 import Qt5Compat.GraphicalEffects
 
-/** A friend's current shared photo, with a relative-time corner label. No captions, no reactions. */
+/** A friend's current shared photo, with a relative-time corner label, or a picture by url. No captions, no reactions. */
 Rectangle {
     id: root
     property var photo: null // { account_id, path, created_at, expires_at }
+    property bool thumbnail: false
+    property bool cropped: false
+    property string url: ""
+    property string fit: "cover"
+    property bool settleGif: false
+    property int settleSeconds: 4
 
-    readonly property int minHeight: Statusphere.opt("photoMinHeight")
-    readonly property int maxHeight: Statusphere.opt("photoMaxHeight")
+    readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden
+    readonly property bool showsUrl: root.url.length > 0
+    readonly property var shownImage: root.showsUrl ? remoteImage.item : image
+    readonly property int status: root.shownImage?.status ?? Image.Null
+
+    readonly property int minHeight: 100
+    readonly property int maxHeight: 320
     // Shared regions come in every shape, so the card follows the image instead of cropping it to a fixed strip
-    readonly property real naturalHeight: image.implicitHeight > 0 ? root.width * image.implicitHeight / image.implicitWidth : 0
+    readonly property real naturalHeight: (root.shownImage?.implicitHeight ?? 0) > 0 ? root.width * root.shownImage.implicitHeight / root.shownImage.implicitWidth : 0
 
-    implicitHeight: root.naturalHeight > 0 ? Math.round(Math.max(root.minHeight, Math.min(root.maxHeight, root.naturalHeight))) : root.minHeight
+    readonly property real settledHeight: root.naturalHeight > 0 ? Math.round(Math.max(root.minHeight, Math.min(root.maxHeight, root.naturalHeight))) : root.minHeight
+    // AnimatedImage re-decodes on every sourceSize change, so the image skips the height ease
+    readonly property real imageHeight: root.cropped ? root.height : root.settledHeight
+
+    implicitHeight: root.settledHeight
     radius: Appearance.rounding.normal
     color: Appearance.colors.colLayer2
 
@@ -25,26 +41,53 @@ Rectangle {
         animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
     }
 
-    ThumbnailImage {
-        id: image
+    Item {
+        id: art
         anchors.fill: parent
-        sourcePath: root.photo?.path ?? ""
-        thumbnailSizeName: "x-large" // The default sizes itself off sourceSize, which is 0 before the first load
-        // Panoramas get letterboxed rather than gutted; anything taller is cropped to maxHeight
-        fillMode: root.naturalHeight > 0 && root.naturalHeight < root.minHeight ? Image.PreserveAspectFit : Image.PreserveAspectCrop
 
-        layer.enabled: true
+        layer.enabled: root.radius > 0
         layer.effect: OpacityMask {
             maskSource: Rectangle {
-                width: image.width
-                height: image.height
+                width: art.width
+                height: art.height
                 radius: root.radius
             }
+        }
+
+        Loader {
+            id: remoteImage
+            anchors.fill: parent
+            active: root.showsUrl
+            sourceComponent: PresenceArt {
+                radius: 0
+                source: root.url
+                playing: root.animating
+                fallbackIcon: "image"
+                settleGif: root.settleGif
+                settleSeconds: root.settleSeconds
+                fit: root.fit
+            }
+        }
+
+        LocalPicture {
+            id: image
+            anchors {
+                left: parent.left
+                right: parent.right
+                verticalCenter: parent.verticalCenter
+            }
+            height: root.imageHeight
+            sourcePath: root.photo?.path ?? ""
+            playing: root.animating
+            thumbnailSizeName: "x-large" // The default sizes itself off sourceSize, which is 0 before the first load
+            // Panoramas get letterboxed rather than gutted; anything taller is cropped to maxHeight
+            fillMode: !root.cropped && root.naturalHeight > 0 && root.naturalHeight < root.minHeight ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+            fit: root.cropped ? root.fit : "cover"
         }
     }
 
     MaterialSymbol {
-        visible: image.status !== Image.Ready
+        visible: !root.showsUrl && root.status !== Image.Ready
         anchors.centerIn: parent
         iconSize: Math.round(root.height * 0.3)
         color: Appearance.colors.colSubtext
@@ -52,7 +95,7 @@ Rectangle {
     }
 
     Rectangle {
-        visible: root.photo !== null
+        visible: root.photo !== null && !root.thumbnail
         anchors {
             right: parent.right
             bottom: parent.bottom

@@ -7,6 +7,7 @@ import qs.modules.common.functions
 import qs.services
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 
 /** One device's now playing: art, track, interpolated progress. */
 Rectangle {
@@ -15,6 +16,8 @@ Rectangle {
     property var stackedDevice: null // Peeks out behind the art
     property int stackedCount: 0
     property bool compact: false // A photo already fills the card, so keep this to one thin line
+    property bool tileLayout: false
+    readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden
     property bool _expanded: false // Tapped open out of the compact line
 
     onCompactChanged: if (!root.compact)
@@ -32,13 +35,15 @@ Rectangle {
     }
 
     readonly property real length: root.device?.spotify_length ?? 0
+    readonly property bool lengthKnown: root.length > 0
     readonly property real interpolatedPosition: root.device?.spotify_status ? root.projectedPosition(root._nowMs) : 0
+    readonly property string timeText: `${StringUtils.friendlyTimeForSeconds(root.interpolatedPosition)} / ${StringUtils.friendlyTimeForSeconds(root.length)}`
 
     property real _nowMs: Date.now()
 
     Timer {
         interval: 250
-        running: root.visible && root.device?.spotify_status === "playing"
+        running: root.animating && root.device?.spotify_status === "playing"
         repeat: true
         onTriggered: root._nowMs = Date.now()
     }
@@ -54,7 +59,7 @@ Rectangle {
         let pos = root._anchorPos;
         if (root._anchorStatus === "playing")
             pos += (nowMs - root._anchorMs) / 1000;
-        if (root.length > 0)
+        if (root.lengthKnown)
             pos = Math.min(pos, root.length);
         return Math.max(0, pos);
     }
@@ -72,6 +77,13 @@ Rectangle {
         root._anchorStatus = status;
         root._anchorTrack = track;
     }
+
+    readonly property bool hasTrack: !!root.device?.spotify_status && !!root.device?.spotify_track
+    readonly property string titleText: root.hasTrack ? root.device.spotify_track : Statusphere.trackFor(root.device)
+    readonly property string artistText: root.hasTrack ? (root.device.spotify_artist ?? "") : ""
+    readonly property real artSide: root.tileLayout ? Math.min(root.height - 24, root.width * 0.4) : 56
+    readonly property bool hasCover: !!root.device?.spotify_art_url
+    readonly property bool splitLines: root.tileLayout || !root.hasCover
 
     MouseArea { // Tap the opened-up card to collapse it back to the compact line
         anchors.fill: content
@@ -91,7 +103,7 @@ Rectangle {
         spacing: 16
 
         Item {
-            visible: !root.showingCompact
+            visible: !root.showingCompact && root.hasCover
             Layout.alignment: Qt.AlignVCenter
             implicitWidth: art.width + (root.stackedCount > 0 ? 8 : 0)
             implicitHeight: art.height
@@ -99,6 +111,7 @@ Rectangle {
             PresenceArt {
                 visible: root.stackedCount > 0
                 source: root.stackedDevice?.spotify_art_url ?? ""
+                playing: root.animating
                 anchors {
                     right: parent.right
                     verticalCenter: parent.verticalCenter
@@ -111,12 +124,13 @@ Rectangle {
             PresenceArt {
                 id: art
                 source: root.device?.spotify_art_url ?? ""
+                playing: root.animating
                 anchors {
                     left: parent.left
                     verticalCenter: parent.verticalCenter
                 }
-                width: 56
-                height: 56
+                width: root.artSide
+                height: root.artSide
             }
 
             MouseArea {
@@ -198,13 +212,15 @@ Rectangle {
                 }
 
                 StyledProgressBar {
+                    visible: root.lengthKnown
                     Layout.preferredWidth: 64
                     Layout.alignment: Qt.AlignVCenter
                     valueBarHeight: 3
-                    wavy: root.device?.spotify_status === "playing"
+                    wavy: root.animating && root.device?.spotify_status === "playing"
+                    animateWave: root.animating && root.showingCompact
                     highlightColor: Appearance.colors.colPrimary
                     trackColor: Appearance.colors.colSecondaryContainer
-                    value: (root.length > 0) ? (root.interpolatedPosition / root.length) : 0
+                    value: root.lengthKnown ? root.interpolatedPosition / root.length : 0
                 }
             }
 
@@ -217,6 +233,7 @@ Rectangle {
 
         ColumnLayout {
             Layout.fillWidth: true
+            Layout.alignment: root.tileLayout ? Qt.AlignVCenter : 0
             visible: !root.showingCompact
             spacing: 6
 
@@ -226,19 +243,31 @@ Rectangle {
                 textFormat: Text.PlainText
                 font.pixelSize: Appearance.font.pixelSize.normal
                 color: Appearance.colors.colOnLayer2
-                text: Statusphere.trackFor(root.device)
+                text: root.splitLines ? root.titleText : Statusphere.trackFor(root.device)
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                visible: root.splitLines && root.artistText !== ""
+                elide: Text.ElideRight
+                textFormat: Text.PlainText
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                color: Appearance.colors.colSubtext
+                text: root.artistText
             }
 
             RowLayout {
                 Layout.fillWidth: true
+                visible: root.lengthKnown
                 spacing: 8
 
                 StyledProgressBar {
                     Layout.fillWidth: true
-                    wavy: root.device?.spotify_status === "playing"
+                    wavy: root.animating && root.device?.spotify_status === "playing"
+                    animateWave: root.animating && !root.showingCompact
                     highlightColor: Appearance.colors.colPrimary
                     trackColor: Appearance.colors.colSecondaryContainer
-                    value: (root.length > 0) ? (root.interpolatedPosition / root.length) : 0
+                    value: root.lengthKnown ? root.interpolatedPosition / root.length : 0
                 }
 
                 Row { // Digits in equal cells, else the bar resizes on every tick
@@ -253,16 +282,16 @@ Rectangle {
                     }
 
                     Repeater {
-                        model: `${StringUtils.friendlyTimeForSeconds(root.interpolatedPosition)} / ${StringUtils.friendlyTimeForSeconds(root.length)}`.split("")
+                        model: root.timeText.length
 
                         delegate: StyledText {
-                            required property string modelData
+                            required property int index
                             shouldUseNumberFont: false
-                            width: /\d/.test(modelData) ? digitCell.width / 10 : implicitWidth
+                            width: /\d/.test(text) ? digitCell.width / 10 : implicitWidth
                             horizontalAlignment: Text.AlignHCenter
                             font.pixelSize: Appearance.font.pixelSize.small
                             color: Appearance.colors.colSubtext
-                            text: modelData
+                            text: root.timeText[index]
                         }
                     }
                 }
