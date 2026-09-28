@@ -241,6 +241,10 @@ Item {
             "row": [Demo.widget("media", [0, 0, 4, 1], {
                     "form": "player"
                 })],
+            "detail": [Demo.widget("media", [0, 0, 1, 1], {
+                    "form": "vinyl",
+                    "on_missing": "dim"
+                })],
             "state": {
                 "media": Demo.playing("Economy wars", "Some channel", undefined, 674000, 1909000, {
                     "kind": "video",
@@ -299,6 +303,7 @@ Item {
         const discRow = root.tilesOf("acc-disc", "row");
         const discDetail = root.tilesOf("acc-disc", "detail");
         const tube = root.tile("acc-tube", "row", root.ofType("media"));
+        const tubeVinyl = root.tile("acc-tube", "detail", root.ofType("media"));
         return [
             {
                 "name": "every tile's form loads",
@@ -386,6 +391,11 @@ Item {
                 "want": [false, String(tube?.youtubeRed), "#ffffff"]
             },
             {
+                "name": "a vinyl treats a video as nothing playing",
+                "got": [tube?.dimmed, tubeVinyl?.dimmed, tubeVinyl?.media],
+                "want": [false, true, null]
+            },
+            {
                 "name": "a background with no picture yet leaves the tile in its own color",
                 "got": [quiet?.backdropShown, String(quiet?.contentColor)],
                 "want": [false, String(Appearance.colors.colOnLayer2)]
@@ -446,6 +456,7 @@ Item {
             PresenceRow {
                 Layout.fillWidth: true
                 modelData: "acc-tube"
+                showDetails: true
             }
         }
     }

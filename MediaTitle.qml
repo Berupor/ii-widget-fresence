@@ -1,4 +1,3 @@
-import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
@@ -32,7 +31,7 @@ ColumnLayout {
         elide: Text.ElideRight
         textFormat: Text.PlainText
         font.pixelSize: Appearance.font.pixelSize.smaller
-        text: title.media?.playing ? (title.media?.artist ?? "") : Translation.tr("Paused")
+        text: title.media?.artist ?? ""
         color: title.subtleColor
     }
 }

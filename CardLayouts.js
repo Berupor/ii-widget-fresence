@@ -243,6 +243,14 @@ function valueOf(widget, state) {
     return widget?.source ? (state?.values?.[widget.source] ?? null) : null;
 }
 
+const musicOnlyForms = ["vinyl", "sleeve"];
+
+// app/shared ui/card/Resolve.kt Widget.media
+function mediaOf(widget, state) {
+    const media = state?.media ?? null;
+    return media?.kind === "video" && musicOnlyForms.includes(shownForm(widget)) ? null : media;
+}
+
 function valueMissing(widget, value, nowMs) {
     if (!value)
         return true;
@@ -282,7 +290,7 @@ function missing(widget, device, nowMs) {
     case "value":
         return valueMissing(widget, valueOf(widget, state), nowMs);
     case "media":
-        return !state?.media;
+        return !mediaOf(widget, state);
     case "game":
         return !state?.game;
     case "weather":

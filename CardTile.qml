@@ -29,7 +29,7 @@ Item {
 
     readonly property var state: root.device?.state ?? null
     readonly property var value: CardLayouts.valueOf(root.widget, root.state)
-    readonly property var media: root.state?.media ?? null
+    readonly property var media: CardLayouts.mediaOf(root.widget, root.state)
     readonly property var game: root.state?.game ?? null
     readonly property var weather: root.state?.weather ?? null
     readonly property var photo: root.state?.photo ?? null
@@ -88,7 +88,7 @@ Item {
 
     readonly property var colorKeys: CardLayouts.colorKeysOf(root.widget?.color)
     readonly property bool youtube: root.type === "media" && /youtube/i.test(root.media?.player ?? "")
-    readonly property color youtubeRed: "#e57373"
+    readonly property color youtubeRed: "#c94f4f"
     readonly property bool paletteFromMedia: root.type === "media" && !!root.media && !root.youtube && !root.widget?.color && !root.widget?.background
     readonly property bool mediaTinted: root.paletteFromMedia && mediaArt.tinted
     readonly property color tint: root.mediaTinted ? mediaArt.fill : Appearance.colors[root.colorKeys[0]]
