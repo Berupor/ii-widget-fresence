@@ -551,12 +551,90 @@ Singleton {
         }
     }
 
+    // The card grids live in the agent's config, only its D-Bus api reads and writes them
     function agentBusCall(method: string, args): var {
         return ["busctl", "--user", "--json=short", "call", "app.fresence.Agent", "/app/fresence/Agent", "app.fresence.Agent1", method].concat(args);
     }
 
     function busFailureText(stderr: string, fallback: string): string {
         return stderr.trim().split("\n")[0].replace(/^Call failed: /, "") || fallback;
+    }
+
+    property bool configLoading: false
+    property string configLoadError: ""
+
+    // A demo scene answers a load by emitting configLoaded itself
+    signal configLoaded(var config)
+    signal configSaved(var config)
+    signal configSaveFailed(var config, string error)
+
+    function loadConfig(): void {
+        if (root.underHarness || root.configLoading)
+            return;
+        root.configLoadError = "";
+        root.configLoading = true;
+        configLoadProc.running = true;
+    }
+
+    Process {
+        id: configLoadProc
+        command: root.agentBusCall("Config", [])
+        stdout: StdioCollector {
+            id: configReply
+        }
+        stderr: StdioCollector {
+            id: configLoadErrors
+        }
+        onExited: exitCode => {
+            root.configLoading = false;
+            if (exitCode !== 0) {
+                root.configLoadError = root.busFailureText(configLoadErrors.text, Translation.tr("Could not open the card settings"));
+                return;
+            }
+            try {
+                root.configLoaded(JSON.parse(JSON.parse(configReply.text).data[0]));
+            } catch (e) {
+                root.configLoadError = Translation.tr("Could not open the card settings");
+            }
+        }
+    }
+
+    property bool configSaving: false
+    property var _queuedConfig: null
+
+    // A save while another is in flight waits for it, and only the latest one waiting is sent
+    function saveConfig(config): void {
+        if (root.underHarness) {
+            root.configSaved(config);
+            return;
+        }
+        if (root.configSaving) {
+            root._queuedConfig = config;
+            return;
+        }
+        root.configSaving = true;
+        configSaveProc.sent = config;
+        configSaveProc.command = root.agentBusCall("SetConfig", ["s", JSON.stringify(config)]);
+        configSaveProc.running = true;
+    }
+
+    Process {
+        id: configSaveProc
+        property var sent: null
+        stderr: StdioCollector {
+            id: configSaveErrors
+        }
+        onExited: exitCode => {
+            root.configSaving = false;
+            if (exitCode === 0)
+                root.configSaved(configSaveProc.sent);
+            else
+                root.configSaveFailed(configSaveProc.sent, root.busFailureText(configSaveErrors.text, Translation.tr("Could not save the card")));
+            const next = root._queuedConfig;
+            root._queuedConfig = null;
+            if (next !== null)
+                root.saveConfig(next);
+        }
     }
 
     function headerText(): string {

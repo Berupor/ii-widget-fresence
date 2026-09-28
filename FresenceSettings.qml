@@ -19,8 +19,23 @@ ColumnLayout {
         WidgetsStore.setOption(Fresence.widgetId, key, value);
     }
 
+    SecondaryTabBar {
+        id: pageTabs
+        Layout.fillWidth: true
+
+        SecondaryTabButton {
+            buttonText: Translation.tr("Room")
+            buttonIcon: "groups"
+        }
+        SecondaryTabButton {
+            buttonText: Translation.tr("My card")
+            buttonIcon: "dashboard_customize"
+        }
+    }
+
     ColumnLayout {
         Layout.fillWidth: true
+        visible: pageTabs.currentIndex === 0
         spacing: root.spacing
 
         ContentSubsection {
@@ -157,5 +172,22 @@ ColumnLayout {
                 }
             }
         }
+    }
+
+    StyledText {
+        Layout.fillWidth: true
+        Layout.topMargin: 24
+        visible: pageTabs.currentIndex === 1 && !Fresence.snapshot
+        horizontalAlignment: Text.AlignHCenter
+        text: Fresence.placeholderText()
+        wrapMode: Text.WordWrap
+        color: Appearance.colors.colSubtext
+    }
+
+    Loader {
+        Layout.fillWidth: true
+        active: pageTabs.currentIndex === 1 && !!Fresence.snapshot
+        visible: active
+        sourceComponent: CardEditor {}
     }
 }
