@@ -2,7 +2,8 @@
 /**
  * The card editor over a made-up config: a move onto a neighbour is dropped, one into a free
  * cell lands, the resize corner steps through the form's sizes, and every edit is saved once
- * after the debounce unless the draft has a problem. Ends on the detail grid with a tile picked.
+ * after the debounce unless the draft has a problem. The line instead of Online takes value sources
+ * in the order picked. Ends on the detail grid with a tile picked.
  */
 import ".."
 import qs.modules.common
@@ -110,6 +111,27 @@ Item {
         case 3:
             root.seen.savesWithProblem = root.saves.length;
             editor.editWidgets(editor.widgets.slice(0, 2), -1);
+            editor.picking = {
+                "status": true
+            };
+            root.seen.statusSheetTypes = Items.findAll(editor, it => it.otherTypes !== undefined)[0].otherTypes;
+            editor.pick(editor.draft, "value", "window", null);
+            editor.picking = {
+                "status": true
+            };
+            editor.pick(editor.draft, "value", "window", null);
+            editor.picking = {
+                "status": true
+            };
+            editor.createValue("Vibe", {
+                "value": {
+                    "text": "chill"
+                }
+            });
+            root.seen.statusPicked = editor.draft.status;
+            root.seen.rowAfterStatus = root.places("row");
+            editor.deleteValue("vibe");
+            root.seen.statusAfterDelete = editor.draft.status;
             editor.showGrid("detail");
             editor.selectedIndex = 1;
             root.step = 4;
@@ -167,6 +189,16 @@ Item {
                 "name": "a draft with a problem says why and is not saved",
                 "got": [root.seen.stateWithProblem, root.seen.savesWithProblem],
                 "want": [["invalid", "Not saved: an image needs an https:// address"], 1]
+            },
+            {
+                "name": "the status picker offers values only, keeps the order and skips a repeat, without touching the grids",
+                "got": [root.seen.statusSheetTypes, root.seen.statusPicked, root.seen.rowAfterStatus],
+                "want": [[], ["window", "vibe"], [[3, 0, 1, 1], [1, 0, 1, 1]]]
+            },
+            {
+                "name": "a deleted value leaves the status line, and the status is saved with the card",
+                "got": [root.seen.statusAfterDelete, root.saves[root.saves.length - 1]?.status],
+                "want": [["window"], ["window"]]
             },
             {
                 "name": "the detail grid shows an empty cell for every free one",

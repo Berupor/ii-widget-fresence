@@ -23,7 +23,7 @@ Item {
 
     property string grid: "row"
     property int selectedIndex: -1
-    // null, or where the data sheet puts what it picks: { "at": [col, row] | null } or { "replace": index }
+    // null, or where the data sheet puts what it picks: { "at": [col, row] | null }, { "replace": index } or { "status": true }
     property var picking: null
     property bool full: false
 
@@ -137,6 +137,11 @@ Item {
         root.picking = null;
         if (!target)
             return;
+        if (target.status) {
+            const status = Rules.statusOf(base);
+            root.draft = type === "value" && !status.includes(source) ? Rules.withStatus(base, status.concat([source])) : base;
+            return;
+        }
         const state = root.device?.state ?? null;
         if (target.replace !== undefined) {
             const list = Rules.widgetsOf(base, root.grid);
@@ -253,6 +258,53 @@ Item {
                 }
             }
 
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                StyledText {
+                    text: Translation.tr("Instead of Online")
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Repeater {
+                        model: Rules.statusOf(root.draft)
+
+                        delegate: RippleButtonWithIcon {
+                            required property string modelData
+                            buttonRadius: Appearance.rounding.full
+                            colBackground: Appearance.colors.colSecondaryContainer
+                            colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                            materialIcon: "close"
+                            mainText: Rules.valueName(root.draft, modelData) || Translation.tr(Rules.sourceNames[modelData] ?? modelData)
+                            onClicked: root.draft = Rules.withStatus(root.draft, Rules.statusOf(root.draft).filter(id => id !== modelData))
+                        }
+                    }
+
+                    RippleButtonWithIcon {
+                        buttonRadius: Appearance.rounding.full
+                        materialIcon: "add"
+                        mainText: Translation.tr("Add source")
+                        onClicked: root.picking = {
+                            "status": true
+                        }
+                    }
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Your room sees the first of these with a value, unless you are playing or listening to something")
+                    wrapMode: Text.WordWrap
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                }
+            }
+
             SecondaryTabBar {
                 id: gridTabs
                 Layout.fillWidth: true
@@ -344,6 +396,7 @@ Item {
         visible: root.picking !== null
         config: root.draft ?? ({})
         state: root.device?.state ?? null
+        otherTypes: root.picking?.status ? [] : Rules.otherTypes
         onPicked: (type, source) => root.pick(root.draft, type, source, null)
         onValueCreated: (name, source) => root.createValue(name, source)
         onValueDeleted: id => root.deleteValue(id)

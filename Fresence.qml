@@ -315,7 +315,7 @@ Singleton {
                 return Translation.tr("Watching %1").arg(media.title);
             return media.artist ? Translation.tr("Listening to %1 - %2").arg(media.title).arg(media.artist) : Translation.tr("Listening to %1").arg(media.title);
         }
-        for (const id of ["window", "app"]) {
+        for (const id of speaks?.card?.status ?? []) {
             const text = state.values?.[id]?.text ?? "";
             if (text && !skip.has(`value:${id}`))
                 return text;

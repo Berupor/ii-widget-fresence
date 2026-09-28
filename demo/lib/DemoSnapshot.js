@@ -32,7 +32,7 @@ function value(source, place, extra) {
     }, extra ?? {}));
 }
 
-// d: { id, account, name, kind, online, seenAgo (ms), row, detail, state, photo }
+// d: { id, account, name, kind, online, seenAgo (ms), row, detail, status, state, photo }
 function device(d) {
     const online = d.online !== false;
     const out = {
@@ -50,6 +50,8 @@ function device(d) {
             "row": d.row ?? [],
             "detail": d.detail ?? []
         };
+    if (d.status)
+        out.card.status = d.status;
     if (d.state)
         out.state = d.state;
     if (d.photo)

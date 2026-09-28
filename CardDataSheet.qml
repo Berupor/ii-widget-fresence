@@ -12,6 +12,7 @@ Item {
     id: root
     required property var config
     property var state: null
+    property var otherTypes: Rules.otherTypes
 
     signal picked(string type, var source)
     signal valueCreated(string name, var source)
@@ -158,13 +159,14 @@ Item {
                         Layout.fillWidth: true
                         Layout.leftMargin: 16
                         Layout.topMargin: 8
+                        visible: root.otherTypes.length > 0
                         text: Translation.tr("Other")
                         color: Appearance.colors.colSubtext
                         font.pixelSize: Appearance.font.pixelSize.smaller
                     }
 
                     Repeater {
-                        model: Rules.otherTypes
+                        model: root.otherTypes
 
                         delegate: Choice {
                             required property string modelData

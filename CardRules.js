@@ -498,9 +498,23 @@ function withValue(config, id, source) {
         values[id] = source;
     else
         delete values[id];
-    return Object.assign({}, config, {
+    const next = Object.assign({}, config, {
         "values": values
     });
+    return source ? next : withStatus(next, statusOf(next).filter(s => s !== id));
+}
+
+function statusOf(config) {
+    return config?.status ?? [];
+}
+
+function withStatus(config, ids) {
+    const next = Object.assign({}, config, {
+        "status": ids
+    });
+    if (ids.length === 0)
+        delete next.status;
+    return next;
 }
 
 // The QML regex engine has no \p{L}, a cased character stands in for a letter

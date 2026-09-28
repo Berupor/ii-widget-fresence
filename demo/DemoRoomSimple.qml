@@ -33,6 +33,7 @@ Item {
                             "row": [Demo.widget("media", [0, 0, 4, 1], {
                                     "form": "player"
                                 })],
+                            "status": ["window", "app"],
                             "state": {
                                 "media": Demo.playing("Nightcall", "Kavinsky", DemoCovers.url("nightcall.jpg"), 78000, 258000),
                                 "values": {
@@ -55,6 +56,7 @@ Item {
                             "account": "Zoe",
                             "name": "laptop",
                             "kind": "laptop",
+                            "status": ["window"],
                             "state": {
                                 "values": {
                                     "window": {
@@ -87,6 +89,16 @@ Item {
         return Items.tiles(Items.rowOf(root, accountId)).filter(t => t.visible && !t.dimmed).map(t => t.type);
     }
 
+    function statusWithout(accountId: string): string {
+        const member = Fresence.membersById[accountId];
+        const device = member.devices[0];
+        return Fresence.statusFor(member, Object.assign({}, device, {
+            "card": Object.assign({}, device.card, {
+                "status": undefined
+            })
+        }), null);
+    }
+
     function checks() {
         return [
             {
@@ -110,7 +122,7 @@ Item {
                 "want": []
             },
             {
-                "name": "a playing track on the row leaves the status line to the app",
+                "name": "a playing track on the row leaves the status line to the app, the next of her status sources",
                 "got": root.statusOf("acc-mira"),
                 "want": "discord"
             },
@@ -123,6 +135,11 @@ Item {
                 "name": "the plain friend's status line names her window",
                 "got": root.statusOf("acc-zoe"),
                 "want": "Fresence - pull requests - Firefox"
+            },
+            {
+                "name": "without status sources on the card the window stays unsaid",
+                "got": root.statusWithout("acc-zoe"),
+                "want": "Online"
             },
             {
                 "name": "an incognito friend says only that she's hidden, window and all",
