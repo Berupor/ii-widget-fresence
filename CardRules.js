@@ -104,6 +104,24 @@ const typeSymbols = {
     "image": "image"
 };
 
+const backgroundKinds = ["music", "game", "photo", "url"];
+
+const backgroundNames = {
+    "": "Color",
+    "music": "Music",
+    "game": "Game",
+    "photo": "Photo",
+    "url": "Link"
+};
+
+const backgroundSymbols = {
+    "": "palette",
+    "music": "music_note",
+    "game": "sports_esports",
+    "photo": "photo_camera",
+    "url": "link"
+};
+
 const formNames = {
     "ring": "Ring",
     "dial": "Dial",
@@ -460,7 +478,8 @@ function withData(config, widget, type, source, state, label) {
         "form": forms.includes(kept) ? kept : (forms[0] ?? null),
         "icon": widget.icon ?? null,
         "color": widget.color ?? null,
-        "on_missing": widget.on_missing ?? null
+        "on_missing": widget.on_missing ?? null,
+        "background": widget.background ?? null
     });
 }
 
@@ -574,7 +593,7 @@ function isValidValue(value) {
 }
 
 // Problem codes, the order they are listed in
-const problemCodes = ["value_source", "image_url", "name_length", "value_id", "value_empty", "command"];
+const problemCodes = ["value_source", "image_url", "background_url", "name_length", "value_id", "value_empty", "command"];
 
 function problems(config) {
     const found = new Set();
@@ -586,6 +605,8 @@ function problems(config) {
             found.add("value_source");
         if (w.type === "image" && !imageUrlPattern.test(w.url ?? ""))
             found.add("image_url");
+        if (w.background?.kind === "url" && !imageUrlPattern.test(w.background.url ?? ""))
+            found.add("background_url");
     }
     for (const [id, source] of Object.entries(config.values ?? {})) {
         if (!valueIdPattern.test(id))

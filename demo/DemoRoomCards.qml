@@ -3,8 +3,10 @@
  * Cards by protocol.md, row and detail open: one friend with every widget type
  * across both grids (value, media, game, a shared photo from the agent's cache and
  * an https image), one whose missing data is hidden or dimmed so the grids collapse
- * around it, and one with forms that are missing or foreign to their type, time
- * values on either side of now under each time_mode, and every color role.
+ * around it, one with forms that are missing or foreign to their type, time
+ * values on either side of now under each time_mode, and every color role, and one
+ * with a music and a url background over its tile and a game background with no
+ * picture yet, still in its own color.
  */
 import ".."
 import qs.modules.common
@@ -107,14 +109,14 @@ Item {
     readonly property var hid: Demo.member("acc-hid", [Demo.device({
             "id": "dev-hid",
             "account": "Hid",
-            "row": [Demo.value("a", [0, 0, 1, 1]), Demo.value("gone", [1, 0, 1, 1], {
-                    "on_missing": "hide"
-                }), Demo.value("b", [2, 0, 2, 1])],
+            "row": [Demo.value("a", [0, 0, 1, 1]), Demo.value("gone", [1, 0, 1, 1]), Demo.value("b", [2, 0, 2, 1])],
             "detail": [Demo.value("gone", [0, 0, 4, 1], {
                     "on_missing": "hide"
                 }), Demo.value("dim", [0, 1, 2, 1], {
                     "on_missing": "dim"
-                }), Demo.widget("media", [2, 1, 2, 1]), Demo.widget("game", [0, 2, 4, 1], {
+                }), Demo.widget("media", [2, 1, 2, 1], {
+                    "on_missing": "dim"
+                }), Demo.widget("game", [0, 2, 4, 1], {
                     "on_missing": "hide"
                 }), Demo.value("d", [0, 3, 4, 1])],
             "state": {
@@ -136,10 +138,12 @@ Item {
                 })],
             "detail": [Demo.value("until_past", [0, 0, 2, 1], {
                     "form": "clock",
-                    "time_mode": "until"
+                    "time_mode": "until",
+                    "on_missing": "dim"
                 }), Demo.value("since_future", [2, 0, 2, 1], {
                     "form": "clock",
-                    "time_mode": "since"
+                    "time_mode": "since",
+                    "on_missing": "dim"
                 }), Demo.value("auto_future", [0, 1, 2, 1], {
                     "form": "text",
                     "time_mode": "auto"
@@ -175,10 +179,45 @@ Item {
             }
         })])
 
+    readonly property var backdrop: Demo.member("acc-backdrop", [Demo.device({
+            "id": "dev-backdrop",
+            "account": "Bea",
+            "row": [Demo.value("vibe", [0, 0, 2, 1], {
+                    "form": "banner",
+                    "label": "Now",
+                    "background": {
+                        "kind": "music"
+                    }
+                }), Demo.value("quiet", [2, 0, 1, 1], {
+                    "background": {
+                        "kind": "game"
+                    }
+                }), Demo.value("linked", [3, 0, 1, 1], {
+                    "background": {
+                        "kind": "url",
+                        "url": DemoCovers.url("nightcall.jpg")
+                    }
+                })],
+            "state": {
+                "media": Demo.playing("Sundown", "FKJ", DemoCovers.url("nightcall.jpg"), 40000, 200000),
+                "values": {
+                    "vibe": {
+                        "text": "chill"
+                    },
+                    "quiet": {
+                        "text": "quiet"
+                    },
+                    "linked": {
+                        "text": "linked"
+                    }
+                }
+            }
+        })])
+
     readonly property var snapshot: Demo.snapshot([Demo.device({
             "id": "dev-self",
             "account": "You"
-        })], [Demo.room("room-a", [root.ada, root.hid, root.mia])])
+        })], [Demo.room("room-a", [root.ada, root.hid, root.mia, root.backdrop])])
 
     function row(accountId: string): var {
         return Items.rowOf(root, accountId);
@@ -219,6 +258,9 @@ Item {
         const focus = root.tile("acc-ada", "detail", root.source("focus"));
         const hidMedia = root.tile("acc-hid", "detail", root.ofType("media"));
         const colored = root.tilesOf("acc-mia", "detail").filter(t => root.colorRoles.includes(t.widget.color));
+        const music = root.tile("acc-backdrop", "row", root.source("vibe"));
+        const quiet = root.tile("acc-backdrop", "row", root.source("quiet"));
+        const linked = root.tile("acc-backdrop", "row", root.source("linked"));
         return [
             {
                 "name": "every tile's form loads",
@@ -256,7 +298,7 @@ Item {
                 "want": [["a", 0, 0, 1, 1, false], ["b", 1, 0, 2, 1, false]]
             },
             {
-                "name": "hidden widgets take their rows with them in the detail, missing ones without on_missing stay dimmed",
+                "name": "hidden widgets take their rows with them in the detail, dimmed ones keep their place",
                 "got": [root.layout(root.grid("acc-hid", "detail")), root.grid("acc-hid", "detail")?.rowsUsed],
                 "want": [[["dim", 0, 0, 2, 1, true], ["media", 2, 0, 2, 1, true], ["d", 0, 1, 4, 1, false]], 2]
             },
@@ -284,6 +326,16 @@ Item {
                 "name": "a tile without a color sits on the neutral layer",
                 "got": String(root.tile("acc-mia", "detail", root.source("auto_past"))?.tint),
                 "want": String(Appearance.colors.colLayer2)
+            },
+            {
+                "name": "a music and a url background show the picture behind the tile with white content",
+                "got": [music, linked].map(t => [t?.backdropShown, String(t?.contentColor)]),
+                "want": [[true, "#ffffff"], [true, "#ffffff"]]
+            },
+            {
+                "name": "a background with no picture yet leaves the tile in its own color",
+                "got": [quiet?.backdropShown, String(quiet?.contentColor)],
+                "want": [false, String(Appearance.colors.colOnLayer2)]
             }
         ];
     }
@@ -323,6 +375,12 @@ Item {
             PresenceRow {
                 Layout.fillWidth: true
                 modelData: "acc-mia"
+                showDetails: true
+            }
+
+            PresenceRow {
+                Layout.fillWidth: true
+                modelData: "acc-backdrop"
                 showDetails: true
             }
         }

@@ -19,6 +19,8 @@ Item {
     readonly property int effectiveFillMode: root.fit === "stretch" ? Image.Stretch : root.fit === "blur" ? Image.PreserveAspectFit : root.fillMode
 
     property bool playing: true
+    property bool settleGif: false
+    property int settleSeconds: 4
     readonly property int status: image.item?.status ?? Image.Null
     implicitWidth: image.item?.implicitWidth ?? 0
     implicitHeight: image.item?.implicitHeight ?? 0
@@ -103,6 +105,7 @@ Item {
     Component {
         id: animatedPicture
         AnimatedImage {
+            id: gif
             asynchronous: true
             source: root.sourcePath.length > 0 ? Qt.resolvedUrl(root.sourcePath) : ""
             fillMode: root.effectiveFillMode
@@ -110,6 +113,35 @@ Item {
             sourceSize.width: root.fit === "stretch" ? Math.ceil(root.width * Screen.devicePixelRatio) : -1
             sourceSize.height: root.fit === "stretch" ? Math.ceil(root.height * Screen.devicePixelRatio) : -1
             playing: root.playing
+
+            property bool stopAtFirstFrame: false
+
+            function restartSettle(): void {
+                gif.stopAtFirstFrame = false;
+                gif.paused = false;
+                settleTimer.restart();
+            }
+
+            Component.onCompleted: if (root.settleGif && gif.playing)
+                gif.restartSettle()
+
+            onPlayingChanged: {
+                if (!root.settleGif)
+                    return;
+                if (gif.playing)
+                    gif.restartSettle();
+                else
+                    settleTimer.stop();
+            }
+
+            onCurrentFrameChanged: if (gif.stopAtFirstFrame && gif.currentFrame === 0)
+                gif.paused = true
+
+            Timer {
+                id: settleTimer
+                interval: root.settleSeconds * 1000
+                onTriggered: gif.stopAtFirstFrame = gif.frameCount > 1
+            }
         }
     }
 }

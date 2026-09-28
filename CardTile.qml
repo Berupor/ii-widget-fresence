@@ -33,6 +33,11 @@ Item {
     readonly property var photo: root.state?.photo ?? null
     readonly property string photoFile: root.device?.photo_file ?? ""
 
+    readonly property bool backdropIsPhoto: CardLayouts.backgroundIsPhoto(root.widget, root.device, Fresence.now)
+    readonly property string backdropUrl: root.backdropIsPhoto ? "" : CardLayouts.backgroundUrl(root.widget, root.device)
+    readonly property bool hasBackdropSource: root.backdropIsPhoto || CardLayouts.isHttpsUrl(root.backdropUrl)
+    readonly property bool backdropShown: root.hasBackdropSource && backdropLoader.item?.status !== Image.Error
+
     readonly property bool ticks: root.animating && root.hasData && ((root.type === "value" && root.form === "timer") || root.type === "game" || (root.type === "media" && root.media?.playing === true))
     property real tickNow: 0
     readonly property real now: Math.max(Fresence.now, root.tickNow)
@@ -76,7 +81,7 @@ Item {
 
     readonly property var colorKeys: CardLayouts.colorKeysOf(root.widget?.color)
     readonly property color tint: Appearance.colors[root.colorKeys[0]]
-    readonly property color contentColor: root.fullBleed ? "white" : Appearance.colors[root.colorKeys[1]]
+    readonly property color contentColor: root.fullBleed || root.backdropShown ? "white" : Appearance.colors[root.colorKeys[1]]
     readonly property color mutedContentColor: ColorUtils.transparentize(root.contentColor, 0.35)
 
     readonly property real dimmedOpacity: 0.45
@@ -104,7 +109,7 @@ Item {
         id: surface
         anchors.fill: parent
 
-        layer.enabled: root.fullBleed || root.showsSky
+        layer.enabled: root.fullBleed || root.showsSky || root.hasBackdropSource
         layer.effect: OpacityMask {
             maskSource: Rectangle {
                 width: surface.width
@@ -125,6 +130,42 @@ Item {
                 running: root.animating
                 animPhase: root.skyAnimPhase
             }
+        }
+
+        Loader {
+            id: backdropLoader
+            objectName: "tileBackdrop"
+            anchors.fill: parent
+            active: root.hasBackdropSource
+            sourceComponent: root.backdropIsPhoto ? backdropPhoto : backdropArt
+        }
+
+        Component {
+            id: backdropArt
+            PresenceArt {
+                radius: 0
+                color: "transparent"
+                fallbackIcon: ""
+                source: root.backdropUrl
+                playing: root.animating
+                settleGif: true
+            }
+        }
+
+        Component {
+            id: backdropPhoto
+            LocalPicture {
+                sourcePath: root.photoFile
+                playing: root.animating
+                settleGif: true
+            }
+        }
+
+        Rectangle {
+            objectName: "tileBackdropScrim"
+            anchors.fill: parent
+            visible: root.backdropShown
+            color: Qt.rgba(0, 0, 0, 0.55)
         }
 
         readonly property real inset: root.fullBleed ? 0 : Math.max(4, Math.round(Math.min(root.width, root.height) * 0.1))

@@ -184,6 +184,10 @@ Item {
                         },
                         {
                             "type": "value",
+                            "background": {
+                                "kind": "url",
+                                "url": "http://x"
+                            },
                             "place": root.place(1, 0, 1, 1)
                         }
                     ],
@@ -204,7 +208,7 @@ Item {
                         }
                     }
                 }),
-                "want": ["value_source", "image_url", "value_id", "value_empty", "command"]
+                "want": ["value_source", "image_url", "background_url", "value_id", "value_empty", "command"]
             },
             {
                 "name": "a cleared field leaves the widget instead of saving as null",

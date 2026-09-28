@@ -61,6 +61,40 @@ function fullBleed(widget) {
     return fullBleedTypes.includes(widget?.type);
 }
 
+// protocol.md: background is ignored by a widget that paints its own art or scene
+function takesBackground(widget) {
+    switch (widget?.type) {
+    case "media":
+        return shownForm(widget) !== "cover";
+    case "weather":
+        return shownForm(widget) === "temp";
+    case "value":
+        return true;
+    default:
+        return false;
+    }
+}
+
+function backgroundKind(widget) {
+    return takesBackground(widget) ? (widget.background?.kind ?? "") : "";
+}
+
+// The url a music/game/url background shows, empty when the source has no picture; a
+// photo background is a local file, not a url, see photoValid()
+function backgroundUrl(widget, device) {
+    const state = device?.state ?? null;
+    switch (backgroundKind(widget)) {
+    case "music":
+        return state?.media?.art_url ?? "";
+    case "game":
+        return state?.game?.art?.hero ?? state?.game?.art?.header ?? state?.game?.art?.cover ?? "";
+    case "url":
+        return widget.background?.url ?? "";
+    default:
+        return "";
+    }
+}
+
 // Material role in snake_case -> [fill, content on it], keys of Appearance.colors
 const colorRoles = {
     "primary": ["colPrimary", "colOnPrimary"],
@@ -100,6 +134,15 @@ function valueMissing(widget, value, nowMs) {
     return !value.text && value.fill === undefined;
 }
 
+function photoValid(device, nowMs) {
+    const state = device?.state ?? null;
+    return !!device?.photo_file && !!state?.photo && Date.parse(state.photo.expires_at) > nowMs;
+}
+
+function backgroundIsPhoto(widget, device, nowMs) {
+    return backgroundKind(widget) === "photo" && photoValid(device, nowMs);
+}
+
 function missing(widget, device, nowMs) {
     const state = device?.state ?? null;
     switch (widget?.type) {
@@ -110,7 +153,7 @@ function missing(widget, device, nowMs) {
     case "game":
         return !state?.game;
     case "photo":
-        return !device?.photo_file || !state?.photo || Date.parse(state.photo.expires_at) <= nowMs;
+        return !photoValid(device, nowMs);
     case "image":
         return !widget.url;
     default:
@@ -131,7 +174,7 @@ function placed(widgets, grid, device, nowMs) {
         if (!fits(widget?.place, grid))
             continue;
         const absent = missing(widget, device, nowMs);
-        if (absent && widget.on_missing === "hide")
+        if (absent && widget.on_missing !== "dim")
             continue;
         shown.push({
             "widget": widget,

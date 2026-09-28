@@ -228,6 +228,51 @@ ColumnLayout {
 
                 ColumnLayout {
                     Layout.fillWidth: true
+                    visible: CardLayouts.takesBackground(root.widget)
+                    spacing: 6
+
+                    StyledText {
+                        text: Translation.tr("Background")
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                    ConfigSelectionArray {
+                        Layout.fillWidth: true
+                        currentValue: root.widget?.background?.kind ?? ""
+                        onSelected: v => root.withField({
+                                "background": v === "" ? null : v === "url" ? {
+                                    "kind": v,
+                                    "url": root.widget?.background?.url ?? ""
+                                } : {
+                                    "kind": v
+                                }
+                            })
+                        options: [""].concat(Rules.backgroundKinds).map(k => ({
+                                "displayName": Translation.tr(Rules.backgroundNames[k]),
+                                "icon": Rules.backgroundSymbols[k],
+                                "value": k
+                            }))
+                    }
+                    MaterialTextField {
+                        Layout.fillWidth: true
+                        visible: root.widget?.background?.kind === "url"
+                        placeholderText: Translation.tr("Picture address https://, a GIF plays for a few seconds")
+                        text: root.widget?.background?.url ?? ""
+                        onTextChanged: {
+                            const url = text.trim();
+                            if (url !== (root.widget?.background?.url ?? ""))
+                                root.withField({
+                                    "background": {
+                                        "kind": "url",
+                                        "url": url
+                                    }
+                                });
+                        }
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
                     spacing: 6
 
                     StyledText {
@@ -237,9 +282,9 @@ ColumnLayout {
                     }
                     ConfigSelectionArray {
                         Layout.fillWidth: true
-                        currentValue: root.widget?.on_missing ?? "dim"
+                        currentValue: root.widget?.on_missing ?? "hide"
                         onSelected: v => root.withField({
-                                "on_missing": v === "dim" ? null : v
+                                "on_missing": v === "hide" ? null : v
                             })
                         options: [
                             {
