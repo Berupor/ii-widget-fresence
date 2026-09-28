@@ -437,7 +437,7 @@ Singleton {
             return root.snapshot?.status?.update ? Translation.tr("The agent needs updating to %1").arg(root.snapshot.status.update) : Translation.tr("The agent needs updating");
         }
         if (root.rooms.length === 0)
-            return root.online ? Translation.tr("Not in a room yet.\nPaste an invite from a friend") : Translation.tr("Connecting to the server…");
+            return root.online ? Translation.tr("Not in a room yet.\nPaste an invite from a friend or start your own room") : Translation.tr("Connecting to the server…");
         return Translation.tr("Nobody around yet");
     }
 
@@ -516,6 +516,47 @@ Singleton {
             const said = redeemErrors.text.trim().split("\n").pop().replace(/^fresence: /, "");
             root.redeemError = root.failureText(exitCode, said || Translation.tr("Could not use the code"));
         }
+    }
+
+    property bool creatingRoom: false
+
+    function createRoom(): void {
+        if (root.underHarness || root.creatingRoom)
+            return;
+        root.creatingRoom = true;
+        createRoomProc.running = true;
+    }
+
+    // busctl rather than the CLI: it answers with the full room id, the CLI prints a short one
+    Process {
+        id: createRoomProc
+        command: root.agentBusCall("CreateRoom", [])
+        stdout: StdioCollector {
+            id: createRoomReply
+        }
+        stderr: StdioCollector {
+            id: createRoomErrors
+        }
+        onExited: exitCode => {
+            root.creatingRoom = false;
+            if (exitCode !== 0) {
+                root.notify(root.busFailureText(createRoomErrors.text, Translation.tr("Could not create a room")));
+                return;
+            }
+            try {
+                root.selectRoom(JSON.parse(createRoomReply.text).data[0]);
+            } catch (e) {
+                root.notify(Translation.tr("Could not create a room"));
+            }
+        }
+    }
+
+    function agentBusCall(method: string, args): var {
+        return ["busctl", "--user", "--json=short", "call", "app.fresence.Agent", "/app/fresence/Agent", "app.fresence.Agent1", method].concat(args);
+    }
+
+    function busFailureText(stderr: string, fallback: string): string {
+        return stderr.trim().split("\n")[0].replace(/^Call failed: /, "") || fallback;
     }
 
     function headerText(): string {

@@ -13,10 +13,6 @@ Item {
     id: root
 
     property bool pickingRoom: false
-    readonly property bool switchable: Fresence.rooms.length > 1
-
-    onSwitchableChanged: if (!root.switchable)
-        root.pickingRoom = false
 
     Connections {
         target: Fresence
@@ -93,6 +89,18 @@ Item {
         }
 
         RippleButtonWithIcon {
+            objectName: "createRoomButton"
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: 4
+            visible: Fresence.placeholderAction === "code" && Fresence.agentState !== "unlinked"
+            enabled: !Fresence.creatingRoom
+            buttonRadius: Appearance.rounding.small
+            materialIcon: Fresence.creatingRoom ? "hourglass_top" : "add"
+            mainText: Translation.tr("Start a room")
+            onClicked: Fresence.createRoom()
+        }
+
+        RippleButtonWithIcon {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 4
             visible: Fresence.placeholderAction === "install" || Fresence.placeholderAction === "start"
@@ -116,7 +124,7 @@ Item {
         spacing: 6
         visible: Fresence.memberIds.length > 0
 
-        RowLayout { // Opens the room list when there is more than one room
+        RowLayout {
             objectName: "roomHeader"
             Layout.leftMargin: 12 // On the axis the rows' content starts at
             spacing: 2
@@ -128,14 +136,12 @@ Item {
             }
 
             MaterialSymbol {
-                visible: root.switchable
                 text: root.pickingRoom ? "unfold_less" : "unfold_more"
                 iconSize: Appearance.font.pixelSize.normal
                 color: Appearance.colors.colSubtext
             }
 
             TapHandler {
-                enabled: root.switchable
                 cursorShape: Qt.PointingHandCursor
                 onTapped: root.pickingRoom = !root.pickingRoom
             }
@@ -198,6 +204,42 @@ Item {
                                 text: Translation.tr("%1 of %2 online").arg(Fresence.roomOnlineCount(roomButton.modelData)).arg(roomButton.modelData.members.length)
                             }
                         }
+                    }
+                }
+            }
+
+            RippleButton {
+                objectName: "newRoomButton"
+                Layout.fillWidth: true
+                implicitHeight: newRoomLine.implicitHeight + 12
+                buttonRadius: Appearance.rounding.small
+                colBackground: "transparent"
+                enabled: !Fresence.creatingRoom
+                onClicked: {
+                    Fresence.createRoom();
+                    root.pickingRoom = false;
+                }
+
+                contentItem: RowLayout {
+                    id: newRoomLine
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        verticalCenter: parent.verticalCenter
+                        leftMargin: 12
+                        rightMargin: 12
+                    }
+                    spacing: 10
+
+                    MaterialSymbol {
+                        text: Fresence.creatingRoom ? "hourglass_top" : "add"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colSubtext
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        color: Appearance.colors.colOnLayer1
+                        text: Translation.tr("New room")
                     }
                 }
             }

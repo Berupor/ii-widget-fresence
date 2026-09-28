@@ -208,12 +208,12 @@ Item {
         case 0:
             if (Fresence.memberIds.length === 0)
                 return;
-            root.note("switchable", tab.switchable);
             tab.pickingRoom = true;
             root.step = 1;
             break;
         case 1:
             root.note("roomList", Items.findAll(Items.byName(tab, "roomList")[0], it => it.modelData?.room_id !== undefined && it.current !== undefined).map(b => [b.modelData.room_id, b.current]));
+            root.note("newRoom", Items.byName(tab, "newRoomButton")[0]?.visible ?? false);
             tab.pickingRoom = false;
             if (!root.edge)
                 Fresence.selectRoom("room-b");
@@ -243,8 +243,10 @@ Item {
             }
             const kept = Fresence.snapshot;
             root.note("states", ["unlinked", "linking", "update_required"].map(s => root.stateText(s)));
+            const createShown = () => Items.byName(tab, "createRoomButton")[0]?.visible ?? false;
+            root.note("noRooms", [root.stateText("online"), createShown()]);
             root.stateText("unlinked");
-            root.note("unlinkedEntry", [Items.byName(tab, "codeEntry")[0]?.visible ?? false, Items.byName(tab, "codeButton")[0]?.mainText ?? ""]);
+            root.note("unlinkedEntry", [Items.byName(tab, "codeEntry")[0]?.visible ?? false, Items.byName(tab, "codeButton")[0]?.mainText ?? "", createShown()]);
             const offer = {
                 "kind": "invite",
                 "secret": "c2VjcmV0",
@@ -298,9 +300,14 @@ Item {
         const lena = root.row("acc-lena");
         return [
             {
-                "name": "more than one room puts the switcher on the header, and its list marks the current one",
-                "got": [root.seen.switchable, root.seen.roomList],
-                "want": [true, [["room-a", true], ["room-b", false]]]
+                "name": "the header opens the room list, which marks the current one and offers a new room",
+                "got": [root.seen.roomList, root.seen.newRoom],
+                "want": [[["room-a", true], ["room-b", false]], true]
+            },
+            {
+                "name": "online with no room, the tab takes an invite or starts a room",
+                "got": root.seen.noRooms,
+                "want": ["online|Not in a room yet.\nPaste an invite from a friend or start your own room|false|code", true]
             },
             {
                 "name": "a picked room is shown and stored in the room option",
@@ -356,9 +363,9 @@ Item {
         const sol = Items.tiles(root.row("acc-sol"))[0];
         return [
             {
-                "name": "a single room keeps the header plain",
-                "got": root.seen.switchable,
-                "want": false
+                "name": "a single room still opens the list, to start another",
+                "got": [root.seen.roomList?.length, root.seen.newRoom],
+                "want": [1, true]
             },
             {
                 "name": "the room is what was fed in, offline members last",
@@ -421,9 +428,9 @@ Item {
                 "want": [["not_running", "The fresence agent is not running", "start"], "starting"]
             },
             {
-                "name": "an unlinked device takes a code in the tab, the button pastes one while the field is empty",
+                "name": "an unlinked device takes a code in the tab, the button pastes one while the field is empty, and it has no account to start a room with",
                 "got": root.seen.unlinkedEntry,
-                "want": [true, "Paste"]
+                "want": [true, "Paste", false]
             },
             {
                 "name": "a code says by its kind whether it joins a room or links a device, anything else is no code",
