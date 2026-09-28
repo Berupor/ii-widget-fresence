@@ -87,12 +87,14 @@ Item {
     }
 
     readonly property var colorKeys: CardLayouts.colorKeysOf(root.widget?.color)
-    readonly property bool paletteFromMedia: root.type === "media" && !!root.media && !root.widget?.color && !root.widget?.background
+    readonly property bool youtube: root.type === "media" && /youtube/i.test(root.media?.player ?? "")
+    readonly property color youtubeRed: "#e57373"
+    readonly property bool paletteFromMedia: root.type === "media" && !!root.media && !root.youtube && !root.widget?.color && !root.widget?.background
     readonly property bool mediaTinted: root.paletteFromMedia && mediaArt.tinted
     readonly property color tint: root.mediaTinted ? mediaArt.fill : Appearance.colors[root.colorKeys[0]]
     readonly property color contentColor: root.fullBleed || root.backdropShown ? "white" : (root.mediaTinted ? mediaArt.content : Appearance.colors[root.colorKeys[1]])
-    readonly property color artPlaceholder: root.mediaTinted ? ColorUtils.mix(mediaArt.fill, mediaArt.content, 0.9) : Appearance.colors.colLayer1
-    readonly property color artAccent: root.mediaTinted ? mediaArt.accent : Appearance.colors.colSubtext
+    readonly property color artPlaceholder: root.youtube ? root.youtubeRed : root.mediaTinted ? ColorUtils.mix(mediaArt.fill, mediaArt.content, 0.9) : Appearance.colors.colLayer1
+    readonly property color artAccent: root.youtube ? "white" : root.mediaTinted ? mediaArt.accent : Appearance.colors.colSubtext
 
     readonly property alias mediaPalette: mediaArt
 

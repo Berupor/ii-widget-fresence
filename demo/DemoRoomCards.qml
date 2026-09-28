@@ -235,10 +235,24 @@ Item {
             }
         })])
 
+    readonly property var tube: Demo.member("acc-tube", [Demo.device({
+            "id": "dev-tube",
+            "account": "Tube",
+            "row": [Demo.widget("media", [0, 0, 4, 1], {
+                    "form": "player"
+                })],
+            "state": {
+                "media": Demo.playing("Economy wars", "Some channel", undefined, 674000, 1909000, {
+                    "kind": "video",
+                    "player": "app.revanced.android.youtube"
+                })
+            }
+        })])
+
     readonly property var snapshot: Demo.snapshot([Demo.device({
             "id": "dev-self",
             "account": "You"
-        })], [Demo.room("room-a", [root.ada, root.hid, root.mia, root.backdrop, root.discs])])
+        })], [Demo.room("room-a", [root.ada, root.hid, root.mia, root.backdrop, root.discs, root.tube])])
 
     function row(accountId: string): var {
         return Items.rowOf(root, accountId);
@@ -284,6 +298,7 @@ Item {
         const linked = root.tile("acc-backdrop", "row", root.source("linked"));
         const discRow = root.tilesOf("acc-disc", "row");
         const discDetail = root.tilesOf("acc-disc", "detail");
+        const tube = root.tile("acc-tube", "row", root.ofType("media"));
         return [
             {
                 "name": "every tile's form loads",
@@ -366,6 +381,11 @@ Item {
                 "want": [true, false, true, false]
             },
             {
+                "name": "a YouTube tile keeps its own color and draws a red play button in place of the missing art",
+                "got": [tube?.mediaTinted, String(tube?.artPlaceholder), String(tube?.artAccent)],
+                "want": [false, String(tube?.youtubeRed), "#ffffff"]
+            },
+            {
                 "name": "a background with no picture yet leaves the tile in its own color",
                 "got": [quiet?.backdropShown, String(quiet?.contentColor)],
                 "want": [false, String(Appearance.colors.colOnLayer2)]
@@ -421,6 +441,11 @@ Item {
                 Layout.fillWidth: true
                 modelData: "acc-backdrop"
                 showDetails: true
+            }
+
+            PresenceRow {
+                Layout.fillWidth: true
+                modelData: "acc-tube"
             }
         }
     }
