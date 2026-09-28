@@ -8,9 +8,10 @@ import QtQuick.Layouts
 import "CardRules.js" as Rules
 
 /** The card editor of the fresence app: this device's row and detail grids, saved to the agent's config. */
-ColumnLayout {
+Item {
     id: root
-    spacing: 12
+    implicitWidth: content.implicitWidth
+    implicitHeight: Math.max(content.implicitHeight, sheet.visible ? sheet.implicitHeight : 0)
 
     // The config as the agent last took it, and the one being edited
     property var stored: null
@@ -130,112 +131,193 @@ ColumnLayout {
             };
     }
 
-    ColumnLayout {
-        Layout.fillWidth: true
-        Layout.topMargin: 24
-        visible: !root.draft
-        spacing: 6
-
-        MaterialSymbol {
-            Layout.alignment: Qt.AlignHCenter
-            text: Fresence.configLoadError ? "error" : "dashboard_customize"
-            iconSize: Appearance.font.pixelSize.hugeass * 1.5
-            color: Appearance.colors.colSubtext
+    // base can carry a just-created value, kept even when the widget does not fit
+    function pick(base, type, source, label): void {
+        const target = root.picking;
+        root.picking = null;
+        if (!target)
+            return;
+        const state = root.device?.state ?? null;
+        if (target.replace !== undefined) {
+            const list = Rules.widgetsOf(base, root.grid);
+            const next = list.map((w, i) => i === target.replace ? Rules.withData(base, w, type, source, state, label) : w);
+            root.draft = Rules.withWidgets(base, root.grid, next);
+            return;
         }
-
-        StyledText {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: Fresence.configLoadError ? Translation.tr("Could not open the card settings") : Translation.tr("Opening the card settings…")
-            wrapMode: Text.WordWrap
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            visible: text !== ""
-            horizontalAlignment: Text.AlignHCenter
-            text: Fresence.configLoadError
-            wrapMode: Text.WordWrap
-            maximumLineCount: 3
-            elide: Text.ElideRight
-            color: Appearance.colors.colSubtext
-            font.pixelSize: Appearance.font.pixelSize.smaller
+        const widget = Rules.newWidget(base, type, source, state, label);
+        const list = Rules.widgetsOf(base, root.grid);
+        const next = Rules.added(list, widget, root.grid, target.at, Rules.preferredSizes(widget.form));
+        root.full = next === null;
+        if (next) {
+            root.draft = Rules.withWidgets(base, root.grid, next);
+            root.selectedIndex = next.length - 1;
+        } else {
+            root.draft = base;
         }
     }
 
-    RippleButtonWithIcon {
-        visible: !root.draft && Fresence.configLoadError !== ""
-        Layout.alignment: Qt.AlignHCenter
-        materialIcon: "refresh"
-        mainText: Translation.tr("Retry")
-        onClicked: Fresence.loadConfig()
+    function createValue(name, source): void {
+        const id = Rules.valueIdFor(name, Rules.sources(root.draft));
+        root.pick(Rules.withValue(root.draft, id, source), "value", id, name);
+    }
+
+    function deleteValue(id): void {
+        root.draft = Rules.withValue(root.draft, id, null);
+    }
+
+    function applyVariant(variant): void {
+        const next = Rules.resized(root.widgets, root.selectedIndex, variant.size, root.grid);
+        if (next)
+            root.editWidgets(next.map((w, i) => i === root.selectedIndex ? Rules.withFields(w, {
+                            "form": variant.form
+                        }) : w), root.selectedIndex);
     }
 
     ColumnLayout {
-        Layout.fillWidth: true
-        visible: !!root.draft
+        id: content
+        anchors.fill: parent
         spacing: 12
 
-        SecondaryTabBar {
-            id: gridTabs
+        ColumnLayout {
             Layout.fillWidth: true
-            currentIndex: root.grid === "row" ? 0 : 1
-            onCurrentIndexChanged: root.showGrid(gridTabs.currentIndex === 0 ? "row" : "detail")
+            Layout.topMargin: 24
+            visible: !root.draft
+            spacing: 6
 
-            SecondaryTabButton {
-                buttonText: Translation.tr("Row")
+            MaterialSymbol {
+                Layout.alignment: Qt.AlignHCenter
+                text: Fresence.configLoadError ? "error" : "dashboard_customize"
+                iconSize: Appearance.font.pixelSize.hugeass * 1.5
+                color: Appearance.colors.colSubtext
             }
-            SecondaryTabButton {
-                buttonText: Translation.tr("Details")
+
+            StyledText {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: Fresence.configLoadError ? Translation.tr("Could not open the card settings") : Translation.tr("Opening the card settings…")
+                wrapMode: Text.WordWrap
             }
-        }
 
-        StyledText {
-            Layout.fillWidth: true
-            visible: root.saveText !== ""
-            text: root.saveText
-            elide: Text.ElideRight
-            color: root.saveState === "invalid" || root.saveState === "failed" ? Appearance.colors.colError : Appearance.colors.colSubtext
-            font.pixelSize: Appearance.font.pixelSize.smaller
-        }
-
-        CardGridEditor {
-            id: gridEditor
-            Layout.fillWidth: true
-            widgets: root.widgets
-            grid: root.grid
-            device: root.device
-            previewDevice: root.previewDevice
-            selectedIndex: root.selectedIndex
-            onSelected: index => root.selectedIndex = index
-            onEdited: widgets => root.editWidgets(widgets, root.selectedIndex)
-            onRemoveRequested: index => root.editWidgets(Rules.removed(root.widgets, index), -1)
-            onEmptyCellClicked: (col, row) => root.picking = {
-                "at": [col, row]
+            StyledText {
+                Layout.fillWidth: true
+                visible: text !== ""
+                horizontalAlignment: Text.AlignHCenter
+                text: Fresence.configLoadError
+                wrapMode: Text.WordWrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.smaller
             }
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            text: Translation.tr("Click an empty cell to add a widget. Drag a selected widget to move it, drag its corner to resize.")
-            wrapMode: Text.WordWrap
-            color: Appearance.colors.colSubtext
-            font.pixelSize: Appearance.font.pixelSize.smaller
         }
 
         RippleButtonWithIcon {
-            materialIcon: "add"
-            mainText: Translation.tr("Add widget")
-            onClicked: root.startAdding()
+            visible: !root.draft && Fresence.configLoadError !== ""
+            Layout.alignment: Qt.AlignHCenter
+            materialIcon: "refresh"
+            mainText: Translation.tr("Retry")
+            onClicked: Fresence.loadConfig()
         }
 
-        StyledText {
+        ColumnLayout {
             Layout.fillWidth: true
-            visible: root.full
-            text: Translation.tr("No room left: shrink or remove a widget")
-            wrapMode: Text.WordWrap
-            color: Appearance.colors.colError
-            font.pixelSize: Appearance.font.pixelSize.smaller
+            visible: !!root.draft
+            spacing: 12
+
+            SecondaryTabBar {
+                id: gridTabs
+                Layout.fillWidth: true
+                currentIndex: root.grid === "row" ? 0 : 1
+                onCurrentIndexChanged: root.showGrid(gridTabs.currentIndex === 0 ? "row" : "detail")
+
+                SecondaryTabButton {
+                    buttonText: Translation.tr("Row")
+                }
+                SecondaryTabButton {
+                    buttonText: Translation.tr("Details")
+                }
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                visible: root.saveText !== ""
+                text: root.saveText
+                elide: Text.ElideRight
+                color: root.saveState === "invalid" || root.saveState === "failed" ? Appearance.colors.colError : Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.smaller
+            }
+
+            CardGridEditor {
+                id: gridEditor
+                Layout.fillWidth: true
+                widgets: root.widgets
+                grid: root.grid
+                device: root.device
+                previewDevice: root.previewDevice
+                selectedIndex: root.selectedIndex
+                onSelected: index => root.selectedIndex = index
+                onEdited: widgets => root.editWidgets(widgets, root.selectedIndex)
+                onRemoveRequested: index => root.editWidgets(Rules.removed(root.widgets, index), -1)
+                onEmptyCellClicked: (col, row) => root.picking = {
+                    "at": [col, row]
+                }
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Click an empty cell to add a widget. Drag a selected widget to move it, drag its corner to resize.")
+                wrapMode: Text.WordWrap
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.smaller
+            }
+
+            CardWidgetPanel {
+                Layout.fillWidth: true
+                visible: root.selectedIndex >= 0 && root.selectedIndex < root.widgets.length
+                config: root.draft
+                widgets: root.widgets
+                index: root.selectedIndex
+                grid: root.grid
+                state: root.device?.state ?? null
+                previewDevice: root.previewDevice
+                onChanged: w => root.editWidgets(root.widgets.map((old, i) => i === root.selectedIndex ? w : old), root.selectedIndex)
+                onVariantChosen: v => root.applyVariant(v)
+                onValueChanged: v => {
+                    const source = root.widgets[root.selectedIndex]?.source;
+                    if (source)
+                        root.draft = Rules.withValue(root.draft, source, v);
+                }
+                onChangeDataRequested: root.picking = {
+                    "replace": root.selectedIndex
+                }
+            }
+
+            RippleButtonWithIcon {
+                materialIcon: "add"
+                mainText: Translation.tr("Add widget")
+                onClicked: root.startAdding()
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                visible: root.full
+                text: Translation.tr("No room left: shrink or remove a widget")
+                wrapMode: Text.WordWrap
+                color: Appearance.colors.colError
+                font.pixelSize: Appearance.font.pixelSize.smaller
+            }
         }
+    }
+
+    CardDataSheet {
+        id: sheet
+        anchors.fill: parent
+        visible: root.picking !== null
+        config: root.draft ?? ({})
+        state: root.device?.state ?? null
+        onPicked: (type, source) => root.pick(root.draft, type, source, null)
+        onValueCreated: (name, source) => root.createValue(name, source)
+        onValueDeleted: id => root.deleteValue(id)
+        onDismissed: root.picking = null
     }
 }

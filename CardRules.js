@@ -48,6 +48,119 @@ const valueIdPattern = /^[a-z][a-z0-9_]*$/;
 const symbolNamePattern = /^[a-z0-9_]{1,64}$/;
 const maxNameLength = 64;
 
+// English display strings for editor Choices.kt/Labels.kt ids, translated where used
+const sourceNames = {
+    "cpu": "CPU",
+    "memory": "Memory",
+    "disk": "Disk",
+    "load": "Load",
+    "battery": "Battery",
+    "packages": "Package updates",
+    "window": "Active window",
+    "app": "App",
+    "workspace": "Workspace",
+    "uptime": "Uptime",
+    "alarm": "Alarm",
+    "meeting": "Meeting"
+};
+
+const sourceSymbols = {
+    "cpu": "developer_board",
+    "memory": "memory",
+    "disk": "storage",
+    "load": "speed",
+    "battery": "battery_full",
+    "packages": "inventory_2",
+    "window": "web_asset",
+    "app": "apps",
+    "workspace": "desktop_windows",
+    "uptime": "schedule",
+    "alarm": "alarm",
+    "meeting": "event_busy",
+    "weather": "partly_cloudy_day",
+    "moon": "bedtime",
+    "sun": "wb_sunny"
+};
+
+const shapeSymbols = {
+    "text": "text_fields",
+    "fill": "data_usage",
+    "time": "timer"
+};
+
+const typeNames = {
+    "value": "Value",
+    "media": "Music and video",
+    "game": "Game",
+    "photo": "Photo",
+    "image": "Image"
+};
+
+const typeSymbols = {
+    "value": "data_usage",
+    "media": "music_note",
+    "game": "sports_esports",
+    "photo": "photo_camera",
+    "image": "image"
+};
+
+const formNames = {
+    "ring": "Ring",
+    "dial": "Dial",
+    "bar": "Bar",
+    "number": "Number",
+    "text": "Text",
+    "big": "Large",
+    "clock": "Clock",
+    "banner": "Banner",
+    "weather": "Weather",
+    "weather_live": "Live weather",
+    "moon": "Moon",
+    "sun": "Sun",
+    "cover": "Cover",
+    "vinyl": "Vinyl",
+    "wave": "Wave",
+    "player": "Player",
+    "timer": "Timer"
+};
+
+const valueKindNames = {
+    "text": "Text",
+    "fill": "Gauge",
+    "time": "Time",
+    "command": "Command"
+};
+
+const popularIcons = ["planner_review", "memory", "storage", "speed", "battery_full", "schedule", "alarm", "event_busy", "web_asset", "apps", "terminal", "code", "desktop_windows", "inventory_2", "music_note", "sports_esports", "mood", "location_on", "favorite", "bolt", "coffee", "work", "home", "bedtime"];
+
+function sourceSymbol(id, shape) {
+    return sourceSymbols[id] ?? shapeSymbols[shape] ?? "text_fields";
+}
+
+function widgetSymbol(widget, shape) {
+    return widget.type === "value" && widget.source && shape ? sourceSymbol(widget.source, shape) : (typeSymbols[widget.type] ?? "widgets");
+}
+
+// A device value as the data sheet's live preview line, or null for nothing to show
+function previewValueText(value) {
+    if (value?.time !== undefined)
+        return {
+            "kind": "time",
+            "at": Date.parse(value.time)
+        };
+    if (value?.text)
+        return {
+            "kind": "text",
+            "text": value.text
+        };
+    if (value?.fill !== undefined)
+        return {
+            "kind": "fill",
+            "percent": Math.round(value.fill * 100)
+        };
+    return null;
+}
+
 function hasOwnForms(source) {
     return source in sourceForms;
 }

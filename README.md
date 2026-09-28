@@ -54,8 +54,9 @@ comes from `fresence watch`, joining and linking go through `fresence join` and
 `fresence link`, hiding and sharing through `fresence incognito` and `fresence photo`.
 
 What a card shows is up to its owner: the `row` and `detail` grids of each device live
-in the agent's config, edited from the fresence app. The widget draws them the way every
-other client does, by the rules in fresence's `protocol.md`.
+in the agent's config. The widget's settings have a My card tab that edits this device's
+grids the same way the fresence app does, and the widget draws every card by the rules in
+fresence's `protocol.md`.
 
 ## Hacking
 
