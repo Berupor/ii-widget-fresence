@@ -31,6 +31,27 @@ Item {
             fallbackIcon: form.video ? (form.media?.playing ? "play_arrow" : "pause") : "music_note"
             playing: form.card.animating
 
+            Rectangle {
+                objectName: "playerLength"
+                visible: form.video && (form.media?.length_ms ?? 0) > 0
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 4
+                width: lengthText.implicitWidth + 8
+                height: lengthText.implicitHeight + 2
+                radius: 4
+                color: Qt.rgba(0, 0, 0, 0.7)
+
+                StyledText {
+                    id: lengthText
+                    anchors.centerIn: parent
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    font.weight: Font.Medium
+                    color: "white"
+                    text: Fresence.stopwatchText(form.media?.length_ms ?? 0)
+                }
+            }
+
             MouseArea {
                 id: artHover
                 anchors.fill: parent
