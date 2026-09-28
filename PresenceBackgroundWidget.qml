@@ -16,29 +16,29 @@ AbstractBackgroundWidget {
     configEntryName: "presence"
     // Placement comes from the widget store, not from Config
     configEntry: QtObject {
-        readonly property string placementStrategy: Statusphere.opt("wallpaperPlacement")
-        readonly property real x: Statusphere.opt("wallpaperX")
-        readonly property real y: Statusphere.opt("wallpaperY")
+        readonly property string placementStrategy: Fresence.opt("wallpaperPlacement")
+        readonly property real x: Fresence.opt("wallpaperX")
+        readonly property real y: Fresence.opt("wallpaperY")
     }
     onReleased: { // Store writes only on drop, a binding back into the store would loop
         root.targetX = root.x;
         root.targetY = root.y;
-        WidgetsStore.setOption("statusphere", "wallpaperX", root.x);
-        WidgetsStore.setOption("statusphere", "wallpaperY", root.y);
+        WidgetsStore.setOption(Fresence.widgetId, "wallpaperX", root.x);
+        WidgetsStore.setOption(Fresence.widgetId, "wallpaperY", root.y);
     }
 
-    readonly property bool shown: Statusphere.opt("wallpaperCard") && Statusphere.available
+    readonly property bool shown: Fresence.opt("wallpaperCard") && Fresence.available
     readonly property var shownAccountIds: {
         if (!root.shown)
             return [];
-        const maxRows = Statusphere.opt("wallpaperMaxRows");
-        const ids = Statusphere.accountIds.filter(id => !Statusphere.opt("wallpaperHideOffline") || !Statusphere.accountsById[id].offline);
+        const maxRows = Fresence.opt("wallpaperMaxRows");
+        const ids = Fresence.memberIds.filter(id => !Fresence.opt("wallpaperHideOffline") || Fresence.membersById[id].presence.kind !== "offline");
         return maxRows > 0 ? ids.slice(0, maxRows) : ids;
     }
 
     // The host keeps the card loaded, so switching it off is opacity, not unloading
     opacity: (root.shown && !(GlobalStates.screenLocked && !root.visibleWhenLocked)) ? 1 : 0
-    implicitWidth: Statusphere.opt("wallpaperWidth")
+    implicitWidth: Fresence.opt("wallpaperWidth")
     implicitHeight: card.implicitHeight
 
     StyledDropShadow {
@@ -71,7 +71,7 @@ AbstractBackgroundWidget {
                 Layout.leftMargin: 6
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colSubtext
-                text: Translation.tr("%1 of %2 online").arg(Statusphere.onlineCount).arg(Statusphere.memberCount)
+                text: Fresence.headerText()
             }
 
             Repeater {

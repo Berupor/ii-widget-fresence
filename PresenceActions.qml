@@ -12,15 +12,15 @@ import Quickshell
 /** Middle-click-expanded actions on your own card. Sharing replaces your previous photo. */
 ColumnLayout {
     id: root
-    property var photo: null // Your own live share, if any
+    readonly property var photo: Fresence.selfPhoto
 
     readonly property string shareStatus: {
-        if (Statusphere.lastPostError)
-            return Statusphere.lastPostError;
-        if (Statusphere.posting)
+        if (Fresence.lastPostError)
+            return Fresence.lastPostError;
+        if (Fresence.posting)
             return Translation.tr("Sharing…");
         if (root.photo)
-            return Translation.tr("Shared until %1").arg(Qt.formatTime(new Date(Date.parse(root.photo.expires_at)), "HH:mm"));
+            return Translation.tr("Shared until %1").arg(Fresence.clockText(Date.parse(root.photo.expires_at)));
         return Translation.tr("Middle-drag a region to share it right away");
     }
 
@@ -100,11 +100,11 @@ ColumnLayout {
     }
 
     ActionPill {
-        buttonIcon: Statusphere.lastPostError ? "error" : "screenshot_region"
+        buttonIcon: Fresence.lastPostError ? "error" : "screenshot_region"
         title: Translation.tr("Share a screen region")
         status: root.shareStatus
-        active: Statusphere.posting
-        failed: Statusphere.lastPostError.length > 0
+        active: Fresence.posting
+        failed: Fresence.lastPostError.length > 0
         onClicked: {
             GlobalStates.sidebarLeftOpen = false;
             Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "region", "widget", "share"]);

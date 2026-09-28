@@ -2,13 +2,15 @@ import qs.modules.common.widgets
 import qs.modules.common.functions
 import QtQuick
 import Qt5Compat.GraphicalEffects
+import "CardLayouts.js" as CardLayouts
 
 Item {
     id: form
     required property var card
-    readonly property var device: form.card.musicDevice
-    readonly property bool hasPosition: (form.device?.spotify_length ?? 0) > 0
-    readonly property real progress: form.hasPosition ? (form.device.spotify_position ?? 0) / form.device.spotify_length : 0
+    readonly property var media: form.card.media
+    readonly property real mediaProgress: CardLayouts.mediaProgress(form.media, form.card.now)
+    readonly property bool hasPosition: form.mediaProgress >= 0
+    readonly property real progress: Math.max(0, form.mediaProgress)
     readonly property int turnDurationMs: 9000
     readonly property real smallestAnimatedStep: 0.05
 
@@ -49,12 +51,13 @@ Item {
 
         PresenceArt {
             anchors.fill: parent
-            source: form.device?.spotify_art_url ?? ""
+            source: form.media?.art_url ?? ""
+            fallbackIcon: form.media?.kind === "video" ? "smart_display" : "music_note"
             playing: form.card.animating
         }
 
         RotationAnimation on rotation {
-            running: form.device?.spotify_status === "playing"
+            running: form.media?.playing === true
             paused: running && !form.card.animating
             loops: Animation.Infinite
             from: 0

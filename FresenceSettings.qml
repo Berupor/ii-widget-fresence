@@ -14,28 +14,13 @@ ColumnLayout {
     Component.onCompleted: root.ready = true
 
     function setOption(key, value) {
-        if (!root.ready || Statusphere.opt(key) === value) // Controls write back their own value on load
+        if (!root.ready || Fresence.opt(key) === value) // Controls write back their own value on load
             return;
-        WidgetsStore.setOption("statusphere", key, value);
-    }
-
-    SecondaryTabBar {
-        id: pageTabs
-        Layout.fillWidth: true
-
-        SecondaryTabButton {
-            buttonText: Translation.tr("Room")
-            buttonIcon: "groups"
-        }
-        SecondaryTabButton {
-            buttonText: Translation.tr("My card")
-            buttonIcon: "dashboard_customize"
-        }
+        WidgetsStore.setOption(Fresence.widgetId, key, value);
     }
 
     ColumnLayout {
         Layout.fillWidth: true
-        visible: pageTabs.currentIndex === 0
         spacing: root.spacing
 
         ContentSubsection {
@@ -44,76 +29,20 @@ ColumnLayout {
             ConfigSwitch {
                 buttonIcon: "touch_app"
                 text: Translation.tr('Hold your own row to hide')
-                checked: Statusphere.opt("incognito")
+                checked: Fresence.opt("incognito")
                 onCheckedChanged: setOption("incognito", checked)
                 StyledToolTip {
-                    text: Translation.tr("Hold your avatar in the presence tab, slide onto how long, let go.\nHides what you have open; music keeps playing.\nWhat's hidden never leaves this machine, so it stays out of the server's history too")
+                    text: Translation.tr("Hold your avatar in the presence tab, slide onto how long, let go.\nThis device stops sharing its state until the time runs out")
                 }
             }
 
             ConfigSwitch {
                 buttonIcon: "toast"
                 text: Translation.tr('Remind me in the bar')
-                checked: Statusphere.opt("incognitoIndicator")
+                checked: Fresence.opt("incognitoIndicator")
                 onCheckedChanged: setOption("incognitoIndicator", checked)
                 StyledToolTip {
                     text: Translation.tr("An icon while you're hiding, so you don't stay dark for a week by accident.\nClick it to be visible again")
-                }
-            }
-        }
-
-        ContentSubsection {
-            title: Translation.tr("Servers")
-
-            ConfigSwitch {
-                buttonIcon: "monitoring"
-                text: Translation.tr('Metrics on the card')
-                checked: Statusphere.opt("serverMetrics")
-                onCheckedChanged: setOption("serverMetrics", checked)
-                StyledToolTip {
-                    text: Translation.tr("A machine has no window title, so its card shows cpu, memory, disk and load instead.\nThe verdict next to the name comes from that machine's own ~/.config/statusphere/health.json")
-                }
-            }
-
-            ConfigSpinBox {
-                icon: "network_ping"
-                text: Translation.tr("Reachability check (seconds)")
-                value: Statusphere.opt("serverPingSeconds")
-                from: 15
-                to: 600
-                stepSize: 15
-                onValueChanged: {
-                    setOption("serverPingSeconds", value);
-                }
-                StyledToolTip {
-                    text: Translation.tr("The agent can't report its own death, so the server is asked directly this often.\nThat is what tells \"Host unreachable\" from \"Not reporting\"")
-                }
-            }
-        }
-
-        ContentSubsection {
-            title: Translation.tr("Away")
-
-            ConfigSwitch {
-                buttonIcon: "bedtime"
-                text: Translation.tr('Mark idle friends away')
-                checked: Statusphere.opt("away")
-                onCheckedChanged: setOption("away", checked)
-                StyledToolTip {
-                    text: Translation.tr("A dimmer dot once a device has sat untouched past the minutes below.\nA game or a call still counts as present, so the status line keeps saying what it was saying")
-                }
-            }
-
-            ConfigSpinBox {
-                enabled: Statusphere.opt("away")
-                icon: "hourglass_empty"
-                text: Translation.tr("Idle minutes before away")
-                value: Statusphere.opt("awayMinutes")
-                from: 1
-                to: 60
-                stepSize: 1
-                onValueChanged: {
-                    setOption("awayMinutes", value);
                 }
             }
         }
@@ -124,7 +53,7 @@ ColumnLayout {
             ConfigSwitch {
                 buttonIcon: "add_a_photo"
                 text: Translation.tr('Share photos yourself')
-                checked: Statusphere.opt("photoShare")
+                checked: Fresence.opt("photoShare")
                 onCheckedChanged: setOption("photoShare", checked)
                 StyledToolTip {
                     text: Translation.tr("Middle-click your own card for share actions.\nMiddle-drag in the region selector shares that region right away")
@@ -138,18 +67,18 @@ ColumnLayout {
             ConfigSwitch {
                 buttonIcon: "gif_box"
                 text: Translation.tr("Pause GIFs after a few seconds")
-                checked: Statusphere.opt("pauseGifs")
+                checked: Fresence.opt("pauseGifs")
                 onCheckedChanged: setOption("pauseGifs", checked)
                 StyledToolTip {
-                    text: Translation.tr("A GIF set by link, as a card's background or picture, plays for a few seconds, then stops on its first frame instead of looping forever")
+                    text: Translation.tr("A GIF picture on a card plays for a few seconds, then stops on its first frame instead of looping forever")
                 }
             }
 
             ConfigSpinBox {
-                visible: Statusphere.opt("pauseGifs")
+                visible: Fresence.opt("pauseGifs")
                 icon: "timer"
                 text: Translation.tr("Freeze after (seconds)")
-                value: Statusphere.opt("gifPauseSeconds")
+                value: Fresence.opt("gifPauseSeconds")
                 from: 1
                 to: 30
                 stepSize: 1
@@ -165,16 +94,16 @@ ColumnLayout {
             ConfigSwitch {
                 buttonIcon: "check"
                 text: Translation.tr("Enable")
-                checked: Statusphere.opt("wallpaperCard")
+                checked: Fresence.opt("wallpaperCard")
                 onCheckedChanged: setOption("wallpaperCard", checked)
                 StyledToolTip {
-                    text: Translation.tr("Same rows as the left sidebar's presence tab, as a card on the wallpaper.\nNeeds the statusphere cli and a registered account")
+                    text: Translation.tr("Same rows as the left sidebar's presence tab, as a card on the wallpaper.\nNeeds a linked fresence agent")
                 }
             }
 
             ConfigSelectionArray { // Its own row, so Enable keeps the axis every other switch is on
                 Layout.fillWidth: true
-                currentValue: Statusphere.opt("wallpaperPlacement")
+                currentValue: Fresence.opt("wallpaperPlacement")
                 onSelected: newValue => {
                     setOption("wallpaperPlacement", newValue);
                 }
@@ -200,14 +129,14 @@ ColumnLayout {
             ConfigSwitch {
                 buttonIcon: "person_off"
                 text: Translation.tr("Hide offline members")
-                checked: Statusphere.opt("wallpaperHideOffline")
+                checked: Fresence.opt("wallpaperHideOffline")
                 onCheckedChanged: setOption("wallpaperHideOffline", checked)
             }
 
             ConfigSpinBox {
                 icon: "fit_width"
                 text: Translation.tr("Width")
-                value: Statusphere.opt("wallpaperWidth")
+                value: Fresence.opt("wallpaperWidth")
                 from: 200
                 to: 800
                 stepSize: 20
@@ -219,7 +148,7 @@ ColumnLayout {
             ConfigSpinBox {
                 icon: "format_list_numbered"
                 text: Translation.tr("Max rows (0 for everyone)")
-                value: Statusphere.opt("wallpaperMaxRows")
+                value: Fresence.opt("wallpaperMaxRows")
                 from: 0
                 to: 20
                 stepSize: 1
@@ -228,12 +157,5 @@ ColumnLayout {
                 }
             }
         }
-    }
-
-    Loader {
-        Layout.fillWidth: true
-        active: pageTabs.currentIndex === 1
-        visible: active
-        sourceComponent: CardEditor {}
     }
 }

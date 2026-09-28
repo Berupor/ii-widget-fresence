@@ -12,9 +12,9 @@ import QtQuick.Layouts
 MouseArea {
     id: root
 
-    property bool shown: Statusphere.hiding && Statusphere.opt("incognitoIndicator")
+    property bool shown: Fresence.hiding && Fresence.opt("incognitoIndicator")
     // The click that turns incognito off is also what shrinks this icon to width 0 a
-    // moment later, once the cli's file write round-trips back through Statusphere.hiding.
+    // moment later, once the agent's next snapshot round-trips back through Fresence.hiding.
     // Left to react to that, the popup jumps to re-center on the collapsing width right
     // before it closes. Closing it in the same tick as the click, instead of waiting on
     // that round trip, means it is already gone by the time the width actually moves
@@ -27,7 +27,7 @@ MouseArea {
     hoverEnabled: !Config.options.bar.tooltips.clickToShow
     onClicked: {
         root.closing = true;
-        Statusphere.setIncognito(false, 0);
+        Fresence.setIncognito(false, 0);
     }
 
     MaterialSymbol {
@@ -52,7 +52,7 @@ MouseArea {
             spacing: 2
 
             StyledText {
-                text: Statusphere.incognitoLabel()
+                text: Fresence.incognitoLabel()
             }
 
             StyledText {

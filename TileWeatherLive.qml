@@ -3,8 +3,6 @@ import QtQuick
 import QtQuick.Layouts
 import "CardLayouts.js" as CardLayouts
 
-// The silhouette already reads the condition (CardLayouts.weatherLiveShape), so the
-// caption keeps only the city.
 TileNumber {
     id: form
     readonly property var fields: CardLayouts.weatherFieldsOf(form.card.valueText)
@@ -12,7 +10,7 @@ TileNumber {
     // Keep this fraction matching WeatherSky's sceneStart: they split the same tile,
     // text on the left, sky scene on the right.
     readonly property real textFraction: 0.45
-    readonly property bool wide: CardLayouts.spanOf(form.card.tile.size).cols > CardLayouts.spanOf(form.card.tile.size).rows
+    readonly property bool wide: form.card.wide
     readonly property string cityText: form.fields?.city ?? ""
     readonly property string tempText: form.fields ? `${form.fields.temp}°` : form.card.valueText
     readonly property string shownTempText: form.card.hasData ? form.tempText : "-"

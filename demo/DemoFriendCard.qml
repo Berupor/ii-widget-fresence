@@ -1,91 +1,74 @@
-//@ probe statusphere -g 420x480 -s 1500
+//@ probe fresence -g 420x560 -s 1500
 /**
- * One friend on the night owl pack, detail card open: a game banner, the
- * track as a wave line, the app, uptime, night weather, moon phase, a local
- * clock and sunrise/sunset. Row left empty (`row: []`) so nothing repeats
- * between the row and the detail card below it.
+ * One friend's night owl card, detail grid open: a game banner, the track as a
+ * wave line, the app, uptime, night weather, moon phase, an alarm clock and
+ * sunrise/sunset. Her row grid is left empty so nothing repeats between the row
+ * and the detail grid below it.
  */
 import ".."
-import "../CardLayouts.js" as CardLayouts
 import "lib"
-import "lib/DemoCovers.js" as DemoCovers
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoCards.js" as DemoCards
+import "lib/DemoItems.js" as Items
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
 
 Item {
     id: root
-    readonly property int now: 1780000000
 
-    readonly property var room: ({
-            "members": [
-                {
-                    "account_id": "acc-nyx",
-                    "device_id": "dev-nyx",
-                    "device_name": "tower",
-                    "account_name": "Nyx",
-                    "last_seen": root.now,
-                    "_layout": {
-                        "updated_at": root.now,
-                        "row": [],
-                        "detail": CardLayouts.packs.detail.nightOwl
-                    },
-                    "spotify_status": "playing",
-                    "spotify_track": "Turn Off the Lights",
-                    "spotify_artist": "Nite Jewel",
-                    "spotify_position": 40,
-                    "spotify_length": 210,
-                    "spotify_art_url": DemoCovers.url("nightcall.jpg"),
-                    "game_status": "playing",
-                    "game_name": "Cyberpunk 2077",
-                    "game_display": "Cyberpunk 2077",
-                    "game_header_url": DemoCovers.url("cp2077-header.jpg"),
-                    "game_session_seconds": 7200,
-                    "uptime_hours": 27,
-                    "active_app": "mpv",
-                    "custom_fields": ["local_time", "weather", "moon", "sun"],
-                    "weather": "7° Clear",
-                    "local_time": "03:12",
-                    "moon": "🌔",
-                    "sun": "06:45 · 18:52"
-                }
-            ],
-            "photos": []
-        })
+    readonly property var snapshot: Demo.snapshot([Demo.device({
+                "id": "dev-self",
+                "account": "You"
+            })], [Demo.room("room-a", [Demo.member("acc-nyx", [DemoCards.device("nightOwl", {
+                            "id": "dev-nyx",
+                            "account": "Nyx",
+                            "row": []
+                        })])])])
 
-    function findAll(item, pred, out) {
-        if (pred(item))
-            out.push(item);
-        for (const c of item.children ?? [])
-            root.findAll(c, pred, out);
-        return out;
+    function grids(): var {
+        return Items.findAll(nyxRow, it => it.placed !== undefined && it.grid !== undefined && it.visible);
     }
 
     function checks() {
-        const grids = root.findAll(root, it => it.rowsUsed !== undefined && it.placed !== undefined, []);
-        const packedSolid = grids.every(g => g.placed.reduce((sum, p) => sum + p.cols * p.rows, 0) === g.rowsUsed * g.columns);
-
+        const detail = root.grids().find(g => g.grid === "detail");
+        const holes = detail ? 16 - detail.placed.reduce((sum, p) => sum + p.cols * p.rows, 0) : -1;
         return [
             {
-                "name": "the night owl detail pack owns detail, row stays empty",
-                "got": ["row", "detail"].map(surface => Statusphere.ownsSurface(Statusphere.accountsById["acc-nyx"], surface)),
-                "want": [true, true]
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(root),
+                "want": []
             },
             {
-                "name": "an empty row draws no row grid",
-                "got": Statusphere.surfaceTiles(Statusphere.accountsById["acc-nyx"], "row").length,
+                "name": "an empty row draws no row grid, the detail grid is open",
+                "got": root.grids().map(g => g.grid),
+                "want": ["detail"]
+            },
+            {
+                "name": "the detail grid fills all sixteen cells",
+                "got": holes,
                 "want": 0
             },
             {
-                "name": "no pack tile is left with an empty grid cell",
-                "got": grids.length > 0 && packedSolid,
-                "want": true
+                "name": "every detail tile has its data, so none is dimmed",
+                "got": Items.tiles(nyxRow).filter(t => t.dimmed).map(t => t.widget.source ?? t.type),
+                "want": []
+            },
+            {
+                "name": "an alarm clock reads its moment in local HH:MM and how far off it is",
+                "got": [Items.shownText(nyxRow, "clockValue")[0] ?? "", Items.shownText(nyxRow, "clockDistance")[0] ?? ""],
+                "want": [Qt.formatTime(new Date(Date.now() + Demo.minutes(7 * 60 + 30)), "HH:mm"), "in 7 h"]
+            },
+            {
+                "name": "with the game on the card, the status line says what else she is up to",
+                "got": Items.shownText(nyxRow, "memberStatus")[0] ?? "",
+                "want": "Playing Cyberpunk 2077 · 2h"
             }
         ];
     }
 
     DemoCoverSeed {
-        onSeeded: Statusphere.ingest(JSON.stringify(root.room))
+        onSeeded: Fresence.ingest(JSON.stringify(root.snapshot))
     }
 
     ColumnLayout {

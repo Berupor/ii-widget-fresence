@@ -6,7 +6,7 @@ import QtQuick
 Item {
     id: form
     required property var card
-    readonly property real progress: form.card.hasData ? form.card.percent / 100 : 0
+    readonly property real progress: form.card.hasData ? form.card.fill : 0
     readonly property real smallestAnimatedStep: 0.05
 
     function showProgress(): void {

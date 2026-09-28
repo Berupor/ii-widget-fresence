@@ -1,85 +1,80 @@
-//@ probe statusphere -g 420x520 -s 1500
+//@ probe fresence -g 420x560 -s 1500
 /**
  * The spare end of the spectrum: one quote across the row, a mood sticker, a
- * big clock and the weather in the detail card - row collapsed and detail
- * expanded, on its own so it reads as restraint rather than emptiness next to
- * a denser pack.
+ * big clock and the weather in the detail grid - both open, on its own so it
+ * reads as restraint rather than emptiness next to a denser card. Off screen,
+ * the same card on a device that has no quote yet keeps the tile, dimmed.
  */
 import ".."
-import "../CardLayouts.js" as CardLayouts
+import "lib"
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoCards.js" as DemoCards
+import "lib/DemoItems.js" as Items
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
 
 Item {
     id: root
-    readonly property int now: 1780000000
 
-    readonly property var room: ({
-            "members": [
-                {
-                    "account_id": "acc-ren",
-                    "device_id": "dev-ren",
-                    "device_name": "phone",
-                    "account_name": "Ren",
-                    "last_seen": root.now,
-                    "_layout": {
-                        "updated_at": root.now,
-                        "row": CardLayouts.packs.row.minimal,
-                        "detail": CardLayouts.packs.detail.minimal
-                    },
-                    "custom_fields": ["quote", "local_time", "mood", "weather"],
-                    "weather": "14° Overcast",
-                    "quote": "still here",
-                    "local_time": "23:14",
-                    "mood": "unbothered"
-                }
-            ],
-            "photos": []
-        })
+    readonly property var snapshot: Demo.snapshot([Demo.device({
+                "id": "dev-self",
+                "account": "You"
+            })], [Demo.room("room-a", [Demo.member("acc-ren", [DemoCards.device("minimal", {
+                            "id": "dev-ren",
+                            "account": "Ren",
+                            "name": "phone",
+                            "kind": "phone"
+                        })])])])
 
-    // A generic visual-tree walk, for pinning what a tile actually renders with
-    // instead of just the data that went in.
-    function findAll(item, pred, out) {
-        if (pred(item))
-            out.push(item);
-        for (const c of item.children ?? [])
-            root.findAll(c, pred, out);
-        return out;
+    readonly property var quietDevice: Demo.device({
+        "id": "dev-quiet",
+        "account": "Quiet",
+        "row": DemoCards.rows.minimal,
+        "state": {
+            "values": {}
+        }
+    })
+
+    function grids(): var {
+        return Items.findAll(renRow, it => it.placed !== undefined && it.grid !== undefined && it.visible);
     }
 
     function checks() {
-        const grids = root.findAll(root, it => it.rowsUsed !== undefined && it.placed !== undefined, []);
-        const packedSolid = grids.every(g => g.placed.reduce((sum, p) => sum + p.cols * p.rows, 0) === g.rowsUsed * g.columns);
-
-        const texts = root.findAll(root, it => it.text !== undefined, []);
-        const hasText = value => texts.some(t => t.text === value);
-
+        const row = root.grids().find(g => g.grid === "row");
+        const quiet = Items.tiles(quietGrid)[0] ?? null;
         return [
             {
-                "name": "the minimal pack owns its row and detail",
-                "got": ["row", "detail"].map(surface => Statusphere.ownsSurface(Statusphere.accountsById["acc-ren"], surface)),
-                "want": [true, true]
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(root),
+                "want": []
             },
             {
-                "name": "the row drew its detail card open",
-                "got": renRow.height > 150,
+                "name": "the row and its detail grid are both drawn",
+                "got": root.grids().map(g => g.grid),
+                "want": ["row", "detail"]
+            },
+            {
+                "name": "the quote spans the whole row",
+                "got": row ? row.placed.map(p => [p.col, p.cols]) : [],
+                "want": [[0, 4]]
+            },
+            {
+                "name": "a big-form tile shows its label over the value",
+                "got": Items.findAll(renRow, it => it.card !== undefined && it.centered !== undefined && it.visible).map(l => l.card.labelText).includes("Mood"),
                 "want": true
             },
             {
-                "name": "no pack row is left with an empty grid cell",
-                "got": grids.length > 0 && packedSolid,
-                "want": true
-            },
-            {
-                "name": "a big-form tile shows a label, not just a bare value",
-                "got": hasText("Quote") && hasText("still here"),
-                "want": true
+                "name": "a value with no data and on_missing dim keeps its place, dimmed, with a dash",
+                "got": [quietGrid.placed.length, quiet?.dimmed, quiet?.shownValueText],
+                "want": [1, true, "-"]
             }
         ];
     }
 
-    Component.onCompleted: Statusphere.ingest(JSON.stringify(root.room))
+    DemoCoverSeed {
+        onSeeded: Fresence.ingest(JSON.stringify(root.snapshot))
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -97,5 +92,13 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
         }
+    }
+
+    CardGrid {
+        id: quietGrid
+        visible: false
+        width: 388
+        device: root.quietDevice
+        widgets: DemoCards.rows.minimal
     }
 }

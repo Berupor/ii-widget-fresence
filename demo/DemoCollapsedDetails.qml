@@ -1,154 +1,147 @@
-//@ probe statusphere -g 420x260 -s 3000
+//@ probe fresence -g 430x700 -s 2500
 /**
- * A server's forced detail card (serverMetrics), right-click collapsed, then
- * read back the way a fresh process would: through the persisted widget
- * option on disk, not an in-memory singleton property that a shell reload
- * would drop. Each step polls for the write it triggered to land on disk
- * instead of assuming a fixed delay, since FileView.setText is not synchronous.
+ * The detail grid opens on a tap on the face and closes on the next one, and a
+ * card whose detail is empty has nothing to open. Each step waits for the one before it to land instead of a fixed delay.
  */
 import ".."
 import qs.modules.common
-import qs.modules.widgets
-import Quickshell.Io
 import QtQuick
+import QtQuick.Layouts
+import "lib"
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 
 Item {
     id: root
-    readonly property int now: 1780000000
-    readonly property string serverId: "acc-collapse-server"
 
-    readonly property var room: ({
-            "members": [
-                {
-                    "account_id": root.serverId,
-                    "device_id": "dev-collapse-server",
-                    "device_name": "vps",
-                    "account_name": "Collapse Server",
-                    "_kind": "server",
-                    "last_seen": root.now,
-                    "cpu_percent": 10
-                }
-            ],
-            "photos": []
-        })
-
-    Component.onCompleted: Statusphere.ingest(JSON.stringify(root.room))
+    readonly property var snapshot: Demo.snapshot([Demo.device({
+            "id": "dev-self",
+            "account": "You"
+        })], [Demo.room("room-a", [Demo.member("acc-ivy", [Demo.device({
+                            "id": "dev-ivy",
+                            "account": "Ivy",
+                            "row": [Demo.value("window", [0, 0, 4, 1])],
+                            "detail": [Demo.value("cpu", [0, 0, 1, 1], {
+                                    "form": "ring",
+                                    "label": "CPU"
+                                }), Demo.value("uptime", [1, 0, 3, 1], {
+                                    "label": "Uptime"
+                                })],
+                            "state": {
+                                "values": {
+                                    "window": {
+                                        "text": "htop"
+                                    },
+                                    "cpu": {
+                                        "text": "17%",
+                                        "fill": 0.17
+                                    },
+                                    "uptime": {
+                                        "text": "3 days"
+                                    }
+                                }
+                            }
+                        })]), Demo.member("acc-ray", [Demo.device({
+                            "id": "dev-ray",
+                            "account": "Ray",
+                            "row": [Demo.value("window", [0, 0, 4, 1])],
+                            "state": {
+                                "values": {
+                                    "window": {
+                                        "text": "Blender"
+                                    }
+                                }
+                            }
+                        })])])])
 
     property int step: 0
-    property bool beforeCollapsed
-    property bool beforeVisible
-    property var afterCollapseStoredIds: []
-    property bool afterCollapseVisible
-    property bool wipedCollapsed
-    property bool reloadedCollapsed
-    property bool reloadedVisible
-    property var afterExpandStoredIds: []
-    property bool afterExpandVisible
+    property var seen: []
 
-    function storedCollapsedIds() {
-        storeView.reload();
-        try {
-            return JSON.parse(storeView.text())?.options?.statusphere?.collapsedDetailIds ?? [];
-        } catch (e) {
-            return [];
-        }
+    function detailShown(row): bool {
+        return Items.findAll(row, it => it.grid === "detail" && it.placed !== undefined)[0]?.visible ?? false;
     }
 
-    function rowVisible() {
-        return serverRow.serverDetailsForced && !serverRow.serverDetailsCollapsed;
+    function tap(row): void {
+        Items.findAll(row, it => it.holdStarted !== undefined)[0].tapped();
     }
 
-    PresenceRow {
-        id: serverRow
-        width: root.width
-        modelData: root.serverId
+    function note(): void {
+        root.seen = root.seen.concat([[ivy.expandable, root.detailShown(ivy), ray.expandable, root.detailShown(ray)]]);
     }
 
-    FileView {
-        id: storeView
-        path: `${Directories.shellConfig}/widgets.json`
-        printErrors: false
-        blockLoading: true
-    }
-
-    // A small state machine, not fixed delays: each step waits for the write
-    // it triggered to actually reach the file before moving on.
-    Timer {
-        interval: 50
-        running: true
-        repeat: true
-        onTriggered: root.advance()
-    }
-
-    function advance() {
+    function advance(): void {
         switch (root.step) {
         case 0:
-            if (!Statusphere.accountsById[root.serverId])
+            if (!Fresence.membersById["acc-ivy"] || !ivy.expandable)
                 return;
-            root.beforeCollapsed = Statusphere.detailsCollapsedFor(root.serverId);
-            root.beforeVisible = root.rowVisible();
-            Statusphere.toggleDetailsCollapsed(root.serverId);
+            root.note();
+            root.tap(ivy);
+            root.tap(ray);
             root.step = 1;
             break;
         case 1:
-            if (!root.storedCollapsedIds().includes(root.serverId))
-                return;
-            root.afterCollapseStoredIds = root.storedCollapsedIds();
-            root.afterCollapseVisible = root.rowVisible();
-
-            // A freshly booted WidgetsStore starts blank until its own FileView
-            // loads - wipe it the same way, then rebuild it from the file on
-            // disk, the way its onLoaded does, to prove the collapse survives
-            // that and isn't cached anywhere else.
-            WidgetsStore.data = {
-                "enabled": [],
-                "options": {}
-            };
-            root.wipedCollapsed = Statusphere.detailsCollapsedFor(root.serverId);
-            WidgetsStore.data = JSON.parse(storeView.text());
-            root.reloadedCollapsed = Statusphere.detailsCollapsedFor(root.serverId);
-            root.reloadedVisible = root.rowVisible();
-
-            Statusphere.toggleDetailsCollapsed(root.serverId);
+            root.note();
+            root.tap(ivy);
+            root.tap(ray);
             root.step = 2;
             break;
         case 2:
-            if (root.storedCollapsedIds().includes(root.serverId))
-                return;
-            root.afterExpandStoredIds = root.storedCollapsedIds();
-            root.afterExpandVisible = root.rowVisible();
+            root.note();
             root.step = 3;
             break;
         }
     }
 
+    Timer {
+        interval: 100
+        running: root.step < 3
+        repeat: true
+        onTriggered: root.advance()
+    }
+
     function checks() {
         return [
             {
-                "name": "a server's forced detail card starts expanded",
-                "got": [root.beforeCollapsed, root.beforeVisible],
-                "want": [false, true]
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(root),
+                "want": []
             },
             {
-                "name": "collapsing it writes the account id into the persisted widget option and hides the card",
-                "got": [root.afterCollapseStoredIds.includes(root.serverId), root.afterCollapseVisible],
-                "want": [true, false]
+                "name": "a card with a detail starts closed, opens on a tap on the face and closes on the next",
+                "got": root.seen.map(s => s.slice(0, 2)),
+                "want": [[true, false], [true, true], [true, false]]
             },
             {
-                "name": "a blanked-out store reports it expanded again, so nothing else is caching the flag",
-                "got": root.wipedCollapsed,
-                "want": false
-            },
-            {
-                "name": "rebuilding the store from the file on disk - what a shell reload does - keeps it collapsed",
-                "got": [root.reloadedCollapsed, root.reloadedVisible],
-                "want": [true, false]
-            },
-            {
-                "name": "expanding it again removes the id from the persisted option and reopens the card",
-                "got": [root.afterExpandStoredIds.includes(root.serverId), root.afterExpandVisible],
-                "want": [false, true]
+                "name": "a card with an empty detail is not expandable and stays closed",
+                "got": root.seen.map(s => s.slice(2)),
+                "want": [[false, false], [false, false], [false, false]]
             }
         ];
+    }
+
+    DemoCoverSeed {
+        onSeeded: Fresence.ingest(JSON.stringify(root.snapshot))
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 16
+        spacing: 12
+
+        PresenceRow {
+            id: ivy
+            Layout.fillWidth: true
+            modelData: "acc-ivy"
+        }
+
+        PresenceRow {
+            id: ray
+            Layout.fillWidth: true
+            modelData: "acc-ray"
+        }
+
+        Item {
+            Layout.fillHeight: true
+        }
     }
 }

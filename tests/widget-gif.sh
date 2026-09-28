@@ -23,8 +23,7 @@ FRAMEDIR="$DIR/unsynced/gif-frames"
 rm -rf "$FRAMEDIR"
 mkdir -p "$FRAMEDIR" "$(dirname "$OUT")"
 
-# Statusphere.ingest coalesces for 250ms before it takes - stay well clear, and hold it
-# constant so settling is not one more thing that varies between frames.
+# Held constant so settling is not one more thing that varies between frames
 SETTLE=700
 
 for ((i = 0; i < FRAMES; i++)); do

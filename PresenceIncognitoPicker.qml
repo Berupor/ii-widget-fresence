@@ -70,7 +70,7 @@ Item {
         if (root.hovered < 0)
             return;
         const choice = root.choices[root.hovered];
-        Statusphere.setIncognito(choice.hide, choice.minutes);
+        Fresence.setIncognito(choice.hide, choice.minutes);
     }
 
     Row {

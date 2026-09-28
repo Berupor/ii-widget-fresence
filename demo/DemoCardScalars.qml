@@ -1,187 +1,167 @@
-//@ probe statusphere -g 620x930 -s 1500
+//@ probe fresence -g 620x940 -s 1500
 /**
- * A close-up of the scalar forms at a size where the bar fill, the ring gap
- * and the headline value are actually legible - the friend packs only ever
- * show them shrunk into a 1x1/2x1 cell. Also the text that has to fit: a
- * window title led by a symbol, a single long word, ring captions.
+ * A close-up of the value forms at a size where the bar fill, the ring gap and
+ * the headline value are actually legible - a friend's row only ever shows them
+ * shrunk into a 1x1/2x1 cell. Also the text that has to fit: a window title led
+ * by a symbol, a single long word, ring captions, and a form the type does not
+ * have, which falls back to the type's first one.
  */
 import ".."
-import "../CardLayouts.js" as CardLayouts
 import "lib"
 import "lib/DemoCovers.js" as DemoCovers
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
 
 Item {
     id: root
-    readonly property int now: 1780000000
-
-    readonly property var scalarTiles: [
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "cpu",
-            "form": "bar",
-            "size": "2x1",
-            "color": "primaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "mem",
-            "form": "ring",
-            "size": "1x1",
-            "color": "secondaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "load",
-            "form": "number",
-            "size": "1x1",
-            "color": "tertiaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "disk",
-            "form": "big",
-            "size": "1x1",
-            "color": "primaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "active_window",
-            "form": "text",
-            "size": "2x1",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "active_window",
-            "form": "text",
-            "size": "1x1",
-            "color": "tertiaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "word",
-            "form": "text",
-            "size": "2x1",
-            "color": "primaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "disk",
-            "form": "ring",
-            "size": "1x1",
-            "color": "tertiaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "battery",
-            "form": "ring",
-            "size": "1x1",
-            "color": "primaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "mem",
-            "form": "bar",
-            "size": "1x1",
-            "color": "tertiaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "music",
-            "form": "wave",
-            "size": "2x1",
-            "color": "primary",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "music",
-            "form": "vinyl",
-            "size": "1x1",
-            "color": "primaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "cpu",
-            "form": "dial",
-            "size": "1x1",
-            "color": "secondaryContainer",
-            "onMissing": "hide"
-        }),
-        CardLayouts.tile({
-            "type": "scalar",
-            "field": "disk",
-            "form": "dial",
-            "size": "2x2",
-            "color": "tertiaryContainer",
-            "onMissing": "hide"
-        })
-    ]
 
     readonly property string symbolTitle: "◐ Personalization"
 
-    readonly property var room: ({
-            "members": [
-                {
-                    "account_id": "acc-scalars",
-                    "device_id": "dev-scalars",
-                    "device_name": "desktop",
-                    "account_name": "Scalars",
-                    "last_seen": root.now,
-                    "_layout": {
-                        "updated_at": root.now,
-                        "row": root.scalarTiles,
-                        "detail": []
-                    },
-                    "cpu_percent": 63,
-                    "memory_used_mb": 12288,
-                    "memory_total_mb": 16384,
-                    "load_avg_1m": 2.4,
-                    "cpu_count": 8,
-                    "disk_used_percent": 47,
-                    "disk_free_gb": 120,
-                    "active_window": root.symbolTitle,
-                    "spotify_status": "playing",
-                    "spotify_track": "Nightcall",
-                    "spotify_artist": "Kavinsky",
-                    "spotify_position": 40,
-                    "spotify_length": 200,
-                    "spotify_art_url": DemoCovers.url("nightcall.jpg"),
-                    "custom_fields": ["word", "battery"],
-                    "word": "Donaudampfschifffahrtsgesellschaft",
-                    "battery": "82%"
-                }
-            ],
-            "photos": []
+    readonly property var mainWidgets: [
+        Demo.value("cpu", [0, 0, 2, 1], {
+            "form": "bar",
+            "color": "primary_container",
+            "label": "CPU",
+            "on_missing": "hide"
+        }),
+        Demo.value("memory", [2, 0, 1, 1], {
+            "form": "ring",
+            "color": "secondary_container",
+            "label": "Memory",
+            "on_missing": "hide"
+        }),
+        Demo.value("load", [3, 0, 1, 1], {
+            "form": "number",
+            "color": "tertiary_container",
+            "label": "Load",
+            "on_missing": "hide"
+        }),
+        Demo.value("disk", [0, 1, 1, 1], {
+            "form": "big",
+            "color": "primary_container",
+            "label": "Disk",
+            "on_missing": "hide"
+        }),
+        Demo.value("window", [1, 1, 2, 1], {
+            "form": "text",
+            "on_missing": "hide"
+        }),
+        Demo.value("window", [3, 1, 1, 1], {
+            "form": "text",
+            "color": "tertiary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("word", [0, 2, 2, 1], {
+            "form": "text",
+            "color": "primary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("disk", [2, 2, 1, 1], {
+            "form": "ring",
+            "color": "tertiary_container",
+            "label": "Disk",
+            "on_missing": "hide"
+        }),
+        Demo.value("battery", [3, 2, 1, 1], {
+            "form": "ring",
+            "color": "primary_container",
+            "label": "Battery",
+            "on_missing": "hide"
+        }),
+        Demo.value("memory", [0, 3, 1, 1], {
+            "form": "bar",
+            "color": "tertiary_container",
+            "label": "Memory",
+            "on_missing": "hide"
+        }),
+        Demo.widget("media", [1, 3, 2, 1], {
+            "form": "wave",
+            "color": "primary",
+            "on_missing": "hide"
+        }),
+        Demo.widget("media", [3, 3, 1, 1], {
+            "form": "vinyl",
+            "color": "primary_container",
+            "on_missing": "hide"
         })
+    ]
 
-    function findAll(item, pred, out) {
-        if (!item)
-            return out;
-        if (pred(item))
-            out.push(item);
-        for (let i = 0; i < item.children.length; i++)
-            root.findAll(item.children[i], pred, out);
-        return out;
+    readonly property var dialWidgets: [
+        Demo.value("cpu", [0, 0, 1, 1], {
+            "form": "dial",
+            "color": "secondary_container",
+            "label": "CPU",
+            "on_missing": "hide"
+        }),
+        Demo.value("disk", [1, 0, 2, 2], {
+            "form": "dial",
+            "color": "tertiary_container",
+            "label": "Disk",
+            "on_missing": "hide"
+        }),
+        Demo.value("load", [3, 0, 1, 1], {
+            "form": "vinyl",
+            "label": "Foreign form"
+        }),
+        Demo.value("load", [3, 1, 1, 1], {
+            "label": "No form"
+        })
+    ]
+
+    readonly property var snapshot: Demo.snapshot([Demo.device({
+                "id": "dev-self",
+                "account": "You"
+            })], [Demo.room("room-a", [Demo.member("acc-scalars", [Demo.device({
+                            "id": "dev-scalars",
+                            "account": "Scalars",
+                            "detail": root.mainWidgets,
+                            "state": {
+                                "media": Demo.playing("Nightcall", "Kavinsky", DemoCovers.url("nightcall.jpg"), 40000, 200000),
+                                "values": {
+                                    "cpu": {
+                                        "text": "63%",
+                                        "fill": 0.63
+                                    },
+                                    "memory": {
+                                        "text": "12.0/16.0G",
+                                        "fill": 0.75
+                                    },
+                                    "load": {
+                                        "text": "2.40 / 8"
+                                    },
+                                    "disk": {
+                                        "text": "47%",
+                                        "fill": 0.47
+                                    },
+                                    "window": {
+                                        "text": root.symbolTitle
+                                    },
+                                    "word": {
+                                        "text": "Donaudampfschifffahrtsgesellschaft"
+                                    },
+                                    "battery": {
+                                        "text": "82%",
+                                        "fill": 0.82
+                                    }
+                                }
+                            }
+                        })])])])
+
+    readonly property var device: Fresence.membersById["acc-scalars"]?.shownDevices[0] ?? null
+
+    function tileOf(grid, widgets, index) {
+        return Items.tiles(grid).find(t => Items.sameWidget(t.widget, widgets[index])) ?? null;
     }
 
     function tileAt(index) {
-        return root.findAll(grid, it => it.account !== undefined && it.modelData?.index === index, [])[0] ?? null;
+        return index < root.mainWidgets.length ? root.tileOf(mainGrid, root.mainWidgets, index) : root.tileOf(dialGrid, root.dialWidgets, index - root.mainWidgets.length);
     }
 
     function part(index, name) {
-        return root.findAll(root.tileAt(index), it => it.objectName === name, [])[0] ?? null;
+        return Items.byName(root.tileAt(index), name)[0] ?? null;
     }
 
     function ringCaptionClear(index) {
@@ -195,11 +175,15 @@ Item {
     }
 
     function dialSpinning(tile) {
-        return root.findAll(tile, it => it.animateWave !== undefined && it.waveAmplitude !== undefined, [])[0]?.animateWave ?? null;
+        return Items.findAll(tile, it => it.animateWave !== undefined && it.waveAmplitude !== undefined)[0]?.animateWave ?? null;
+    }
+
+    function waveLine(index) {
+        return Items.findAll(root.tileAt(index), it => it.valueBarHeight !== undefined && it.visible)[0] ?? null;
     }
 
     function waveBandInside(index) {
-        const line = root.findAll(root.tileAt(index), it => it.valueBarHeight !== undefined && it.visible, [])[0] ?? null;
+        const line = root.waveLine(index);
         if (!line)
             return null;
         let box = line.parent;
@@ -217,8 +201,13 @@ Item {
         return [
             {
                 "name": "every fixture tile places on the grid",
-                "got": grid.placed.length,
-                "want": root.scalarTiles.length
+                "got": [mainGrid.placed.length, dialGrid.placed.length],
+                "want": [root.mainWidgets.length, root.dialWidgets.length]
+            },
+            {
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(root),
+                "want": []
             },
             {
                 "name": "a leading symbol stays on the line of its word in a 2x1 text tile",
@@ -233,7 +222,7 @@ Item {
             {
                 "name": "only a lone symbol or emoji is glued to its word, plain words keep their space",
                 "got": ["◐ Personalization", "driving home 🎧", "🇯🇵 Tokyo", "Somewhere new", "up 3 hours"].map(t => root.tileAt(4)?.withSymbolsAttached(t)),
-                "want": ["◐\u00A0Personalization", "driving home\u00A0🎧", "🇯🇵\u00A0Tokyo", "Somewhere new", "up 3 hours"]
+                "want": ["◐ Personalization", "driving home 🎧", "🇯🇵 Tokyo", "Somewhere new", "up 3 hours"]
             },
             {
                 "name": "a long single word shrinks instead of eliding",
@@ -241,9 +230,9 @@ Item {
                 "want": [false, 1, true]
             },
             {
-                "name": "a ring caption is the short label, not the free-space note",
-                "got": root.part(7, "ringCaption")?.text,
-                "want": "Disk"
+                "name": "a ring shows the value's own text and the widget's label under it",
+                "got": [root.part(1, "ringValue")?.text, root.part(7, "ringCaption")?.text],
+                "want": ["12.0/16.0G", "Disk"]
             },
             {
                 "name": "ring captions sit below the value, whole",
@@ -251,18 +240,30 @@ Item {
                 "want": [true, true, true]
             },
             {
+                "name": "a bar fills by the value's fill, not by parsing its text",
+                "got": [root.waveLine(0)?.value, root.waveLine(9)?.value],
+                "want": [0.63, 0.75],
+                "tol": 0.001
+            },
+            {
                 "name": "a wave line keeps its troughs: the whole wave sits inside the tile, in a 2x1 bar, a 1x1 bar and the music wave",
                 "got": [root.waveBandInside(0), root.waveBandInside(9), root.waveBandInside(10)],
                 "want": [true, true, true]
             },
             {
+                "name": "the music wave moves on from position_ms by the time since position_at",
+                "got": root.waveLine(10)?.value ?? -1,
+                "want": 0.2,
+                "tol": 0.04
+            },
+            {
                 "name": "with a known track length the vinyl shows its progress ring",
-                "got": root.findAll(root.tileAt(11), it => it.lineWidth !== undefined && it.value !== undefined && it.visible, []).length,
+                "got": Items.findAll(root.tileAt(11), it => it.lineWidth !== undefined && it.value !== undefined && it.visible).length,
                 "want": 1
             },
             {
                 "name": "a dial tile draws a wavy ring, at a 1x1 and a 2x2 size",
-                "got": [12, 13].map(index => root.findAll(root.tileAt(index), it => it.waveAmplitude !== undefined && it.value !== undefined && it.visible, []).length),
+                "got": [12, 13].map(index => Items.findAll(root.tileAt(index), it => it.waveAmplitude !== undefined && it.value !== undefined && it.visible).length),
                 "want": [1, 1]
             },
             {
@@ -276,20 +277,20 @@ Item {
                 "want": [true, false]
             },
             {
-                "name": "the bar tile's fill percent comes from cpu_percent",
-                "got": Statusphere.fieldFor(Statusphere.deviceForTile(Statusphere.accountsById["acc-scalars"], root.scalarTiles[0]), "cpu")?.percent,
-                "want": 63
+                "name": "a form the type does not have, or none at all, falls back to the type's first form",
+                "got": [root.tileAt(14)?.form, root.tileAt(15)?.form, root.part(14, "textValue")?.text],
+                "want": ["text", "text", "2.40 / 8"]
             },
             {
-                "name": "the ring tile's fill percent comes from the memory used/total ratio, not a fixed value",
-                "got": Statusphere.fieldFor(Statusphere.deviceForTile(Statusphere.accountsById["acc-scalars"], root.scalarTiles[1]), "mem")?.percent,
-                "want": 75
+                "name": "a tile takes the fill of its color role and the matching on-color for its text",
+                "got": [String(root.tileAt(1)?.tint), String(root.tileAt(1)?.contentColor), String(root.tileAt(4)?.tint)],
+                "want": [String(Appearance.colors.colSecondaryContainer), String(Appearance.colors.colOnSecondaryContainer), String(Appearance.colors.colLayer2)]
             }
         ];
     }
 
     DemoCoverSeed {
-        onSeeded: Statusphere.ingest(JSON.stringify(root.room))
+        onSeeded: Fresence.ingest(JSON.stringify(root.snapshot))
     }
 
     Rectangle {
@@ -297,13 +298,30 @@ Item {
         color: Appearance.colors.colLayer0
     }
 
-    CardGrid {
-        id: grid
+    ColumnLayout {
         anchors.fill: parent
         anchors.margins: 16
-        account: Statusphere.accountsById["acc-scalars"]
-        tiles: root.scalarTiles
-        maxRows: 6
+        spacing: 16
+
+        CardGrid {
+            id: mainGrid
+            Layout.fillWidth: true
+            device: root.device
+            widgets: root.mainWidgets
+            grid: "detail"
+        }
+
+        CardGrid {
+            id: dialGrid
+            Layout.fillWidth: true
+            device: root.device
+            widgets: root.dialWidgets
+            grid: "detail"
+        }
+
+        Item {
+            Layout.fillHeight: true
+        }
     }
 
     CardTile {
@@ -311,7 +329,7 @@ Item {
         visible: false
         width: 120
         height: 120
-        account: Statusphere.accountsById["acc-scalars"]
-        tile: root.scalarTiles[12]
+        widget: root.dialWidgets[0]
+        device: root.device
     }
 }

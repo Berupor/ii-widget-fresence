@@ -8,11 +8,11 @@ import QtQuick
 import QtQuick.Window
 import Qt5Compat.GraphicalEffects
 
-/** A friend's current shared photo, with a relative-time corner label, or a picture by url. No captions, no reactions. */
+/** A shared photo from the agent's cache with the time it has left, or a picture by url. */
 Rectangle {
     id: root
-    property var photo: null // { account_id, path, created_at, expires_at }
-    property bool thumbnail: false
+    property string path: ""
+    property real expiresAt: NaN
     property bool cropped: false
     property string url: ""
     property string fit: "cover"
@@ -77,7 +77,7 @@ Rectangle {
                 verticalCenter: parent.verticalCenter
             }
             height: root.imageHeight
-            sourcePath: root.photo?.path ?? ""
+            sourcePath: root.path
             playing: root.animating
             thumbnailSizeName: "x-large" // The default sizes itself off sourceSize, which is 0 before the first load
             // Panoramas get letterboxed rather than gutted; anything taller is cropped to maxHeight
@@ -95,7 +95,7 @@ Rectangle {
     }
 
     Rectangle {
-        visible: root.photo !== null && !root.thumbnail
+        visible: root.path.length > 0 && !isNaN(root.expiresAt)
         anchors {
             right: parent.right
             bottom: parent.bottom
@@ -112,7 +112,7 @@ Rectangle {
             anchors.centerIn: parent
             font.pixelSize: Appearance.font.pixelSize.smaller
             color: "white"
-            text: root.photo ? NotificationUtils.getFriendlyNotifTimeString(Date.parse(root.photo.created_at)) : ""
+            text: isNaN(root.expiresAt) ? "" : Fresence.leftText(root.expiresAt)
         }
     }
 }

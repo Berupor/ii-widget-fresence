@@ -1,22 +1,22 @@
-//@ probe statusphere -g 1300x660 -s 2500
+//@ probe fresence -g 1300x760 -s 2500
 /**
- * The animated live weather tile (TileWeatherLive + WeatherSky) at every condition, day
- * and night, both sizes - plus a few tiles that isolate one axis each: light vs heavy
- * rain, windy vs calm, a cold vs a hot reading, and a waxing crescent vs a waxing
+ * The animated live weather tile (weather_live form + WeatherSky) at every condition,
+ * day and night, both sizes - plus a few tiles that isolate one axis each: light vs
+ * heavy rain, windy vs calm, a cold vs a hot reading, and a waxing crescent vs a waxing
  * gibbous moon. arcMoments steps the sun and moon around their arcs: sunrise, morning,
- * noon, late afternoon and sunset by day, dusk, midnight and pre-dawn by night. One
- * tile on the old "weather" kind with a legacy-format value closes it out, to keep the
- * untouched path exercised too.
+ * noon, late afternoon and sunset by day, dusk, midnight and pre-dawn by night. A plain
+ * weather form with a free-text value, and the moon and sun forms driven by fill, close
+ * it out.
  */
 import ".."
 import "../CardLayouts.js" as CardLayouts
-import "../Templates.js" as Templates
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 import qs.modules.common
 import QtQuick
 
 Item {
     id: root
-    readonly property int now: 1780000000
     readonly property int tileUnit: 96
     readonly property int gap: 8
 
@@ -254,8 +254,27 @@ Item {
         { "key": "arc_predawn", "temp": 7, "now": 330, "day": false }
     ]
 
-    readonly property string legacyKey: "weather_legacy"
+    readonly property string legacyKey: "weather_text"
     readonly property string legacyValue: "9° Rain · Lisbon, PT"
+
+    readonly property var fills: ({
+            "moon_crescent": {
+                "text": "Waxing Crescent",
+                "fill": 0.25
+            },
+            "moon_gibbous": {
+                "text": "Waxing Gibbous",
+                "fill": 0.9
+            },
+            "sun_morning": {
+                "text": "06:30 - 19:30",
+                "fill": 0.2
+            },
+            "sun_evening": {
+                "text": "06:30 - 19:30",
+                "fill": 0.8
+            }
+        })
 
     function fieldEntries() {
         const entries = {};
@@ -272,82 +291,70 @@ Item {
     }
     readonly property var fields: root.fieldEntries()
 
-    function wallTile(field, size, color, form) {
-        return CardLayouts.tile({
-            "type": "scalar",
-            "field": field,
-            "form": form ?? "weatherLive",
-            "shape": "auto",
-            "size": size,
-            "color": color,
-            "onMissing": "hide"
+    readonly property var device: {
+        const values = {};
+        for (const key in root.fields)
+            values[key] = {
+                "text": root.fields[key]
+            };
+        return {
+            "device_id": "dev-weather",
+            "online": true,
+            "state": {
+                "values": Object.assign(values, root.fills)
+            }
+        };
+    }
+
+    function wallTile(source, cols, color, form) {
+        return Demo.value(source, [0, 0, cols, 1], {
+            "form": form ?? "weather_live",
+            "color": color
         });
     }
 
     readonly property var wallTiles: {
         const tiles = [];
         for (const c of root.conditions) {
-            tiles.push(root.wallTile(`${c.key}_day`, "1x1", "primaryContainer"));
-            tiles.push(root.wallTile(`${c.key}_night`, "1x1", "tertiaryContainer"));
-            tiles.push(root.wallTile(`${c.key}_day`, "2x1", "primaryContainer"));
-            tiles.push(root.wallTile(`${c.key}_night`, "2x1", "tertiaryContainer"));
+            tiles.push(root.wallTile(`${c.key}_day`, 1, "primary_container"));
+            tiles.push(root.wallTile(`${c.key}_night`, 1, "tertiary_container"));
+            tiles.push(root.wallTile(`${c.key}_day`, 2, "primary_container"));
+            tiles.push(root.wallTile(`${c.key}_night`, 2, "tertiary_container"));
         }
         for (const v of root.variants)
-            tiles.push(root.wallTile(v.key, "1x1", "secondaryContainer"));
+            tiles.push(root.wallTile(v.key, 1, "secondary_container"));
         for (const a of root.arcMoments) {
-            const color = a.day ? "primaryContainer" : "tertiaryContainer";
-            tiles.push(root.wallTile(a.key, "1x1", color));
-            tiles.push(root.wallTile(a.key, "2x1", color));
+            const color = a.day ? "primary_container" : "tertiary_container";
+            tiles.push(root.wallTile(a.key, 1, color));
+            tiles.push(root.wallTile(a.key, 2, color));
         }
-        tiles.push(root.wallTile(root.legacyKey, "2x1", "secondaryContainer", "weather"));
+        tiles.push(root.wallTile(root.legacyKey, 2, "secondary_container", "weather"));
+        for (const key in root.fills)
+            tiles.push(root.wallTile(key, 1, "tertiary_container", key.startsWith("moon") ? "moon" : "sun"));
         return tiles;
     }
 
-    readonly property var room: ({
-            "members": [
-                Object.assign({
-                    "account_id": "acc-weather",
-                    "device_id": "dev-weather",
-                    "device_name": "desktop",
-                    "account_name": "Weather Wall",
-                    "last_seen": root.now,
-                    "custom_fields": Object.keys(root.fields)
-                }, root.fields)
-            ],
-            "photos": []
-        })
-
-    function findAll(item, pred, out) {
-        if (!item)
-            return out;
-        if (pred(item))
-            out.push(item);
-        for (let i = 0; i < item.children.length; i++)
-            root.findAll(item.children[i], pred, out);
-        return out;
+    function tileFor(source, cols) {
+        return Items.tiles(wall).find(t => t.widget.source === source && (cols === undefined || t.widget.place.cols === cols)) ?? null;
     }
 
-    function tileFor(field, size) {
-        return root.findAll(wall, it => it.tile !== undefined && it.tile.field === field && (size === undefined || it.tile.size === size), [])[0] ?? null;
+    function skyFor(source, cols) {
+        return Items.findAll(root.tileFor(source, cols), it => it.condition !== undefined && it.showsThunder !== undefined)[0] ?? null;
     }
 
-    function skyFor(field, size) {
-        return root.findAll(root.tileFor(field, size), it => it.condition !== undefined && it.showsThunder !== undefined, [])[0] ?? null;
+    function textPartsOf(source, cols) {
+        return Items.findAll(root.tileFor(source, cols), it => it.text !== undefined && it.font !== undefined && it.visible && it.text.length > 0).map(it => it.text);
     }
 
-    function textPartsOf(field, size) {
-        return root.findAll(root.tileFor(field, size), it => it.text !== undefined && it.font !== undefined, []).map(it => it.text);
-    }
-
-    function bodyOf(field, size, name) {
-        return root.findAll(root.tileFor(field, size), it => it.objectName === name, [])[0] ?? null;
+    function bodyOf(source, cols, name) {
+        return Items.byName(root.tileFor(source, cols), name)[0] ?? null;
     }
 
     function checks() {
-        const clearDay = root.skyFor("clear_day", "1x1");
-        const clearNight = root.skyFor("clear_night", "1x1");
-        const thunderDay = root.skyFor("thunder_day", "1x1");
-        const snowNight = root.skyFor("snow_night", "1x1");
+        const clearDay = root.skyFor("clear_day", 1);
+        const clearNight = root.skyFor("clear_night", 1);
+        const thunderDay = root.skyFor("thunder_day", 1);
+        const snowNight = root.skyFor("snow_night", 1);
         const rainLight = root.skyFor("rain_light");
         const rainHeavy = root.skyFor("rain_heavy");
         const rainWindy = root.skyFor("rain_windy");
@@ -361,23 +368,20 @@ Item {
         const possibleRainWithPrecip = root.skyFor("possible_rain_with_precip");
         const arcDayKeys = ["arc_sunrise", "arc_morning", "arc_noon", "arc_late_afternoon", "arc_sunset"];
         const arcNightKeys = ["arc_dusk", "arc_midnight", "arc_predawn"];
-        const sunXs = arcDayKeys.map(k => root.bodyOf(k, "2x1", "weatherSun")?.x);
-        const sunNoonY = root.bodyOf("arc_noon", "2x1", "weatherSun")?.y;
-        const sunSunriseY = root.bodyOf("arc_sunrise", "2x1", "weatherSun")?.y;
+        const sunXs = arcDayKeys.map(k => root.bodyOf(k, 2, "weatherSun")?.x);
+        const sunNoonY = root.bodyOf("arc_noon", 2, "weatherSun")?.y;
+        const sunSunriseY = root.bodyOf("arc_sunrise", 2, "weatherSun")?.y;
         const arcNoonFields = CardLayouts.weatherFieldsOf(root.fields.arc_noon);
-        const weatherLiveCmd = Templates.kind("weatherLive").cmdFor("Tokyo");
-        const weatherLiveCmdTromso = Templates.kind("weatherLive").cmdFor("Tromso");
-        const weatherCmd = Templates.kind("weather").cmdFor("Tromso");
         return [
             {
                 "name": "every wall tile renders one CardTile",
-                "got": root.findAll(wall, it => it.tile !== undefined, []).length,
+                "got": Items.tiles(wall).length,
                 "want": root.wallTiles.length
             },
             {
-                "name": "an auto-shaped weather tile picks its silhouette from the condition and day/night",
-                "got": [root.tileFor("clear_day", "1x1")?.resolvedShape, root.tileFor("clear_night", "1x1")?.resolvedShape, root.tileFor("thunder_day", "1x1")?.resolvedShape, root.tileFor("snow_day", "1x1")?.resolvedShape, root.tileFor("rain_day", "1x1")?.resolvedShape, root.tileFor("fog_day", "1x1")?.resolvedShape],
-                "want": ["Sunny", "Circle", "SoftBurst", "Cookie9Sided", "Cookie6Sided", "Pill"]
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(wall),
+                "want": []
             },
             {
                 "name": "the sky reads its condition and day/night off the compact value",
@@ -421,33 +425,13 @@ Item {
             },
             {
                 "name": "the compact value splits into a temperature and the city",
-                "got": root.textPartsOf("clear_day", "1x1"),
+                "got": root.textPartsOf("clear_day", 1),
                 "want": ["Barcelona", "22°"]
             },
             {
-                "name": "an old cached value ('temp° Condition · City') still renders",
-                "got": root.textPartsOf(root.legacyKey, "2x1"),
-                "want": ["Lisbon, PT", "9°"]
-            },
-            {
-                "name": "the old weather kind keeps its own silhouette rule and builds no sky",
-                "got": [CardLayouts.weatherShape(root.legacyValue), root.skyFor(root.legacyKey, "2x1")],
-                "want": ["Cookie6Sided", null]
-            },
-            {
-                "name": "the old weather kind's free-text silhouette covers wttr.in's other real ?format=%C texts",
-                "got": [CardLayouts.weatherShape("Overcast "), CardLayouts.weatherShape("Mist"), CardLayouts.weatherShape("Light drizzle"), CardLayouts.weatherShape("Blizzard"), CardLayouts.weatherShape("Patchy light rain with thunder")],
-                "want": ["Cookie6Sided", "Pill", "Cookie6Sided", "Cookie9Sided", "SoftBurst"]
-            },
-            {
-                "name": "weatherLive is a beta kind listed next to weather in the Live gallery group, with more than one sample to cycle",
-                "got": [Templates.galleryGroups.find(g => g.title === "Live").entries.map(e => e.id), Templates.kind("weatherLive").beta, Templates.kind("weatherLive").samples.length > 1],
-                "want": [["weather", "weatherLive", "clock", "moon", "sun", "commits", "battery"], true, true]
-            },
-            {
-                "name": "cycling weatherLive's gallery samples changes its silhouette the way a real tile would, clear day through to clear night",
-                "got": Templates.kind("weatherLive").samples.map(s => CardLayouts.weatherLiveShape(s.value)),
-                "want": ["Sunny", "Cookie6Sided", "Cookie6Sided", "SoftBurst", "Cookie9Sided", "Pill", "Circle", "Sunny", "Sunny"]
+                "name": "a free-text weather value shows its temperature under the city, with no sky",
+                "got": [root.textPartsOf(root.legacyKey, 2), root.skyFor(root.legacyKey, 2)],
+                "want": [["Lisbon, PT", "9°"], null]
             },
             {
                 "name": "the compact value carries moon illumination and phase, a crescent waxing and a gibbous also waxing",
@@ -461,7 +445,7 @@ Item {
             },
             {
                 "name": "isDay follows sunrise/sunset rather than a fixed clock window",
-                "got": arcDayKeys.concat(arcNightKeys).map(k => root.skyFor(k, "1x1")?.isDay),
+                "got": arcDayKeys.concat(arcNightKeys).map(k => root.skyFor(k, 1)?.isDay),
                 "want": [true, true, true, true, true, false, false, false]
             },
             {
@@ -470,24 +454,24 @@ Item {
                 "want": [root.sunriseMin, root.sunsetMin, 780]
             },
             {
-                "name": "weatherLive's cmdFor reads now, sunrise and sunset off one plain request (%T|%S|%s), not j1's own astronomy or UTC observation_time",
-                "got": [weatherLiveCmd.includes("format=%T|%S|%s"), weatherLiveCmd.includes("--arg times"), weatherLiveCmd.includes("observation_time")],
-                "want": [true, true, false]
+                "name": "the moon form lights as much of the disc as its fill says",
+                "got": ["moon_crescent", "moon_gibbous"].map(k => root.bodyOf(k, 1, "moonDisc")?.lit),
+                "want": [0.25, 0.9],
+                "tol": 0.001
             },
             {
-                "name": "weatherLive's cmdFor passes the typed city into jq, not just wttr.in's nearest district",
-                "got": weatherLiveCmdTromso.includes("--arg city 'Tromso'"),
-                "want": true
+                "name": "the sun form puts the sun as far along its arc as its fill says",
+                "got": ["sun_morning", "sun_evening"].map(k => root.bodyOf(k, 1, "sunArc")?.progress),
+                "want": [0.2, 0.8],
+                "tol": 0.001
             },
             {
-                "name": "weather's cmdFor asks wttr.in for metric units, not USCS on a US IP",
-                "got": weatherCmd.includes("&m"),
-                "want": true
+                "name": "the moon and sun forms caption the value's text",
+                "got": ["moon_crescent", "sun_evening"].map(k => root.textPartsOf(k, 1)),
+                "want": [["Waxing Crescent"], ["06:30 - 19:30"]]
             }
         ];
     }
-
-    Component.onCompleted: Statusphere.ingest(JSON.stringify(root.room))
 
     Rectangle {
         anchors.fill: parent
@@ -507,10 +491,10 @@ Item {
             delegate: CardTile {
                 id: tileItem
                 required property var modelData
-                width: CardLayouts.spanOf(tileItem.modelData.size).cols === 2 ? root.tileUnit * 2 + root.gap : root.tileUnit
+                width: tileItem.modelData.place.cols === 2 ? root.tileUnit * 2 + root.gap : root.tileUnit
                 height: root.tileUnit
-                account: Statusphere.accountsById["acc-weather"]
-                tile: tileItem.modelData
+                widget: tileItem.modelData
+                device: root.device
             }
         }
     }

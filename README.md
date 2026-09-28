@@ -1,14 +1,14 @@
-# Statusphere widget
+# Fresence widget
 
 A room of friends on your desktop: who's online, what they're playing, photos they
-shared. Client for [statusphere](https://github.com/MAX1T1A/statusphere), and the first
+shared. Client for [fresence](https://github.com/Berupor/fresence), and the first
 widget living outside the shell tree - a trial run of the extensions mechanism in the
 [illogical-impulse extensions fork](https://github.com/Berupor/dots-hyprland-extensions).
 
 ![Night owl, music head, traveler with a live sky, coder, and someone mid-game](docs/hero.png)
 
-Nobody in that room is real: the scenes in `demo/` feed the widget made-up members
-through the same `ingest` the cli talks to.
+Nobody in that room is real: the scenes in `demo/` feed the widget made-up snapshots
+through the same `ingest` that `fresence watch` talks to.
 
 <table>
 <tr>
@@ -23,8 +23,8 @@ through the same `ingest` the cli talks to.
 </tr>
 <tr>
 <td align="center">
-<img src="docs/cardEditor.png" height="420"><br>
-<sub>Building a card from the live tile gallery</sub>
+<img src="docs/cards.png" height="420"><br>
+<sub>Every kind of tile a card can hold</sub>
 </td>
 <td align="center">
 <img src="docs/friendCard.png" height="420"><br>
@@ -43,18 +43,25 @@ through the same `ingest` the cli talks to.
 Settings → Widgets → Install a widget, paste:
 
 ```
-https://github.com/Berupor/ii-widget-statusphere.git
+https://github.com/Berupor/ii-widget-fresence.git
 ```
 
-Needs `~/.local/bin/statusphere` logged in, otherwise the widget stays greyed out.
+Needs the fresence agent running on this machine (`fresence run`, or its systemd user
+unit) and linked to an account (`fresence link` or `fresence join`). The widget holds no
+keys and never talks to the server: the room comes from `fresence watch`, hiding and
+sharing go through `fresence incognito` and `fresence photo`.
+
+What a card shows is up to its owner: the `row` and `detail` grids of each device live
+in the agent's config, edited from the fresence app. The widget draws them the way every
+other client does, by the rules in fresence's `protocol.md`.
 
 ## Hacking
 
 With the fork checked out next door, the scenes are both the tests and the pictures:
 
 ```sh
-tests/qml-cases.sh    -x ~/.config/illogical-impulse/widgets/statusphere
-tests/widget-shots.sh -x ~/.config/illogical-impulse/widgets/statusphere
+tests/qml-cases.sh    -x ~/.config/illogical-impulse/widgets/fresence
+tests/widget-shots.sh -x ~/.config/illogical-impulse/widgets/fresence
 tests/widget-gif.sh                                   # redraws docs/weather.gif
 ```
 

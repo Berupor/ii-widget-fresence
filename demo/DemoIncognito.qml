@@ -1,51 +1,82 @@
-//@ probe statusphere -g 440x210 -s 1500
+//@ probe fresence -g 440x210 -s 1500
 /**
  * The README's incognito shot: holding your own avatar slides open
- * PresenceIncognitoPicker, and a friend who picked "Until I say" shows up to
- * everyone else as just a hidden line, window and all.
+ * PresenceIncognitoPicker, and a friend whose device publishes state.incognito
+ * shows up to everyone else as just a hidden line, window and all. Your own
+ * incognito is read off your device's state in the snapshot, which is what the
+ * bar indicator follows.
  */
 import ".."
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 
 Item {
     id: root
-    readonly property int now: 1780000000
 
-    readonly property var room: ({
-            "members": [
-                {
-                    "account_id": "acc-you",
-                    "device_id": "dev-you",
-                    "device_name": "laptop",
-                    "account_name": "You",
-                    "last_seen": root.now
-                },
-                {
-                    "account_id": "acc-nova",
-                    "device_id": "dev-nova",
-                    "device_name": "phone",
-                    "account_name": "Nova",
-                    "last_seen": root.now,
-                    "active_window": "Signal",
-                    "_incognito": true
+    readonly property var snapshot: Demo.snapshot([Demo.device({
+                "id": "dev-self",
+                "account": "You",
+                "name": "laptop",
+                "kind": "laptop",
+                "state": {
+                    "incognito": {
+                        "note": "at the dentist"
+                    }
                 }
-            ],
-            "photos": []
-        })
+            })], [Demo.room("room-a", [Demo.member("acc-nova", [Demo.device({
+                            "id": "dev-nova",
+                            "account": "Nova",
+                            "name": "phone",
+                            "kind": "phone",
+                            "row": [Demo.value("window", [0, 0, 4, 1])],
+                            "state": {
+                                "incognito": {},
+                                "values": {
+                                    "window": {
+                                        "text": "Signal"
+                                    }
+                                }
+                            }
+                        })])])])
 
     function checks() {
+        const nova = Items.rowOf(root, "acc-nova");
+        const status = nova ? Items.shownText(nova, "memberStatus").join("") : "";
         return [
             {
-                "name": "the picker is open and Nova reads as hidden",
-                "got": [picker.open, Statusphere.hiddenFor(Statusphere.accountsById["acc-nova"])],
-                "want": [true, true]
+                "name": "the picker is open over your own row",
+                "got": picker.open,
+                "want": true
+            },
+            {
+                "name": "Nova reads as hidden, with no tile and no window in her line",
+                "got": [Fresence.membersById["acc-nova"]?.presence.kind, status.length > 0, status.includes("Signal"), Items.tiles(nova).filter(t => t.visible).length],
+                "want": ["incognito", true, false, 0]
+            },
+            {
+                "name": "your own device's state.incognito is what hides you, note and all",
+                "got": [Fresence.hiding, Fresence.incognitoLabel(), Fresence.membersById["acc-self"]?.presence.kind],
+                "want": [true, "Hidden · at the dentist", "incognito"]
+            },
+            {
+                "name": "the bar indicator shows while you hide",
+                "got": indicator.shown,
+                "want": true
             }
         ];
     }
 
-    Component.onCompleted: Statusphere.ingest(JSON.stringify(root.room))
+    Component.onCompleted: Fresence.ingest(JSON.stringify(root.snapshot))
+
+    FresenceIncognitoIndicator {
+        id: indicator
+        width: 0
+        height: 0
+        opacity: 0
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -69,11 +100,9 @@ Item {
                 spacing: 12
 
                 PresenceAvatar {
-                    account: Statusphere.accountsById["acc-you"]
+                    member: Fresence.membersById["acc-self"] ?? null
                     offline: false
                     hidden: false
-                    away: false
-                    shape: "Circle"
                     interactive: true
                 }
 

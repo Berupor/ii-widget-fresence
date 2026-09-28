@@ -1,168 +1,171 @@
-//@ probe statusphere -g 960x900 -s 2500
+//@ probe fresence -g 960x600 -s 2500
 /**
- * The README hero: five friends, each a different shape of the same room -
- * a night owl (clock over a GIF, window, moon), a music head (spinning vinyl), a
- * traveler (a shared photo next to a live weather tile, sun over Barcelona),
- * a coder (cpu ring, workspace number) and a friend just playing a game,
- * cover art and all, on the built-in row nobody had to design. Rows stay
- * collapsed - the point is reading the room at a glance, not every tile it owns.
+ * The README hero: five friends, each card a different shape of the same room -
+ * a night owl (a GIF, a far-away clock, the window, the moon), a music head
+ * (spinning vinyl), a traveler (a shared photo next to a live sky over
+ * Barcelona), a coder (cpu ring, workspace number, the window) and a friend
+ * just playing a game, cover art and all. Rows stay collapsed - the point is
+ * reading the room at a glance, not every tile it owns.
  */
 import ".."
-import "../CardLayouts.js" as CardLayouts
-import "lib"
-import "lib/DemoCovers.js" as DemoCovers
 import qs.modules.common
+import qs.modules.common.functions
 import QtQuick
 import QtQuick.Layouts
+import "lib"
+import "lib/DemoCovers.js" as DemoCovers
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 
 Item {
     id: root
-    readonly property int now: 1780000000
+    readonly property real columnWidth: (root.width - 48) / 2
 
-    function cover(file) {
-        return String(Qt.resolvedUrl(`covers/${file}`));
+    function text(t: string): var {
+        return {
+            "text": t
+        };
     }
 
-    readonly property var room: ({
-            "members": [
-                {
-                    "account_id": "acc-nyx",
-                    "device_id": "dev-nyx",
-                    "device_name": "tower",
-                    "account_name": "Nyx",
-                    "last_seen": root.now,
-                    "active_window": "mpv - late_night_mix.mkv",
-                    "active_app": "mpv",
-                    "_layout": {
-                        "updated_at": root.now,
-                        "row": [
-                            Object.assign({}, CardLayouts.packs.row.nightOwl[0], {
-                                "shape": "default",
-                                "background": {
-                                    "kind": "url",
-                                    "value": DemoCovers.url("death-note-l.gif")
+    readonly property var snapshot: Demo.snapshot([Demo.device({
+            "id": "dev-self",
+            "account": "You"
+        })], [Demo.room("room-a", [Demo.member("acc-nyx", [Demo.device({
+                            "id": "dev-nyx",
+                            "account": "Nyx",
+                            "row": [Demo.widget("image", [0, 0, 1, 1], {
+                                    "url": DemoCovers.url("death-note-l.gif")
+                                }), Demo.value("local_time", [1, 0, 1, 1], {
+                                    "form": "number",
+                                    "label": "Tokyo",
+                                    "color": "tertiary_container"
+                                }), Demo.value("window", [2, 0, 1, 1]), Demo.value("moon", [3, 0, 1, 1], {
+                                    "form": "moon"
+                                })],
+                            "state": {
+                                "values": {
+                                    "local_time": root.text("03:12"),
+                                    "window": root.text("mpv"),
+                                    "moon": {
+                                        "text": "Waxing",
+                                        "fill": 0.62
+                                    }
                                 }
-                            }),
-                            CardLayouts.packs.row.nightOwl[1],
-                            CardLayouts.packs.row.nightOwl[2]
-                        ]
-                    },
-                    "custom_fields": ["local_time", "moon"],
-                    "local_time": "03:12",
-                    "moon": "🌔"
-                },
-                {
-                    "account_id": "acc-echo",
-                    "device_id": "dev-echo",
-                    "device_name": "laptop",
-                    "account_name": "Echo",
-                    "last_seen": root.now,
-                    "_layout": {
-                        "updated_at": root.now,
-                        "row": CardLayouts.packs.row.musicHead,
-                        "avatarShape": CardLayouts.packAvatarShapes.musicHead
-                    },
-                    "spotify_status": "playing",
-                    "spotify_track": "Nightcall",
-                    "spotify_artist": "Kavinsky",
-                    "spotify_position": 95,
-                    "spotify_length": 240,
-                    "spotify_art_url": DemoCovers.url("nightcall.jpg"),
-                    "custom_fields": ["into_lately", "local_time"],
-                    "into_lately": "Nightcall on loop",
-                    "local_time": "21:40"
-                },
-                {
-                    "account_id": "acc-nomad",
-                    "device_id": "dev-nomad",
-                    "device_name": "phone",
-                    "account_name": "Wren",
-                    "last_seen": root.now,
-                    "active_window": "Photos - Barcelona",
-                    "_layout": {
-                        "updated_at": root.now,
-                        "row": [
-                            CardLayouts.packs.row.traveler[0],
-                            CardLayouts.packs.row.traveler[1],
-                            CardLayouts.tile({
-                                "type": "scalar",
-                                "field": "weather",
-                                "form": "weatherLive",
-                                "size": "1x1",
-                                "shape": "auto",
-                                "color": "primaryContainer",
-                                "onMissing": "hide"
-                            })
-                        ]
-                    },
-                    "custom_fields": ["local_time", "weather"],
-                    "local_time": "13:15",
-                    "weather": "22;113;0;8;200;1;28;Waxing Crescent;390;1170;720;Barcelona"
-                },
-                {
-                    "account_id": "acc-turing",
-                    "device_id": "dev-turing",
-                    "device_name": "desktop",
-                    "account_name": "Turing",
-                    "last_seen": root.now,
-                    "active_window": "nvim - main.go",
-                    "active_app": "nvim",
-                    "active_workspace": 4,
-                    "cpu_percent": 34,
-                    "_layout": {
-                        "updated_at": root.now,
-                        "row": CardLayouts.packs.row.coder,
-                        "avatarShape": CardLayouts.packAvatarShapes.coder
-                    }
-                },
-                {
-                    "account_id": "acc-ghost",
-                    "device_id": "dev-ghost",
-                    "device_name": "console",
-                    "account_name": "Ghost",
-                    "last_seen": root.now,
-                    "game_status": "playing",
-                    "game_name": "Warhammer 40,000: Space Marine 2",
-                    "game_display": "Warhammer 40,000: Space Marine 2",
-                    "game_hero_url": DemoCovers.url("sm2-hero.jpg"),
-                    "game_session_seconds": 3600
-                }
-            ],
-            "photos": [
-                {
-                    "account_id": "acc-nomad",
-                    "path": root.cover("teardrop.jpg"),
-                    "created_at": "2026-09-20T12:00:00Z",
-                    "expires_at": "2099-01-01T00:00:00Z"
-                }
-            ]
-        })
+                            }
+                        })]), Demo.member("acc-echo", [Demo.device({
+                            "id": "dev-echo",
+                            "account": "Echo",
+                            "name": "laptop",
+                            "kind": "laptop",
+                            "row": [Demo.widget("media", [0, 0, 1, 1], {
+                                    "form": "vinyl"
+                                }), Demo.value("lately", [1, 0, 3, 1], {
+                                    "form": "banner",
+                                    "label": "Into lately",
+                                    "icon": "album",
+                                    "color": "secondary_container"
+                                })],
+                            "state": {
+                                "media": Demo.playing("Teardrop", "Massive Attack", DemoCovers.url("teardrop.jpg"), 120000, 330000),
+                                "values": {
+                                    "lately": root.text("trip-hop, mostly Bristol")
+                                }
+                            }
+                        })]), Demo.member("acc-nomad", [Demo.device({
+                            "id": "dev-nomad",
+                            "account": "Nomad",
+                            "name": "phone",
+                            "kind": "phone",
+                            "row": [Demo.widget("photo", [0, 0, 2, 1]), Demo.value("weather", [2, 0, 2, 1], {
+                                    "form": "weather_live"
+                                })],
+                            "photo": FileUtils.trimFileProtocol(String(Qt.resolvedUrl("covers/rdr2-hero.jpg"))),
+                            "state": {
+                                "photo": {
+                                    "id": "photo-nomad",
+                                    "key": "a2V5",
+                                    "mime": "image/jpeg",
+                                    "width": 1600,
+                                    "height": 900,
+                                    "expires_at": Demo.iso(Demo.minutes(40))
+                                },
+                                "values": {
+                                    "weather": root.text("24;113;0;9;120;1;62;Waxing Gibbous;420;1230;1080;Barcelona")
+                                }
+                            }
+                        })]), Demo.member("acc-turing", [Demo.device({
+                            "id": "dev-turing",
+                            "account": "Turing",
+                            "row": [Demo.value("cpu", [0, 0, 1, 1], {
+                                    "form": "ring",
+                                    "label": "CPU",
+                                    "color": "primary_container"
+                                }), Demo.value("workspace", [1, 0, 1, 1], {
+                                    "form": "number",
+                                    "label": "Workspace"
+                                }), Demo.value("window", [2, 0, 2, 1], {
+                                    "icon": "terminal"
+                                })],
+                            "state": {
+                                "values": {
+                                    "cpu": {
+                                        "text": "63%",
+                                        "fill": 0.63
+                                    },
+                                    "workspace": root.text("3"),
+                                    "window": root.text("nvim main.go")
+                                }
+                            }
+                        })]), Demo.member("acc-ghost", [Demo.device({
+                            "id": "dev-ghost",
+                            "account": "Ghost",
+                            "row": [Demo.widget("game", [0, 0, 4, 1])],
+                            "state": {
+                                "game": Demo.game("Cyberpunk 2077", Demo.minutes(95), {
+                                    "header": DemoCovers.url("cp2077-header.jpg")
+                                })
+                            }
+                        })])])])
+
+    function tilesOf(accountId: string): var {
+        return Items.tiles(Items.rowOf(root, accountId));
+    }
 
     function checks() {
+        const weather = root.tilesOf("acc-nomad").find(t => t.widget.source === "weather");
+        const ghost = root.tilesOf("acc-ghost")[0];
         return [
             {
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(root),
+                "want": []
+            },
+            {
                 "name": "all five friends made it into the room",
-                "got": Statusphere.memberCount,
-                "want": 5
+                "got": ["acc-nyx", "acc-echo", "acc-nomad", "acc-turing", "acc-ghost"].map(id => Fresence.membersById[id]?.presence.kind),
+                "want": ["online", "online", "online", "online", "online"]
             },
             {
-                "name": "the traveler's weather tile is live, not the plain form",
-                "got": Statusphere.surfaceTiles(Statusphere.accountsById["acc-nomad"], "row").find(t => t.field === "weather")?.form,
-                "want": "weatherLive"
+                "name": "every row tile has its data",
+                "got": ["acc-nyx", "acc-echo", "acc-nomad", "acc-turing", "acc-ghost"].map(id => root.tilesOf(id).filter(t => t.dimmed).length),
+                "want": [0, 0, 0, 0, 0]
             },
             {
-                "name": "the ghost friend's game shows through the built-in row, no pack needed",
-                "got": Statusphere.gameDevices(Statusphere.accountsById["acc-ghost"]).length > 0,
-                "want": true
+                "name": "the traveler's weather tile is live, sky and all",
+                "got": [weather?.form, Items.byName(weather, "tileWeatherSky")[0]?.active],
+                "want": ["weather_live", true]
+            },
+            {
+                "name": "the game friend's row is the game, banner and all",
+                "got": [ghost?.type, ghost?.form, Items.shownText(ghost, "gameName")],
+                "want": ["game", "banner", ["Cyberpunk 2077"]]
             }
         ];
     }
 
     DemoCoverSeed {
-        onSeeded: Statusphere.ingest(JSON.stringify(root.room))
+        onSeeded: Fresence.ingest(JSON.stringify(root.snapshot))
     }
-
-    readonly property int columnWidth: 300
 
     ColumnLayout {
         anchors.fill: parent
@@ -175,6 +178,7 @@ Item {
 
             ColumnLayout {
                 Layout.preferredWidth: root.columnWidth
+                Layout.alignment: Qt.AlignTop
                 spacing: 12
 
                 PresenceRow {
@@ -186,10 +190,16 @@ Item {
                     Layout.preferredWidth: root.columnWidth
                     modelData: "acc-echo"
                 }
+
+                PresenceRow {
+                    Layout.preferredWidth: root.columnWidth
+                    modelData: "acc-ghost"
+                }
             }
 
             ColumnLayout {
                 Layout.preferredWidth: root.columnWidth
+                Layout.alignment: Qt.AlignTop
                 spacing: 12
 
                 PresenceRow {
@@ -204,9 +214,8 @@ Item {
             }
         }
 
-        PresenceRow {
-            Layout.fillWidth: true
-            modelData: "acc-ghost"
+        Item {
+            Layout.fillHeight: true
         }
     }
 }

@@ -10,14 +10,10 @@ import QtQuick
 Item {
     id: root
 
-    property var account: null
+    property var member: null
     property bool offline: true
     property bool hidden: false
-    property bool away: false
     property bool interactive: false
-    property string shape: "Circle"
-    readonly property bool isServer: Statusphere.isServer(root.account)
-    readonly property string health: Statusphere.healthFor(root.account)
     property real holdProgress: 0
 
     signal holdStarted
@@ -70,39 +66,18 @@ Item {
         id: face
         anchors.fill: parent
 
-        MaterialShape {
+        Rectangle {
             anchors.fill: parent
-            visible: root.shape !== "SineCookie"
-            shape: MaterialShape.Shape[root.shape] ?? MaterialShape.Shape.Circle
-            color: root.offline ? Appearance.colors.colLayer2 : Appearance.colors.colSecondaryContainer
-        }
-
-        SineCookie {
-            anchors.fill: parent
-            visible: root.shape === "SineCookie"
-            implicitSize: root.width
+            radius: width / 2
             color: root.offline ? Appearance.colors.colLayer2 : Appearance.colors.colSecondaryContainer
         }
 
         StyledText {
             anchors.centerIn: parent
-            opacity: (root.hidden || root.isServer) ? 0 : 1
+            opacity: root.hidden ? 0 : 1
             font.pixelSize: Appearance.font.pixelSize.large
             color: root.offline ? Appearance.colors.colSubtext : Appearance.colors.colOnSecondaryContainer
-            text: Statusphere.initialFor(root.account)
-
-            Behavior on opacity {
-                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-            }
-        }
-
-        MaterialSymbol { // A machine has no initial worth showing
-            anchors.centerIn: parent
-            opacity: (root.isServer && !root.hidden) ? 1 : 0
-            fill: 0
-            text: "dns"
-            iconSize: Appearance.font.pixelSize.larger
-            color: root.offline ? Appearance.colors.colSubtext : Appearance.colors.colOnSecondaryContainer
+            text: Fresence.initialFor(root.member)
 
             Behavior on opacity {
                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -123,7 +98,7 @@ Item {
         }
     }
 
-    Rectangle { // Away punches a hole in the dot - a ring reads at this size, a moon glyph doesn't
+    Rectangle {
         id: badge
         width: 13
         height: 13
@@ -137,12 +112,6 @@ Item {
                 return Appearance.colors.colLayer2;
             if (root.hidden)
                 return Appearance.colors.colSecondary;
-            if (root.away)
-                return Appearance.colors.colSubtext;
-            if (root.health === "crit")
-                return Appearance.colors.colError;
-            if (root.health === "warn")
-                return Appearance.colors.colTertiary;
             return Appearance.colors.colPrimary;
         }
         border.width: 2
@@ -150,19 +119,6 @@ Item {
 
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
-        }
-
-        Rectangle {
-            anchors.centerIn: parent
-            width: 5
-            height: 5
-            radius: 2.5
-            color: Appearance.colors.colLayer2
-            opacity: (root.away && !root.offline && !root.hidden) ? 1 : 0
-
-            Behavior on opacity {
-                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-            }
         }
     }
 

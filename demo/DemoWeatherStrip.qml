@@ -1,11 +1,12 @@
-//@ probe statusphere -g 700x520 -s 1500
+//@ probe fresence -g 700x520 -s 1500
 /**
- * The README's live weather strip: a curated handful of TileWeatherLive
+ * The README's live weather strip: a curated handful of weather_live
  * conditions - clear day and night side by side, rain, thunder, snow, fog
  * and a sunset - instead of DemoWeather's full debug wall.
  */
 import ".."
-import "../CardLayouts.js" as CardLayouts
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 import qs.modules.common
 import QtQuick
 
@@ -33,54 +34,53 @@ Item {
             "clear_night": root.weatherValue(12, 113, 0, 8, 200, 1320, 28, "Waxing Crescent", "Barcelona")
         })
 
-    function wallTile(field, size, color) {
-        return CardLayouts.tile({
-            "type": "scalar",
-            "field": field,
-            "form": "weatherLive",
-            "shape": "auto",
-            "size": size,
-            "color": color,
-            "onMissing": "hide"
+    function wallTile(source, cols, color) {
+        return Demo.value(source, [0, 0, cols, 1], {
+            "form": "weather_live",
+            "color": color
         });
     }
 
     readonly property var wallTiles: [
-        root.wallTile("clear_day", "1x1", "primaryContainer"),
-        root.wallTile("rain", "2x1", "secondaryContainer"),
-        root.wallTile("thunder", "1x1", "secondaryContainer"),
-        root.wallTile("fog", "2x1", "primaryContainer"),
-        root.wallTile("twilight", "2x1", "tertiaryContainer"),
-        root.wallTile("snow", "1x1", "secondaryContainer"),
-        root.wallTile("clear_night", "2x1", "tertiaryContainer"),
-        root.wallTile("clouds", "1x1", "primaryContainer")
+        root.wallTile("clear_day", 1, "primary_container"),
+        root.wallTile("rain", 2, "secondary_container"),
+        root.wallTile("thunder", 1, "secondary_container"),
+        root.wallTile("fog", 2, "primary_container"),
+        root.wallTile("twilight", 2, "tertiary_container"),
+        root.wallTile("snow", 1, "secondary_container"),
+        root.wallTile("clear_night", 2, "tertiary_container"),
+        root.wallTile("clouds", 1, "primary_container")
     ]
 
-    readonly property var room: ({
-            "members": [
-                Object.assign({
-                    "account_id": "acc-weather",
-                    "device_id": "dev-weather",
-                    "device_name": "desktop",
-                    "account_name": "Weather Wall",
-                    "last_seen": 1780000000,
-                    "custom_fields": Object.keys(root.fields)
-                }, root.fields)
-            ],
-            "photos": []
-        })
+    readonly property var device: {
+        const values = {};
+        for (const key in root.fields)
+            values[key] = {
+                "text": root.fields[key]
+            };
+        return {
+            "device_id": "dev-weather",
+            "online": true,
+            "state": {
+                "values": values
+            }
+        };
+    }
 
     function checks() {
         return [
             {
-                "name": "every curated tile renders one CardTile",
-                "got": wall.children.length > 0,
-                "want": true
+                "name": "every curated tile renders one CardTile with a sky",
+                "got": Items.tiles(wall).map(t => Items.byName(t, "tileWeatherSky")[0]?.status === 1),
+                "want": root.wallTiles.map(() => true)
+            },
+            {
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(wall),
+                "want": []
             }
         ];
     }
-
-    Component.onCompleted: Statusphere.ingest(JSON.stringify(root.room))
 
     Rectangle {
         anchors.fill: parent
@@ -100,11 +100,11 @@ Item {
             delegate: CardTile {
                 id: tileItem
                 required property var modelData
-                readonly property int cols: CardLayouts.spanOf(tileItem.modelData.size).cols
+                readonly property int cols: tileItem.modelData.place.cols
                 width: tileItem.cols * root.tileUnit + (tileItem.cols - 1) * root.gap
                 height: root.tileUnit
-                account: Statusphere.accountsById["acc-weather"]
-                tile: tileItem.modelData
+                widget: tileItem.modelData
+                device: root.device
             }
         }
     }

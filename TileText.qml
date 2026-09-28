@@ -8,20 +8,9 @@ ColumnLayout {
     required property var card
     spacing: 4
 
-    RowLayout {
+    TileLabel {
         Layout.fillWidth: true
-        spacing: 4
-
-        MaterialSymbol {
-            visible: (form.card.field?.icon ?? "").length > 0
-            text: form.card.field?.icon ?? ""
-            iconSize: Appearance.font.pixelSize.smaller
-            color: form.card.mutedContentColor
-        }
-        NotedLabel {
-            Layout.fillWidth: true
-            card: form.card
-        }
+        card: form.card
     }
     ShrinkThenWrapText {
         objectName: "textValue"

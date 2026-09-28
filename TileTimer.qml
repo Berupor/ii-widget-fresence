@@ -1,47 +1,38 @@
 import qs.modules.common
-import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Layouts
 
+/** A stopwatch running from the moment, or counting down to it. */
 Item {
     id: form
     required property var card
-    readonly property var device: form.card.gameDevice
-    readonly property real iconSize: Math.max(Appearance.font.pixelSize.large, Math.round(form.height * 0.3))
-    readonly property real labelSize: Math.max(Appearance.font.pixelSize.smaller, Math.round(form.height * 0.18))
-    readonly property real valueSize: Math.max(Appearance.font.pixelSize.large, Math.round(form.height * 0.3))
+    readonly property bool hasTime: !isNaN(form.card.valueTimeMs)
 
-    RowLayout {
-        anchors.fill: parent
-        spacing: 8
+    ColumnLayout {
+        anchors.centerIn: parent
+        width: parent.width
+        spacing: 2
 
-        MaterialSymbol {
-            Layout.alignment: Qt.AlignVCenter
-            text: "sports_esports"
-            iconSize: form.iconSize
-            color: form.card.contentColor
-        }
-        ColumnLayout {
+        TileLabel {
             Layout.fillWidth: true
-            Layout.alignment: Qt.AlignVCenter
-            spacing: 0
-
-            StyledText {
-                Layout.fillWidth: true
-                elide: Text.ElideRight
-                textFormat: Text.PlainText
-                text: form.device?.game_source ? Statusphere.labelForKey(form.device.game_source) : (Statusphere.gameFor(form.device) || "-")
-                color: form.card.mutedContentColor
-                font.pixelSize: form.labelSize
+            card: form.card
+            centered: true
+            largestSize: Math.max(Appearance.font.pixelSize.smallest, Math.round(form.height * 0.15))
+        }
+        ShrinkThenWrapText {
+            objectName: "timerValue"
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            largestSize: Math.max(Appearance.font.pixelSize.huge, Math.round(form.height * 0.4))
+            maxLines: 1
+            text: {
+                if (!form.hasTime)
+                    return form.card.value?.text || "-";
+                if (form.card.timeDirection === "")
+                    return "-";
+                return Fresence.stopwatchText(Math.abs(form.card.now - form.card.valueTimeMs));
             }
-            StyledText {
-                Layout.fillWidth: true
-                elide: Text.ElideRight
-                animateChange: true
-                text: form.device ? Statusphere.sessionFor(Statusphere.gameStartedMsFor(form.device)) : ""
-                color: form.card.contentColor
-                font.pixelSize: form.valueSize
-            }
+            color: form.card.contentColor
         }
     }
 }

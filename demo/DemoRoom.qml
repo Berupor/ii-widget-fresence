@@ -1,289 +1,425 @@
-//@ probe statusphere -g 430x700 -s 2000
+//@ probe fresence -g 430x1000 -s 4000
 /**
- * The room drawn from made-up data: `ingest` takes the same json line the cli
- * prints, so nothing here is stubbed and the whole pipeline runs. `-p scenario=`
- * picks the state - `plain` is the everyday room, `edge` is everything that has
- * ever looked wrong: long names, a nameless account, a stalled player, a server
- * in bad health, an account with more devices than fit.
+ * The room drawn from made-up data: `ingest` takes the same Snapshot line
+ * `fresence watch` prints, so nothing here is stubbed and the whole pipeline runs.
+ * `-p scenario=` picks the state - `plain` is the everyday room in two rooms with
+ * the switcher, several devices per account and someone offline, `edge` is
+ * everything that has ever looked wrong: long names, a nameless account, broken
+ * art, an account with more devices than fit. Before the room settles, both walk
+ * the agent states a snapshot or a watch exit can put the tab in.
  */
-import ".." // The widget's own types and its Statusphere singleton, via its qmldir
+import ".."
 import qs.modules.common
+import qs.modules.common.functions
+import qs.services
 import QtQuick
 import "lib"
 import "lib/DemoCovers.js" as DemoCovers
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 
 Item {
     id: root
 
     property string scenario: "plain"
+    readonly property bool edge: root.scenario === "edge"
 
-    // Photos play straight off demo/covers/, art urls get their cache from DemoCoverSeed: a shot needs no network
-    function cover(file) {
-        return String(Qt.resolvedUrl(`covers/${file}`));
+    readonly property var self: [Demo.device({
+            "id": "dev-you-laptop",
+            "account": "You",
+            "name": "thinkpad",
+            "kind": "laptop",
+            "row": [Demo.value("window", [0, 0, 3, 1]), Demo.value("battery", [3, 0, 1, 1], {
+                    "form": "ring",
+                    "label": "Battery"
+                })],
+            "state": {
+                "values": {
+                    "window": {
+                        "text": "fresence - Zed"
+                    },
+                    "battery": {
+                        "text": "81%",
+                        "fill": 0.81
+                    }
+                }
+            }
+        }), Demo.device({
+            "id": "dev-you-phone",
+            "account": "You",
+            "name": "pixel",
+            "kind": "phone",
+            "online": false
+        })]
+
+    readonly property var mira: Demo.member("acc-mira", [Demo.device({
+            "id": "dev-mira-desk",
+            "account": "Mira",
+            "row": [Demo.widget("game", [0, 0, 2, 1]), Demo.widget("media", [2, 0, 2, 1], {
+                    "form": "player"
+                })],
+            "state": {
+                "game": Demo.game("Red Dead Redemption 2", Demo.minutes(70), {
+                    "header": DemoCovers.url("rdr2-header.jpg"),
+                    "hero": DemoCovers.url("rdr2-hero.jpg")
+                }),
+                "media": Demo.playing("Teardrop", "Massive Attack", DemoCovers.url("teardrop.jpg"), 61000, 330000)
+            }
+        })])
+
+    readonly property var plainRooms: [Demo.room("room-a", [root.mira, Demo.member("acc-dan", [Demo.device({
+                    "id": "dev-dan-tower",
+                    "account": "Dan",
+                    "online": false,
+                    "seenAgo": Demo.minutes(180),
+                    "row": [Demo.widget("game", [0, 0, 4, 1])]
+                }), Demo.device({
+                    "id": "dev-dan-phone",
+                    "account": "Dan",
+                    "name": "phone",
+                    "kind": "phone",
+                    "row": [Demo.widget("media", [0, 0, 4, 1])],
+                    "state": {
+                        "media": Demo.playing("Nightcall", "Kavinsky", DemoCovers.url("nightcall.jpg"), 78000, 258000)
+                    }
+                })]), Demo.member("acc-kai", [Demo.device({
+                    "id": "dev-kai-laptop",
+                    "account": "Kai",
+                    "name": "laptop",
+                    "kind": "laptop",
+                    "online": false,
+                    "seenAgo": Demo.minutes(42),
+                    "row": [Demo.value("window", [0, 0, 4, 1])],
+                    "state": {
+                        "values": {
+                            "window": {
+                                "text": "vim notes.md"
+                            }
+                        }
+                    }
+                }), Demo.device({
+                    "id": "dev-kai-phone",
+                    "account": "Kai",
+                    "card": false
+                })]), Demo.member("acc-lena", [Demo.device({
+                    "id": "dev-lena",
+                    "account": "Lena",
+                    "online": false,
+                    "seenAgo": Demo.minutes(42),
+                    "row": [Demo.value("window", [0, 0, 4, 1])],
+                    "state": {
+                        "values": {
+                            "window": {
+                                "text": "Telegram"
+                            }
+                        }
+                    }
+                })])]), Demo.room("room-b", [root.mira, Demo.member("acc-noor", [Demo.device({
+                    "id": "dev-noor",
+                    "account": "Noor"
+                })])])]
+
+    readonly property var manyDevices: [0, 1, 2, 3, 4].map(i => Demo.device({
+                "id": `dev-many-${i}`,
+                "account": "Rin",
+                "name": `box-${i}`,
+                "online": i >= 2,
+                "row": [Demo.value("window", [0, 0, 4, 1])],
+                "state": i === 2 ? {
+                    "incognito": {}
+                } : {
+                    "values": {
+                        "window": {
+                            "text": `window on box-${i}`
+                        }
+                    }
+                }
+            }))
+
+    readonly property var edgeRooms: [Demo.room("room-edge", [Demo.member("acc-long", [Demo.device({
+                    "id": "dev-long",
+                    "account": "Maximiliana Alexandrovna-Konstantinopolskaya",
+                    "name": "a-workstation-with-a-hostname-nobody-can-read",
+                    "row": [Demo.value("window", [0, 0, 4, 1])],
+                    "state": {
+                        "values": {
+                            "window": {
+                                "text": "A very long window title that goes on - and on - past any sidebar width anyone has"
+                            }
+                        }
+                    }
+                }), Demo.device({
+                    "id": "dev-long-2",
+                    "account": "Maximiliana Alexandrovna-Konstantinopolskaya",
+                    "name": "another-hostname-that-is-also-far-too-long"
+                })]), Demo.member("acc-nameless", [Demo.device({
+                    "id": "dev-nameless",
+                    "row": [Demo.widget("game", [0, 0, 4, 1])],
+                    "state": {
+                        "game": Demo.game("Cyberpunk 2077", 5000, {
+                            "header": DemoCovers.url("dead-header.jpg")
+                        })
+                    }
+                })]), Demo.member("acc-sol", [Demo.device({
+                    "id": "dev-sol",
+                    "account": "Sol",
+                    "row": [Demo.widget("media", [0, 0, 4, 1], {
+                            "form": "player"
+                        })],
+                    "state": {
+                        "media": Demo.playing("A track whose art never loads", "Nobody", DemoCovers.url("gone.jpg"), 1000, 200000)
+                    }
+                })]), Demo.member("acc-rin", root.manyDevices), Demo.member("acc-bart", [Demo.device({
+                    "id": "dev-bart",
+                    "account": "Bartholomew Fitzgerald-Worthington the Third",
+                    "online": false,
+                    "seenAgo": Demo.minutes(3 * 24 * 60 + 30)
+                })])])]
+
+    readonly property var snapshot: Demo.snapshot(root.self, root.edge ? root.edgeRooms : root.plainRooms)
+
+    property int step: 0
+    property int waited: 0
+    property var seen: ({})
+
+    function note(key: string, value): void {
+        const next = Object.assign({}, root.seen);
+        next[key] = value;
+        root.seen = next;
     }
 
-    readonly property int now: 1780000000
-    readonly property var rooms: ({
-        "plain": {
-            "members": [
-                {
-                    "account_id": "acc-you",
-                    "device_id": "dev-you-laptop",
-                    "device_name": "thinkpad",
-                    "account_name": "You",
-                    "_role": "owner",
-                    "last_seen": root.now,
-                    "idle_seconds": 640 // Stepped away; dims the dot without touching the status line
-                },
-                {
-                    "account_id": "acc-mira",
-                    "device_id": "dev-mira-desk",
-                    "device_name": "workstation",
-                    "account_name": "Mira",
-                    "last_seen": root.now,
-                    "spotify_status": "playing",
-                    "spotify_track": "Nightcall",
-                    "spotify_artist": "Kavinsky",
-                    "spotify_position": 78,
-                    "spotify_length": 258,
-                    "spotify_art_url": DemoCovers.url("nightcall.jpg"),
-                    "game_status": "playing",
-                    "game_source": "steam",
-                    "game_appid": "1174180",
-                    "game_name": "Red Dead Redemption 2",
-                    "game_display": "Red Dead Redemption 2",
-                    "game_hero_url": DemoCovers.url("rdr2-hero.jpg"),
-                    "game_header_url": DemoCovers.url("rdr2-header.jpg"),
-                    "game_logo_url": DemoCovers.url("rdr2-logo.png"),
-                    "game_session_seconds": 5040
-                },
-                {
-                    "account_id": "acc-dan",
-                    "device_id": "dev-dan-desk",
-                    "device_name": "tower",
-                    "account_name": "Dan",
-                    "last_seen": root.now
-                },
-                {
-                    "account_id": "acc-dan",
-                    "device_id": "dev-dan-phone",
-                    "device_name": "pixel",
-                    "account_name": "Dan",
-                    "last_seen": root.now - 5,
-                    "spotify_status": "paused",
-                    "spotify_track": "Teardrop",
-                    "spotify_artist": "Massive Attack",
-                    "spotify_position": 12,
-                    "spotify_length": 330,
-                    "spotify_art_url": DemoCovers.url("teardrop.jpg")
-                },
-                {
-                    "account_id": "acc-lena",
-                    "account_name": "Lena",
-                    "_offline": true
-                }
-            ],
-            "photos": []
-        },
-        "edge": {
-            "members": [
-                {
-                    "account_id": "acc-long",
-                    "device_id": "dev-long",
-                    "device_name": "a-very-long-machine-name-that-will-not-fit",
-                    "account_name": "Wilhelmina-Josephine Featherstonehaugh-Marchetti",
-                    "last_seen": root.now,
-                    "spotify_status": "playing",
-                    "spotify_track": "A track title long enough to need eliding somewhere",
-                    "spotify_artist": "An artist with an equally unreasonable name",
-                    "spotify_length": 191,
-                    "spotify_position": 190, // A second left, and it never advances
-                    "game_status": "playing",
-                    "game_source": "steam",
-                    "game_appid": "2183900",
-                    "game_name": "Warhammer 40,000: Space Marine 2",
-                    "game_hero_url": DemoCovers.url("sm2-hero.jpg"),
-                    "game_header_url": DemoCovers.url("sm2-header.jpg"),
-                    "game_logo_url": DemoCovers.url("sm2-logo.png"),
-                    "game_session_seconds": 359999 // The widest the clock ever gets
-                },
-                {
-                    "account_id": "acc-nameless",
-                    "device_id": "dev-nameless",
-                    "last_seen": root.now,
-                    "game_status": "playing",
-                    "game_source": "steam",
-                    "game_appid": "1091500",
-                    "game_name": "Cyberpunk 2077",
-                    // No hero for this one: the card has to walk down to the header
-                    "game_hero_url": DemoCovers.url("no-such-hero.jpg"),
-                    "game_header_url": DemoCovers.url("cp2077-header.jpg"),
-                    "game_session_seconds": 47
-                },
-                {
-                    "account_id": "acc-box",
-                    "device_id": "dev-box",
-                    "device_name": "vps-fra-1",
-                    "account_name": "fra-1",
-                    "_kind": "server",
-                    "_health": "degraded",
-                    "_health_note": "disk almost full",
-                    "last_seen": root.now,
-                    "cpu_percent": 87.4,
-                    "cpu_count": 8,
-                    "memory_used_mb": 6100,
-                    "memory_total_mb": 8192,
-                    "disk_used_percent": 91,
-                    "disk_free_gb": 4.2,
-                    "uptime_hours": 1320
-                },
-                {
-                    "account_id": "acc-many",
-                    "device_id": "dev-many-1",
-                    "device_name": "laptop",
-                    "account_name": "Six Devices",
-                    "last_seen": root.now,
-                    // Steam knows the name and nothing else: no banner, just the line
-                    "game_status": "playing",
-                    "game_source": "steam",
-                    "game_name": "A Game Whose Name Is Far Too Long To Fit On One Line",
-                    "game_session_seconds": 3600
-                },
-                {
-                    "account_id": "acc-many",
-                    "device_id": "dev-many-2",
-                    "device_name": "phone",
-                    "account_name": "Six Devices",
-                    "last_seen": root.now - 200 // Stale enough to rank below the rest
-                },
-                {
-                    "account_id": "acc-many",
-                    "device_id": "dev-many-3",
-                    "device_name": "tablet",
-                    "account_name": "Six Devices",
-                    "last_seen": root.now
-                },
-                {
-                    "account_id": "acc-dead-box",
-                    "account_name": "ams-2",
-                    "_kind": "server",
-                    "_offline": true
-                }
-            ],
-            // A photo, a game and music on one card: everything below the photo has
-            // to fold into a line, and each folded line needs its own hairline.
-            "photos": [
-                {
-                    "account_id": "acc-long",
-                    "path": root.cover("rdr2-hero.jpg"),
-                    "created_at": "2026-08-07T12:00:00Z",
-                    "expires_at": "2099-01-01T00:00:00Z"
-                }
-            ]
+    function stateText(state: string): string {
+        Fresence.snapshot = {
+            "status": {
+                "state": state,
+                "version": "demo",
+                "update": "9.9.9"
+            },
+            "rooms": []
+        };
+        return [Fresence.agentState, Fresence.placeholderText(), Items.byName(tab, "roomHeader")[0]?.visible ?? false].join("|");
+    }
+
+    function advance(): void {
+        switch (root.step) {
+        case 0:
+            if (Fresence.memberIds.length === 0)
+                return;
+            root.note("switchable", tab.switchable);
+            tab.pickingRoom = true;
+            root.step = 1;
+            break;
+        case 1:
+            root.note("roomList", Items.findAll(Items.byName(tab, "roomList")[0], it => it.modelData?.room_id !== undefined && it.current !== undefined).map(b => [b.modelData.room_id, b.current]));
+            tab.pickingRoom = false;
+            if (!root.edge)
+                Fresence.selectRoom("room-b");
+            root.step = 2;
+            break;
+        case 2:
+            if (!root.edge && Fresence.opt("room") !== "room-b")
+                return;
+            root.note("picked", [Fresence.room?.room_id, Fresence.opt("room"), Fresence.memberIds.slice()]);
+            Fresence._pickedRoomId = "room-gone";
+            root.note("gone", Fresence.room?.room_id);
+            Fresence._pickedRoomId = "";
+            if (!root.edge)
+                Fresence.selectRoom("room-a");
+            root.step = 3;
+            break;
+        case 3:
+            if (!root.edge && Fresence.opt("room") !== "room-a")
+                return;
+            const dan = Items.rowOf(tab, "acc-dan");
+            if (dan) {
+                const before = dan.device.device_id;
+                dan.nextDevice();
+                const after = dan.device.device_id;
+                dan.nextDevice();
+                root.note("cycle", [before, after, dan.device.device_id]);
+            }
+            const kept = Fresence.snapshot;
+            root.note("states", ["unlinked", "linking", "update_required"].map(s => root.stateText(s)));
+            const connecting = JSON.parse(JSON.stringify(kept));
+            connecting.status.state = "connecting";
+            Fresence.snapshot = connecting;
+            root.note("connecting", [Fresence.headerText(), Fresence.memberIds.length > 0]);
+            const found = Fresence.binaryFound;
+            Fresence.binaryFound = true;
+            Fresence.snapshot = null;
+            Fresence.watchExitCode = 3;
+            root.note("notRunning", [Fresence.agentState, Fresence.placeholderText()]);
+            Fresence.watchExitCode = 1;
+            root.note("brokenWatch", Fresence.agentState);
+            Fresence.watchExitCode = 0;
+            Fresence.binaryFound = found;
+            Fresence.snapshot = kept;
+            root.step = 4;
+            break;
+        case 4:
+            // Flipping binaryFound started and killed a real watch, whose exit clears the snapshot a beat later
+            if (++root.waited < 20)
+                return;
+            Fresence.ingest(JSON.stringify(root.snapshot));
+            root.step = 5;
+            break;
         }
-    })
-
-    readonly property var room: root.rooms[root.scenario] ?? root.rooms.plain
-
-    function findAll(item, pred, out) {
-        if (pred(item))
-            out.push(item);
-        for (const c of item.children ?? [])
-            root.findAll(c, pred, out);
-        return out;
     }
 
-    function checks() {
-        const many = Statusphere.accountsById["acc-many"];
-        const art = root.findAll(tab, it => it.resolvedSource !== undefined && it.cacheFilePath !== undefined, []);
-        const loadedArt = art.filter(it => it.status === Image.Ready);
-        const namelessGame = root.findAll(tab, it => it.hasBanner !== undefined && it.device?.account_id === "acc-nameless", [])[0] ?? null;
+    Timer {
+        interval: 50
+        running: root.step < 5
+        repeat: true
+        onTriggered: root.advance()
+    }
+
+    function row(accountId: string): var {
+        return Items.rowOf(tab, accountId);
+    }
+
+    function statusOf(accountId: string): string {
+        return Items.shownText(root.row(accountId), "memberStatus").join("");
+    }
+
+    function plainChecks(): var {
+        const kai = root.row("acc-kai");
+        const lena = root.row("acc-lena");
         return [
             {
-                "name": "the room is what was fed in",
-                "got": [Statusphere.memberCount, Statusphere.onlineCount],
-                "want": root.scenario === "edge" ? [5, 4] : [4, 3]
+                "name": "more than one room puts the switcher on the header, and its list marks the current one",
+                "got": [root.seen.switchable, root.seen.roomList],
+                "want": [true, [["room-a", true], ["room-b", false]]]
             },
             {
-                "name": "offline members sort last",
-                "got": Statusphere.accountIds[Statusphere.memberCount - 1],
-                "want": root.scenario === "edge" ? "acc-dead-box" : "acc-lena"
+                "name": "a picked room is shown and stored in the room option",
+                "got": root.seen.picked,
+                "want": ["room-b", "room-b", ["acc-self", "acc-mira", "acc-noor"]]
             },
             {
-                "name": "an account with no name falls back to its id",
-                "got": root.scenario === "edge" ? Statusphere.nameFor(Statusphere.accountsById["acc-nameless"]) : "",
-                "want": root.scenario === "edge" ? "acc-name" : ""
+                "name": "a stored room that is no longer in the snapshot falls back to the first",
+                "got": root.seen.gone,
+                "want": "room-a"
             },
             {
-                "name": "a server stays a server, health and all",
-                "got": root.scenario === "edge" ? [Statusphere.isServer(Statusphere.accountsById["acc-box"]), Statusphere.healthFor(Statusphere.accountsById["acc-box"])] : [false, ""],
-                "want": root.scenario === "edge" ? [true, "degraded"] : [false, ""]
+                "name": "the room is what was fed in, offline members last",
+                "got": [Fresence.room?.room_id, Fresence.memberIds, Fresence.onlineCount],
+                "want": ["room-a", ["acc-self", "acc-dan", "acc-kai", "acc-mira", "acc-lena"], 4]
             },
             {
-                "name": "the device playing music leads its account",
-                "got": root.scenario === "edge" ? (many?.primary?.device_id ?? "") : (Statusphere.accountsById["acc-dan"]?.primary?.device_id ?? ""),
-                "want": root.scenario === "edge" ? "dev-many-1" : "dev-dan-phone"
+                "name": "an offline member is dimmed and says when they were last seen",
+                "got": [lena?.opacity, root.statusOf("acc-lena")],
+                "want": [0.6, "Last seen 42 min ago"]
             },
             {
-                "name": "a game shows up on the device running it",
-                "got": root.scenario === "edge" ? Statusphere.gameDevices(Statusphere.accountsById["acc-nameless"]).length : Statusphere.gameFor(Statusphere.accountsById["acc-mira"]?.primary),
-                "want": root.scenario === "edge" ? 1 : "Red Dead Redemption 2"
+                "name": "the first online device leads, the chip cycles through all and comes back",
+                "got": [root.row("acc-dan")?.device?.device_id, root.seen.cycle],
+                "want": ["dev-dan-phone", ["dev-dan-phone", "dev-dan-tower", "dev-dan-phone"]]
             },
             {
-                // Offsets from Statusphere._now, the same instant sessionFor reads
-                // internally - not Date.now(), which can have drifted from it since
-                // the singleton last refreshed and flip a floor-minute boundary.
-                "name": "a session reads like a photo's age, and keeps counting past a day",
-                "got": (() => {
-                    const now = Statusphere._now;
-                    return [Statusphere.sessionFor(0), Statusphere.sessionFor(now - 30000), Statusphere.sessionFor(now - 780000), Statusphere.sessionFor(now - 5040000), Statusphere.sessionFor(now - 359999000)];
-                })(),
-                "want": ["", "Now", "13m", "1h", "4d"]
+                "name": "a device chip shows only on an account with more than one card",
+                "got": ["acc-self", "acc-dan", "acc-kai", "acc-mira"].map(id => Items.byName(root.row(id), "deviceChip")[0]?.visible),
+                "want": [true, true, false, false]
             },
             {
-                "name": "the status line names the game, so the card is only its picture",
-                "got": Statusphere.statusFor(Statusphere.accountsById[root.scenario === "edge" ? "acc-nameless" : "acc-mira"]),
-                "want": root.scenario === "edge" ? "Playing Cyberpunk 2077 · Now" : "Playing Red Dead Redemption 2 · 1h"
+                "name": "an offline device of an online account shows dimmed under a last seen line",
+                "got": [Fresence.membersById["acc-kai"]?.presence.kind, kai?.deviceAway, Items.tiles(kai).map(t => t.valueText)],
+                "want": ["online", true, ["vim notes.md"]]
             },
             {
-                "name": "an idle device marks its account away without hiding what it's doing",
-                "got": root.scenario === "plain" ? [Statusphere.awayFor(Statusphere.accountsById["acc-you"]), Statusphere.statusFor(Statusphere.accountsById["acc-you"])] : [true, ""],
-                "want": root.scenario === "plain" ? [true, "Away · 10m"] : [true, ""]
+                "name": "the game and the track on the row keep the status line quiet",
+                "got": root.statusOf("acc-mira"),
+                "want": "Online"
             },
             {
-                "name": "loaded art plays from the cover cache, never straight off its source url",
-                "got": loadedArt.length > 0 && loadedArt.every(it => it.resolvedSource.startsWith(Qt.resolvedUrl(Directories.coverArt))),
-                "want": true
-            },
-            {
-                "name": "a dead hero url falls back to the header, the game still shows a banner",
-                "got": root.scenario === "edge" ? namelessGame?.hasBanner : true,
-                "want": true
-            },
-            {
-                "name": "every row got drawn",
-                "got": rows.count === Statusphere.memberCount && tab.height > 0,
-                "want": true
+                "name": "each state before a room says what is going on instead of the room",
+                "got": root.seen.states,
+                "want": ["unlinked|This device is not linked yet.\nfresence link, or fresence join with an invite|false", "linking|Linking this device…|false", "update_required|The agent needs updating to 9.9.9|false"]
             }
         ];
     }
 
+    function edgeChecks(): var {
+        const rin = root.row("acc-rin");
+        const nameless = Items.tiles(root.row("acc-nameless"))[0];
+        const sol = Items.tiles(root.row("acc-sol"))[0];
+        return [
+            {
+                "name": "a single room keeps the header plain",
+                "got": root.seen.switchable,
+                "want": false
+            },
+            {
+                "name": "the room is what was fed in, offline members last",
+                "got": [Fresence.memberCount, Fresence.onlineCount, Fresence.memberIds[Fresence.memberIds.length - 1]],
+                "want": [6, 5, "acc-bart"]
+            },
+            {
+                "name": "an account with no name says so",
+                "got": Items.shownText(root.row("acc-nameless"), "memberName"),
+                "want": ["No name"]
+            },
+            {
+                "name": "with more devices than fit, the first online one not hiding leads",
+                "got": rin?.device?.device_id,
+                "want": "dev-many-3"
+            },
+            {
+                "name": "long names elide on one line instead of pushing the row wider",
+                "got": [Items.byName(root.row("acc-long"), "memberName")[0]?.truncated, Items.byName(root.row("acc-long"), "deviceChip")[0]?.width <= 140, root.row("acc-long")?.width <= tab.width],
+                "want": [true, true, true]
+            },
+            {
+                "name": "a dead header url shows the picture its cache slot fell back to",
+                "got": Items.findAll(nameless, it => it.fallbackIcon !== undefined && it.status !== undefined && it.visible)[0]?.status,
+                "want": Image.Ready
+            },
+            {
+                "name": "art that never loads leaves the player its fallback icon, title and all",
+                "got": [Items.findAll(sol, it => it.fallbackIcon !== undefined && it.status !== undefined)[0]?.status === Image.Ready, Items.shownText(sol, "mediaTitle")],
+                "want": [false, ["A track whose art never loads"]]
+            },
+            {
+                "name": "days offline read as days",
+                "got": root.statusOf("acc-bart"),
+                "want": "Last seen 3 days ago"
+            }
+        ];
+    }
+
+    function checks() {
+        return [
+            {
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(root),
+                "want": []
+            },
+            {
+                "name": "every row got drawn",
+                "got": Fresence.memberIds.every(id => root.row(id)?.visible),
+                "want": true
+            },
+            {
+                "name": "connecting keeps the last room and says so in the header",
+                "got": root.seen.connecting,
+                "want": ["Connecting to the server…", true]
+            },
+            {
+                "name": "watch exiting with 3 means the agent is not running, any other exit is waiting",
+                "got": [root.seen.notRunning, root.seen.brokenWatch],
+                "want": [["not_running", "The fresence agent is not running.\nsystemctl --user start fresence"], "starting"]
+            }
+        ].concat(root.edge ? root.edgeChecks() : root.plainChecks());
+    }
+
     DemoCoverSeed {
-        extraSeeds: ({ "no-such-hero.jpg": "cp2077-header.jpg" })
-        onSeeded: Statusphere.ingest(JSON.stringify(root.room))
+        extraSeeds: ({
+                "dead-header.jpg": "cp2077-header.jpg"
+            })
+        onSeeded: Fresence.ingest(JSON.stringify(root.snapshot))
     }
 
     PresenceTab {
         id: tab
         anchors.fill: parent
-
-        readonly property var rowsRepeater: null
-    }
-
-    // The tab builds its own rows; this one only counts them for the checks above
-    Repeater {
-        id: rows
-        model: Statusphere.accountIds
-        delegate: Item {}
     }
 }

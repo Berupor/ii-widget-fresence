@@ -1,103 +1,139 @@
-//@ probe statusphere -g 420x620 -s 1500
+//@ probe fresence -g 420x900 -s 1500
 /**
- * The room at its plainest, no owner-built layouts at all: one friend playing
- * music with the app she's in named too, one just playing a game, one with
- * nothing more than the window she's in - the built-in row for each case,
- * not a pack - and one gone incognito, so the room says only that she's
- * hidden.
+ * The room at its plainest: one friend playing music with the app she's in named
+ * too, one in a game, one with nothing more than the window she's in, and one gone
+ * incognito, so the room says only that she's hidden.
  */
 import ".."
 import qs.modules.common
 import QtQuick
-import QtQuick.Layouts
 import "lib"
 import "lib/DemoCovers.js" as DemoCovers
+import "lib/DemoSnapshot.js" as Demo
+import "lib/DemoItems.js" as Items
 
 Item {
     id: root
-    readonly property int now: 1780000000
 
-    readonly property var room: ({
-            "members": [
-                {
-                    "account_id": "acc-mira",
-                    "device_id": "dev-mira",
-                    "device_name": "workstation",
-                    "account_name": "Mira",
-                    "last_seen": root.now,
-                    "active_app": "discord",
-                    "spotify_status": "playing",
-                    "spotify_track": "Nightcall",
-                    "spotify_artist": "Kavinsky",
-                    "spotify_position": 78,
-                    "spotify_length": 258,
-                    "spotify_art_url": DemoCovers.url("nightcall.jpg")
-                },
-                {
-                    "account_id": "acc-dan",
-                    "device_id": "dev-dan",
-                    "device_name": "tower",
-                    "account_name": "Dan",
-                    "last_seen": root.now,
-                    "game_status": "playing",
-                    "game_name": "Red Dead Redemption 2",
-                    "game_display": "Red Dead Redemption 2",
-                    "game_header_url": DemoCovers.url("rdr2-header.jpg"),
-                    "game_session_seconds": 5040
-                },
-                {
-                    "account_id": "acc-zoe",
-                    "device_id": "dev-zoe",
-                    "device_name": "laptop",
-                    "account_name": "Zoe",
-                    "last_seen": root.now,
-                    "active_window": "Statusphere - pull requests - Firefox"
-                },
-                {
-                    "account_id": "acc-lena",
-                    "device_id": "dev-lena",
-                    "device_name": "phone",
-                    "account_name": "Lena",
-                    "last_seen": root.now,
-                    "active_window": "Messages",
-                    "_incognito": true
+    readonly property var snapshot: Demo.snapshot([Demo.device({
+                "id": "dev-self",
+                "account": "You",
+                "row": [Demo.value("window", [0, 0, 4, 1])],
+                "state": {
+                    "values": {
+                        "window": {
+                            "text": "fresence - Zed"
+                        }
+                    }
                 }
-            ],
-            "photos": []
-        })
+            })], [Demo.room("room-a", [Demo.member("acc-mira", [Demo.device({
+                            "id": "dev-mira",
+                            "account": "Mira",
+                            "name": "workstation",
+                            "row": [Demo.widget("media", [0, 0, 4, 1], {
+                                    "form": "player"
+                                })],
+                            "state": {
+                                "media": Demo.playing("Nightcall", "Kavinsky", DemoCovers.url("nightcall.jpg"), 78000, 258000),
+                                "values": {
+                                    "app": {
+                                        "text": "discord"
+                                    }
+                                }
+                            }
+                        })]), Demo.member("acc-dan", [Demo.device({
+                            "id": "dev-dan",
+                            "account": "Dan",
+                            "row": [Demo.widget("game", [0, 0, 4, 1])],
+                            "state": {
+                                "game": Demo.game("Red Dead Redemption 2", Demo.minutes(84), {
+                                    "header": DemoCovers.url("rdr2-header.jpg")
+                                })
+                            }
+                        })]), Demo.member("acc-zoe", [Demo.device({
+                            "id": "dev-zoe",
+                            "account": "Zoe",
+                            "name": "laptop",
+                            "kind": "laptop",
+                            "state": {
+                                "values": {
+                                    "window": {
+                                        "text": "Fresence - pull requests - Firefox"
+                                    }
+                                }
+                            }
+                        })]), Demo.member("acc-lena", [Demo.device({
+                            "id": "dev-lena",
+                            "account": "Lena",
+                            "name": "phone",
+                            "kind": "phone",
+                            "row": [Demo.value("window", [0, 0, 4, 1])],
+                            "state": {
+                                "incognito": {},
+                                "values": {
+                                    "window": {
+                                        "text": "Messages"
+                                    }
+                                }
+                            }
+                        })])])])
+
+    function statusOf(accountId: string): string {
+        const row = Items.rowOf(root, accountId);
+        return row ? Items.shownText(row, "memberStatus").join("") : "";
+    }
+
+    function tileTypes(accountId: string): var {
+        return Items.tiles(Items.rowOf(root, accountId)).filter(t => t.visible && !t.dimmed).map(t => t.type);
+    }
 
     function checks() {
         return [
             {
-                "name": "the room is what was fed in",
-                "got": [Statusphere.memberCount, Statusphere.onlineCount],
-                "want": [4, 4]
+                "name": "the room is what was fed in, you included",
+                "got": [Fresence.memberCount, Fresence.onlineCount],
+                "want": [5, 5]
             },
             {
-                "name": "only the music friend shows a music widget",
-                "got": ["acc-mira", "acc-dan", "acc-zoe", "acc-lena"].map(id => Statusphere.musicDevices(Statusphere.accountsById[id]).length > 0),
-                "want": [true, false, false, false]
+                "name": "you come first, then the rest by name",
+                "got": Fresence.memberIds,
+                "want": ["acc-self", "acc-dan", "acc-mira", "acc-zoe", "acc-lena"]
             },
             {
-                "name": "only the game friend shows a game widget",
-                "got": ["acc-mira", "acc-dan", "acc-zoe", "acc-lena"].map(id => Statusphere.gameDevices(Statusphere.accountsById[id]).length > 0),
-                "want": [false, true, false, false]
+                "name": "each row draws what its card asks for",
+                "got": ["acc-mira", "acc-dan", "acc-zoe", "acc-lena"].map(id => root.tileTypes(id).join(",")),
+                "want": ["media", "game", "", ""]
             },
             {
-                "name": "the plain friend's status line names her window, not a bare Online",
-                "got": Statusphere.statusFor(Statusphere.accountsById["acc-zoe"]),
-                "want": "Statusphere - pull requests - Firefox"
+                "name": "every tile's form loads",
+                "got": Items.brokenForms(root),
+                "want": []
+            },
+            {
+                "name": "a playing track on the row leaves the status line to the app",
+                "got": root.statusOf("acc-mira"),
+                "want": "discord"
+            },
+            {
+                "name": "a game on the row leaves the status line with nothing but online",
+                "got": root.statusOf("acc-dan"),
+                "want": "Online"
+            },
+            {
+                "name": "the plain friend's status line names her window",
+                "got": root.statusOf("acc-zoe"),
+                "want": "Fresence - pull requests - Firefox"
             },
             {
                 "name": "an incognito friend says only that she's hidden, window and all",
-                "got": [Statusphere.hiddenFor(Statusphere.accountsById["acc-lena"]), Statusphere.statusFor(Statusphere.accountsById["acc-lena"]).includes("Messages")],
-                "want": [true, false]
+                "got": [Fresence.membersById["acc-lena"].presence.kind, root.statusOf("acc-lena").includes("Messages"), root.tileTypes("acc-lena").length],
+                "want": ["incognito", false, 0]
             }
         ];
     }
 
     DemoCoverSeed {
-        onSeeded: Statusphere.ingest(JSON.stringify(root.room))
+        onSeeded: Fresence.ingest(JSON.stringify(root.snapshot))
     }
 
     PresenceTab {

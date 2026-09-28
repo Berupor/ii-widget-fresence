@@ -7,7 +7,7 @@ ColumnLayout {
     required property var card
     spacing: 4
 
-    NotedLabel {
+    TileLabel {
         Layout.fillWidth: true
         card: form.card
     }
@@ -18,14 +18,14 @@ ColumnLayout {
         largestSize: Math.max(Appearance.font.pixelSize.huge, Math.round(form.height * 0.3))
         maxLines: 1
         animateChange: true
-        text: form.card.hasData ? Math.round(form.card.percent) + "%" : "-"
+        text: form.card.shownValueText
         color: form.card.contentColor
     }
     WaveBar {
         Layout.fillWidth: true
         color: form.card.contentColor
-        to: 100
-        value: form.card.hasData ? form.card.percent : 0
+        to: 1
+        value: form.card.hasData ? form.card.fill : 0
         wavy: false
         animateWave: false
     }

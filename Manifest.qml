@@ -2,22 +2,18 @@ import qs.modules.widgets
 import qs.services
 
 WidgetManifest {
-    widgetId: "statusphere"
-    name: Translation.tr("Statusphere")
-    description: Translation.tr("Who's around in your statusphere room")
+    widgetId: "fresence"
+    name: Translation.tr("Fresence")
+    description: Translation.tr("Who's around in your fresence room")
     icon: "groups"
-    version: "1.1"
+    version: "2.0"
     author: "Berupor"
     minShellVersion: "1.0"
-    available: Statusphere.available
-    settingsPage: "StatusphereSettings.qml"
-    options: [ // Values only, StatusphereSettings draws them
+    available: Fresence.available
+    settingsPage: "FresenceSettings.qml"
+    options: [ // Values only, FresenceSettings draws them
         { "key": "incognito", "default": true },
         { "key": "incognitoIndicator", "default": true },
-        { "key": "serverMetrics", "default": true },
-        { "key": "serverPingSeconds", "default": 60 },
-        { "key": "away", "default": true },
-        { "key": "awayMinutes", "default": 5 },
         { "key": "photoShare", "default": true },
         { "key": "pauseGifs", "default": true },
         { "key": "gifPauseSeconds", "default": 4 },
@@ -28,11 +24,10 @@ WidgetManifest {
         { "key": "wallpaperWidth", "default": 360 },
         { "key": "wallpaperHideOffline", "default": false },
         { "key": "wallpaperMaxRows", "default": 0 },
-        { "key": "editorOwnedFields", "default": {} },
-        { "key": "collapsedDetailIds", "default": [] }
+        { "key": "room", "default": "" }
     ]
     slots: ({
-        "barIndicator": "StatusphereIncognitoIndicator.qml",
+        "barIndicator": "FresenceIncognitoIndicator.qml",
         "sidebarLeftTab": { "name": Translation.tr("Room"), "icon": "groups", "path": "PresenceTab.qml" },
         "backgroundWidget": "PresenceBackgroundWidget.qml",
         "regionAction": { "name": "share", "path": "ShareRegionAction.qml" }

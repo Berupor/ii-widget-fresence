@@ -19,7 +19,7 @@ Column {
         fontSizeMode: Text.HorizontalFit
         minimumPixelSize: Appearance.font.pixelSize.smallest
         animateChange: true
-        text: root.card.hasData ? Math.round(root.card.percent) + "%" : "-"
+        text: root.card.shownValueText
         color: root.card.contentColor
         font.pixelSize: Math.max(Appearance.font.pixelSize.smallest, root.innerBox * 0.4)
     }

@@ -1,4 +1,4 @@
-//@ probe statusphere -g 800x220 -s 1500
+//@ probe fresence -g 800x220 -s 1500
 /**
  * Frame source for docs/weather.gif (tests/widget-gif.sh): a sun tile and a
  * thunderstorm tile, side by side. `frame` (set via -p after load) drives both:
@@ -8,6 +8,7 @@
  */
 import ".."
 import "../CardLayouts.js" as CardLayouts
+import "lib/DemoSnapshot.js" as Demo
 import qs.modules.common
 import QtQuick
 
@@ -30,49 +31,41 @@ Item {
     readonly property int tileUnit: 180
     readonly property int gap: 14
 
-    function wallTile(field, color) {
-        return CardLayouts.tile({
-            "type": "scalar",
-            "field": field,
-            "form": "weatherLive",
-            "shape": "auto",
-            "size": "2x1",
-            "color": color,
-            "onMissing": "hide"
+    function wallTile(source, color) {
+        return Demo.value(source, [0, 0, 2, 1], {
+            "form": "weather_live",
+            "color": color
         });
     }
 
-    readonly property var wallTiles: [root.wallTile("arc", "tertiaryContainer"), root.wallTile("thunder", "primaryContainer")]
+    readonly property var wallTiles: [root.wallTile("arc", "tertiary_container"), root.wallTile("thunder", "primary_container")]
 
-    function ingestNow() {
-        const fields = {
-            "arc": root.weatherValue(18, 113, 0, 6, 180, root.nowMin, 70, "Waxing Gibbous", "Berlin"),
-            "thunder": root.weatherValue(7, 389, 6, 22, 230, 720, 50, "First Quarter", "Bergen")
-        };
-        Statusphere.ingest(JSON.stringify({
-            "members": [
-                Object.assign({
-                    "account_id": "acc-weather",
-                    "device_id": "dev-weather",
-                    "device_name": "desktop",
-                    "account_name": "Weather Wall",
-                    "last_seen": 1780000000,
-                    "custom_fields": Object.keys(fields)
-                }, fields)
-            ],
-            "photos": []
-        }));
-    }
-
-    Component.onCompleted: root.ingestNow()
-    onFrameChanged: root.ingestNow()
+    readonly property var device: ({
+            "device_id": "dev-weather",
+            "online": true,
+            "state": {
+                "values": {
+                    "arc": {
+                        "text": root.weatherValue(18, 113, 0, 6, 180, root.nowMin, 70, "Waxing Gibbous", "Berlin")
+                    },
+                    "thunder": {
+                        "text": root.weatherValue(7, 389, 6, 22, 230, 720, 50, "First Quarter", "Bergen")
+                    }
+                }
+            }
+        })
 
     function checks() {
         return [
             {
                 "name": "the arc tile's day/night follows frame, not the clock",
-                "got": CardLayouts.weatherFieldsOf(Statusphere.accountsById["acc-weather"]?.primary?.arc)?.isDay,
+                "got": CardLayouts.weatherFieldsOf(root.device.state.values.arc.text)?.isDay,
                 "want": root.nowMin >= root.sunriseMin && root.nowMin < root.sunsetMin
+            },
+            {
+                "name": "the sky steps with frame through CardTile's skyAnimPhase",
+                "got": wallRepeater.itemAt(1)?.skyAnimPhase,
+                "want": root.skyPhase
             }
         ];
     }
@@ -91,14 +84,15 @@ Item {
         spacing: root.gap
 
         Repeater {
+            id: wallRepeater
             model: root.wallTiles
             delegate: CardTile {
                 id: tileItem
                 required property var modelData
                 width: root.tileUnit * 2 + root.gap
                 height: root.tileUnit
-                account: Statusphere.accountsById["acc-weather"]
-                tile: tileItem.modelData
+                widget: tileItem.modelData
+                device: root.device
                 skyAnimPhase: root.skyPhase
             }
         }
