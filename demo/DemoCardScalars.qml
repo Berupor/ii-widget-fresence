@@ -253,6 +253,17 @@ Item {
         return caption.visible && !caption.truncated && !value.truncated && valueBottom <= captionTop;
     }
 
+    function ringTextOffCenter(tile) {
+        const center = Items.byName(tile, "ringValue")[0]?.parent;
+        const ring = center?.parent;
+        if (!ring)
+            return null;
+        const shown = center.children.filter(it => it.visible && it.text.length > 0);
+        const top = shown[0].mapToItem(ring, 0, 0).y;
+        const bottom = shown[shown.length - 1].mapToItem(ring, 0, shown[shown.length - 1].height).y;
+        return Math.abs((top + bottom) / 2 - ring.height / 2);
+    }
+
     function gauge(index) {
         return root.tileAt(root.mainWidgets.length + root.dialWidgets.length + index);
     }
@@ -329,6 +340,11 @@ Item {
                 "name": "a ring small enough to lose its caption box shows the source icon alone",
                 "got": [Items.byName(smallRingProbe, "ringValue")[0]?.visible, Items.byName(smallRingProbe, "ringCaption")[0]?.visible, root.part(1, "ringValue")?.visible],
                 "want": [false, false, true]
+            },
+            {
+                "name": "a ring or dial without a label keeps its text in the middle",
+                "got": [unlabeledRingProbe, unlabeledDialProbe].map(tile => root.ringTextOffCenter(tile) < 1),
+                "want": [true, true]
             },
             {
                 "name": "dial captions sit below the value, whole",
@@ -459,6 +475,28 @@ Item {
         width: 64
         height: 64
         widget: root.mainWidgets[1]
+        device: root.device
+    }
+
+    CardTile {
+        id: unlabeledRingProbe
+        opacity: 0
+        width: 120
+        height: 120
+        widget: Demo.value("battery", [0, 0, 1, 1], {
+            "form": "ring"
+        })
+        device: root.device
+    }
+
+    CardTile {
+        id: unlabeledDialProbe
+        opacity: 0
+        width: 120
+        height: 120
+        widget: Demo.value("battery", [0, 0, 1, 1], {
+            "form": "dial"
+        })
         device: root.device
     }
 
