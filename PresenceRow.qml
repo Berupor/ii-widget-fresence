@@ -335,6 +335,7 @@ Rectangle {
     MouseArea { // Both toggle a section above, growing the card in place
         anchors.fill: parent
         acceptedButtons: Qt.RightButton | Qt.MiddleButton
+        preventStealing: true // else the host sidebar's SwipeView can grab the press as a swipe
         onClicked: mouse => {
             if (mouse.button === Qt.MiddleButton) {
                 if (root.canShare)
