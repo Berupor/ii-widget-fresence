@@ -1,9 +1,11 @@
 //@ probe fresence -g 200x100 -s 300
 /**
  * The card editor's rules against the cases of app/shared ChoicesTest.kt and GridTest.kt,
- * so the widget offers the same forms, sizes and places as the app does.
+ * so the widget offers the same forms, sizes and places as the app does, and
+ * shownShape against app/shared ResolveTest.kt's polygonShapesTurnIntoCircleOffSquareSizes.
  */
 import ".."
+import "../CardLayouts.js" as CardLayouts
 import "../CardRules.js" as Rules
 import QtQuick
 
@@ -55,6 +57,13 @@ Item {
 
     function lastPlace(widgets) {
         return widgets ? widgets[widgets.length - 1].place : null;
+    }
+
+    function shaped(shape, cols, rows) {
+        return CardLayouts.shownShape({
+            "shape": shape,
+            "place": root.place(0, 0, cols, rows)
+        });
     }
 
     function checks() {
@@ -217,6 +226,11 @@ Item {
                     "label": ""
                 }),
                 "want": root.value("cpu", 0, 1)
+            },
+            {
+                "name": "cookie and clover only draw their polygon on a square place, otherwise they show as a circle",
+                "got": [root.shaped(undefined, 2, 1), root.shaped("cookie", 2, 2), root.shaped("cookie", 2, 1), root.shaped("clover", 1, 3), root.shaped("circle", 4, 1)],
+                "want": ["rounded", "cookie", "circle", "circle", "circle"]
             }
         ];
     }

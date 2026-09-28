@@ -195,6 +195,23 @@ ColumnLayout {
 
                 ColumnLayout {
                     Layout.fillWidth: true
+                    spacing: 6
+
+                    StyledText {
+                        text: Translation.tr("Shape")
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                    ShapePicker {
+                        selected: root.widget?.shape ?? "rounded"
+                        onPicked: shape => root.withField({
+                                "shape": shape === "rounded" ? null : shape
+                            })
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
                     visible: root.shape === "time"
                     spacing: 6
 
@@ -600,6 +617,48 @@ ColumnLayout {
                             iconSize: Appearance.font.pixelSize.normal
                             color: Appearance.colors[swatch.keys[1]]
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    component ShapePicker: Row {
+        id: shapePicker
+        required property string selected
+        signal picked(string shape)
+
+        readonly property var shapes: ["rounded", "circle", "cookie", "clover"]
+        spacing: 8
+
+        Repeater {
+            model: shapePicker.shapes
+
+            delegate: RippleButton {
+                id: shapeSwatch
+                required property string modelData
+                readonly property bool on: shapeSwatch.modelData === shapePicker.selected
+                readonly property bool polygon: shapeSwatch.modelData === "cookie" || shapeSwatch.modelData === "clover"
+
+                implicitWidth: 36
+                implicitHeight: 36
+                buttonRadius: shapeSwatch.modelData === "circle" ? width / 2 : Appearance.rounding.large
+                colBackground: "transparent"
+                colBackgroundHover: Appearance.colors.colLayer2Hover
+                onClicked: shapePicker.picked(shapeSwatch.modelData)
+
+                contentItem: Item {
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: !shapeSwatch.polygon
+                        radius: shapeSwatch.modelData === "circle" ? width / 2 : Appearance.rounding.large
+                        color: shapeSwatch.on ? Appearance.colors.colPrimary : Appearance.colors.colSurfaceContainerHighest
+                    }
+                    MaterialShape {
+                        anchors.fill: parent
+                        visible: shapeSwatch.polygon
+                        shape: shapeSwatch.modelData === "cookie" ? MaterialShape.Shape.Cookie9Sided : MaterialShape.Shape.Clover4Leaf
+                        color: shapeSwatch.on ? Appearance.colors.colPrimary : Appearance.colors.colSurfaceContainerHighest
                     }
                 }
             }

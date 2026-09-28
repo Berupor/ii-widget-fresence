@@ -30,8 +30,9 @@ Item {
                             "id": "dev-mira",
                             "account": "Mira",
                             "name": "workstation",
-                            "row": [Demo.widget("media", [0, 0, 4, 1], {
-                                    "form": "player"
+                            "row": [Demo.widget("media", [0, 0, 3, 1], {
+                                    "form": "player",
+                                    "shape": "circle"
                                 })],
                             "status": ["window", "app"],
                             "state": {

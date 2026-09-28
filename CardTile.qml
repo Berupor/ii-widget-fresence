@@ -98,166 +98,184 @@ Item {
         }
     }
 
-    readonly property real radius: Appearance.rounding.large
+    readonly property string shape: CardLayouts.shownShape(root.widget)
+    readonly property bool polygonMasked: root.shape === "cookie" || root.shape === "clover"
+    readonly property real radius: root.shape === "circle" ? Math.min(root.width, root.height) / 2 : Appearance.rounding.large
     readonly property bool showsSky: root.type === "weather" && root.form === "sky"
 
-    Rectangle {
-        visible: !root.fullBleed
-        anchors.fill: parent
-        radius: root.radius
-        color: root.tint
-    }
-
+    // CardLayouts.shownShape only ever resolves to cookie/clover on a square place, so
+    // the polygon mask can stretch to the full tile without distortion.
     Item {
-        id: surface
+        id: shaped
         anchors.fill: parent
 
-        layer.enabled: root.fullBleed || root.showsSky || root.hasBackdropSource
+        layer.enabled: root.polygonMasked
         layer.effect: OpacityMask {
-            maskSource: Rectangle {
-                width: surface.width
-                height: surface.height
-                radius: root.radius
-            }
-        }
-
-        Loader {
-            objectName: "tileWeatherSky"
-            anchors.fill: parent
-            active: root.showsSky
-
-            sourceComponent: WeatherSky {
-                weather: root.weather
-                tint: root.tint
-                contentColor: root.contentColor
-                running: root.animating
-                animPhase: root.skyAnimPhase
-            }
-        }
-
-        Loader {
-            id: backdropLoader
-            objectName: "tileBackdrop"
-            anchors.fill: parent
-            active: root.hasBackdropSource
-            sourceComponent: root.backdropIsPhoto ? backdropPhoto : (root.backdropIsClip ? backdropClip : backdropArt)
-        }
-
-        Component {
-            id: backdropArt
-            PresenceArt {
-                radius: 0
-                color: "transparent"
-                fallbackIcon: ""
-                source: root.backdropUrl
-                playing: root.animating
-                settleGif: true
-            }
-        }
-
-        Component {
-            id: backdropPhoto
-            LocalPicture {
-                sourcePath: root.photoFile
-                playing: root.animating
-                settleGif: true
-            }
-        }
-
-        Component {
-            id: backdropClip
-            Item {
-                id: clipBackdrop
-                anchors.fill: parent
-
-                Loader {
-                    id: clipVideo
-                    anchors.fill: parent
-
-                    function load(): void {
-                        clipVideo.setSource(Qt.resolvedUrl("TileClipVideo.qml"), {
-                            "card": root,
-                            "autoLoop": false
-                        });
-                    }
-
-                    Component.onCompleted: clipVideo.load()
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: clipVideo.status === Loader.Ready
-                    onClicked: clipVideo.item.replay()
-                }
+            maskSource: MaterialShape {
+                width: shaped.width
+                height: shaped.height
+                shape: root.shape === "cookie" ? MaterialShape.Shape.Cookie9Sided : MaterialShape.Shape.Clover4Leaf
             }
         }
 
         Rectangle {
-            objectName: "tileBackdropScrim"
+            visible: !root.fullBleed
             anchors.fill: parent
-            visible: root.backdropShown
-            color: Qt.rgba(0, 0, 0, 0.55)
+            radius: root.radius
+            color: root.tint
         }
 
-        readonly property real inset: root.fullBleed ? 0 : Math.max(4, Math.round(Math.min(root.width, root.height) * 0.1))
-
         Item {
-            id: content
-            x: surface.inset
-            y: surface.inset
-            width: Math.max(0, root.width - 2 * surface.inset)
-            height: Math.max(0, root.height - 2 * surface.inset)
-            clip: true
+            id: surface
+            anchors.fill: parent
 
-            Loader {
-                id: formLoader
-                objectName: "tileForm"
-                anchors.fill: parent
-                readonly property string file: root.placeholder ? "" : CardLayouts.formFile(root.widget)
-
-                function load(): void {
-                    formLoader.setSource(formLoader.file ? Qt.resolvedUrl(formLoader.file) : "", {
-                        "card": root
-                    });
+            layer.enabled: root.fullBleed || root.showsSky || root.hasBackdropSource
+            layer.effect: OpacityMask {
+                maskSource: Rectangle {
+                    width: surface.width
+                    height: surface.height
+                    radius: root.radius
                 }
-
-                onFileChanged: formLoader.load()
-                Component.onCompleted: formLoader.load()
             }
 
-            ColumnLayout {
-                objectName: "tilePlaceholder"
-                visible: root.placeholder
-                anchors.centerIn: parent
-                width: parent.width
-                spacing: 2
+            Loader {
+                objectName: "tileWeatherSky"
+                anchors.fill: parent
+                active: root.showsSky
 
-                MaterialSymbol {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: ({
-                            "media": "music_off",
-                            "game": "sports_esports",
-                            "photo": "photo_camera",
-                            "clip": "videocam",
-                            "image": "image"
-                        })[root.type] ?? "block"
-                    iconSize: Appearance.font.pixelSize.larger
-                    color: root.mutedContentColor
+                sourceComponent: WeatherSky {
+                    weather: root.weather
+                    tint: root.tint
+                    contentColor: root.contentColor
+                    running: root.animating
+                    animPhase: root.skyAnimPhase
                 }
-                StyledText {
-                    Layout.fillWidth: true
-                    visible: root.height >= 64
-                    horizontalAlignment: Text.AlignHCenter
-                    elide: Text.ElideRight
-                    font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: root.mutedContentColor
-                    text: ({
-                            "media": Translation.tr("Nothing playing"),
-                            "game": Translation.tr("Not in a game"),
-                            "photo": Translation.tr("No photo"),
-                            "clip": Translation.tr("No clip"),
-                            "image": Translation.tr("No picture")
-                        })[root.type] ?? ""
+            }
+
+            Loader {
+                id: backdropLoader
+                objectName: "tileBackdrop"
+                anchors.fill: parent
+                active: root.hasBackdropSource
+                sourceComponent: root.backdropIsPhoto ? backdropPhoto : (root.backdropIsClip ? backdropClip : backdropArt)
+            }
+
+            Component {
+                id: backdropArt
+                PresenceArt {
+                    radius: 0
+                    color: "transparent"
+                    fallbackIcon: ""
+                    source: root.backdropUrl
+                    playing: root.animating
+                    settleGif: true
+                }
+            }
+
+            Component {
+                id: backdropPhoto
+                LocalPicture {
+                    sourcePath: root.photoFile
+                    playing: root.animating
+                    settleGif: true
+                }
+            }
+
+            Component {
+                id: backdropClip
+                Item {
+                    id: clipBackdrop
+                    anchors.fill: parent
+
+                    Loader {
+                        id: clipVideo
+                        anchors.fill: parent
+
+                        function load(): void {
+                            clipVideo.setSource(Qt.resolvedUrl("TileClipVideo.qml"), {
+                                "card": root,
+                                "autoLoop": false
+                            });
+                        }
+
+                        Component.onCompleted: clipVideo.load()
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: clipVideo.status === Loader.Ready
+                        onClicked: clipVideo.item.replay()
+                    }
+                }
+            }
+
+            Rectangle {
+                objectName: "tileBackdropScrim"
+                anchors.fill: parent
+                visible: root.backdropShown
+                color: Qt.rgba(0, 0, 0, 0.55)
+            }
+
+            readonly property real inset: root.fullBleed ? 0 : CardLayouts.tileInset(root.width, root.height, root.shape)
+
+            Item {
+                id: content
+                x: surface.inset
+                y: surface.inset
+                width: Math.max(0, root.width - 2 * surface.inset)
+                height: Math.max(0, root.height - 2 * surface.inset)
+                clip: true
+
+                Loader {
+                    id: formLoader
+                    objectName: "tileForm"
+                    anchors.fill: parent
+                    readonly property string file: root.placeholder ? "" : CardLayouts.formFile(root.widget)
+
+                    function load(): void {
+                        formLoader.setSource(formLoader.file ? Qt.resolvedUrl(formLoader.file) : "", {
+                            "card": root
+                        });
+                    }
+
+                    onFileChanged: formLoader.load()
+                    Component.onCompleted: formLoader.load()
+                }
+
+                ColumnLayout {
+                    objectName: "tilePlaceholder"
+                    visible: root.placeholder
+                    anchors.centerIn: parent
+                    width: parent.width
+                    spacing: 2
+
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: ({
+                                "media": "music_off",
+                                "game": "sports_esports",
+                                "photo": "photo_camera",
+                                "clip": "videocam",
+                                "image": "image"
+                            })[root.type] ?? "block"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: root.mutedContentColor
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        visible: root.height >= 64
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: root.mutedContentColor
+                        text: ({
+                                "media": Translation.tr("Nothing playing"),
+                                "game": Translation.tr("Not in a game"),
+                                "photo": Translation.tr("No photo"),
+                                "clip": Translation.tr("No clip"),
+                                "image": Translation.tr("No picture")
+                            })[root.type] ?? ""
+                    }
                 }
             }
         }

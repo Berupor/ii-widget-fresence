@@ -57,8 +57,54 @@ function shownForm(widget) {
     return forms.includes(widget?.form) ? widget.form : (forms[0] ?? "");
 }
 
+// app/shared ui/card/Resolve.kt Widget.shownShape: cookie/clover only draw their
+// polygon on a square place, elsewhere they fall back to a circle.
+function shownShape(widget) {
+    const shape = widget?.shape ?? "rounded";
+    if (shape !== "cookie" && shape !== "clover")
+        return shape;
+    return widget.place?.cols === widget.place?.rows ? shape : "circle";
+}
+
 function formFile(widget) {
     return formFiles[widget?.type]?.[shownForm(widget)] ?? formlessFiles[widget?.type] ?? "";
+}
+
+const insetBaseFraction = 0.14;
+const insetMin = 10;
+const insetMax = 16;
+const insetMarginFraction = 0.2;
+const roundedRadius = 16;
+// Half-size of the largest centered square inside the cookie/clover polygons, from
+// app/shared ui/card/Tiles.kt RoundedPolygon.contentHalfSide.
+const cookieEdgeFraction = 0.1787;
+const cloverEdgeFraction = 0.1113;
+
+function arcInset(radius, margin) {
+    return radius - (radius - margin) / Math.SQRT2;
+}
+
+// app/shared ui/card/Tiles.kt tileInset: keeps a form's text and icons clear of the
+// tile's silhouette.
+function tileInset(width, height, shape) {
+    const side = Math.min(width, height);
+    const base = Math.max(insetMin, Math.min(insetMax, side * insetBaseFraction));
+    const margin = base * insetMarginFraction;
+    let edge;
+    switch (shape) {
+    case "circle":
+        edge = arcInset(side / 2, margin);
+        break;
+    case "cookie":
+        edge = side * cookieEdgeFraction + margin;
+        break;
+    case "clover":
+        edge = side * cloverEdgeFraction + margin;
+        break;
+    default:
+        edge = arcInset(roundedRadius, margin);
+    }
+    return Math.max(base, edge);
 }
 
 function fullBleed(widget) {

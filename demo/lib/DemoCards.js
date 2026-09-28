@@ -55,6 +55,7 @@ const rows = {
         Demo.widget("weather", [3, 0, 1, 1], {
             "form": "temp",
             "color": "primary_container",
+            "shape": "clover",
             "on_missing": "hide"
         })
     ],
@@ -67,6 +68,7 @@ const rows = {
             "form": "ring",
             "color": "primary_container",
             "label": "CPU",
+            "shape": "cookie",
             "on_missing": "dim"
         }),
         Demo.value("workspace", [3, 0, 1, 1], {
@@ -164,6 +166,7 @@ const details = {
     ],
     "traveler": [
         Demo.widget("photo", [0, 0, 2, 2], {
+            "shape": "cookie",
             "on_missing": "hide"
         }),
         Demo.widget("weather", [2, 0, 2, 2], {
