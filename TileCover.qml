@@ -23,6 +23,8 @@ Item {
             source: form.media?.art_url ?? ""
             fallbackIcon: form.fallbackIcon
             playing: form.card.animating
+            color: form.card.artPlaceholder
+            fallbackColor: form.card.artAccent
         }
         MediaTitle {
             Layout.fillWidth: true
@@ -43,6 +45,8 @@ Item {
             source: form.media?.art_url ?? ""
             fallbackIcon: form.fallbackIcon
             playing: form.card.animating
+            color: form.card.artPlaceholder
+            fallbackColor: form.card.artAccent
         }
         MediaTitle {
             id: title

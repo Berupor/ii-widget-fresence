@@ -30,6 +30,8 @@ Item {
             source: form.media?.art_url ?? ""
             fallbackIcon: form.video ? (form.media?.playing ? "play_arrow" : "pause") : "music_note"
             playing: form.card.animating
+            color: form.card.artPlaceholder
+            fallbackColor: form.card.artAccent
 
             Rectangle {
                 objectName: "playerLength"

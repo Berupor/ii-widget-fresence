@@ -1,28 +1,38 @@
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
+import "CardLayouts.js" as CardLayouts
 
-/** The sun on its arc, fill being the share of the day gone by. */
+/** The sun on its arc by the share of daylight gone by, with the next sunset or sunrise under it. */
 ColumnLayout {
     id: form
     required property var card
+    readonly property var daylight: CardLayouts.daylight(form.card.weather, Fresence.now)
     readonly property bool titled: form.height >= 100
     spacing: 4
 
-    TileLabel {
-        visible: form.titled && (form.card.labelText.length > 0 || form.card.labelIcon.length > 0)
+    ShrinkThenWrapText {
+        objectName: "sunPlace"
+        visible: form.titled && text.length > 0
         Layout.fillWidth: true
-        card: form.card
-        centered: true
+        horizontalAlignment: Text.AlignHCenter
+        largestSize: Appearance.font.pixelSize.smaller
+        maxLines: 1
+        text: form.card.weather?.place ?? ""
+        color: form.card.mutedContentColor
     }
     Canvas {
         id: arc
         objectName: "sunArc"
         Layout.fillWidth: true
         Layout.fillHeight: true
-        readonly property real progress: form.card.hasData ? form.card.fill : 0
+        readonly property real progress: form.daylight?.progress ?? 0
+        readonly property bool shown: form.daylight !== null
+        readonly property bool isDay: form.daylight?.isDay ?? false
         readonly property color ink: form.card.contentColor
         onProgressChanged: arc.requestPaint()
+        onShownChanged: arc.requestPaint()
+        onIsDayChanged: arc.requestPaint()
         onInkChanged: arc.requestPaint()
         onCanvasSizeChanged: arc.requestPaint()
 
@@ -45,6 +55,8 @@ ColumnLayout {
             ctx.moveTo(0, base);
             ctx.lineTo(arc.width, base);
             ctx.stroke();
+            if (!arc.shown)
+                return;
             const angle = Math.PI * (1 - arc.progress);
             const sx = cx + r * Math.cos(angle);
             const sy = base - r * Math.sin(angle);
@@ -52,6 +64,8 @@ ColumnLayout {
             ctx.beginPath();
             ctx.arc(sx, sy, r * 0.2, 0, 2 * Math.PI);
             ctx.fill();
+            if (!arc.isDay)
+                return;
             ctx.fillStyle = arc.ink;
             ctx.beginPath();
             ctx.arc(sx, sy, r * 0.12, 0, 2 * Math.PI);
@@ -59,12 +73,12 @@ ColumnLayout {
         }
     }
     ShrinkThenWrapText {
-        visible: form.card.hasData && form.card.value?.text
+        objectName: "sunNext"
         Layout.fillWidth: true
         horizontalAlignment: Text.AlignHCenter
         largestSize: Appearance.font.pixelSize.smaller
         maxLines: 1
-        text: form.card.value?.text ?? ""
+        text: form.daylight ? Qt.formatTime(new Date(form.daylight.next), "HH:mm") : "-"
         color: form.card.contentColor
     }
 }

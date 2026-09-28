@@ -5,8 +5,8 @@
  * heavy rain, windy vs calm, a cold vs a hot reading. arcMoments steps the sun and
  * moon around their arcs: sunrise, morning, noon, late afternoon and sunset by day,
  * dusk, midnight and pre-dawn by night, all against the same schematic sunrise/sunset
- * so skyClock's mapping can be checked directly. The moon and sun value forms, driven
- * by fill, close it out.
+ * so skyClock's mapping can be checked directly. The moon and sun forms of the weather
+ * widget and the analog clock close it out.
  */
 import ".."
 import "../CardLayouts.js" as CardLayouts
@@ -196,24 +196,15 @@ Item {
         { "key": "arc_predawn", "temp": 7, "now": 330, "day": false }
     ]
 
-    readonly property var fills: ({
-            "moon_crescent": {
-                "text": "Waxing Crescent",
-                "fill": 0.25
-            },
-            "moon_gibbous": {
-                "text": "Waxing Gibbous",
-                "fill": 0.9
-            },
-            "sun_morning": {
-                "text": "06:30 - 19:30",
-                "fill": 0.2
-            },
-            "sun_evening": {
-                "text": "06:30 - 19:30",
-                "fill": 0.8
-            }
-        })
+    readonly property var bodyForms: [
+        { "key": "moon_night", "form": "moon", "now": 0 },
+        { "key": "sun_morning", "form": "sun", "now": 540 },
+        { "key": "sun_evening", "form": "sun", "now": 1020 },
+        { "key": "sun_night", "form": "sun", "now": 0 },
+        { "key": "sun_unknown", "form": "sun" }
+    ]
+
+    readonly property int clockOffsetS: 9 * 3600
 
     readonly property real knownNewMoonMs: Date.parse("2000-01-06T18:14:00Z")
     readonly property real synodicMonthMs: 29.530588853 * 86400000
@@ -228,6 +219,8 @@ Item {
             entries[v.key] = root.skyWeather(v.city, v.temp, v.condition, v.wind, v.windDir, v.precip, root.dayNowMin);
         for (const a of root.arcMoments)
             entries[a.key] = root.skyWeather("Berlin", a.temp, "clear", 6, 180, 0, a.now);
+        for (const b of root.bodyForms)
+            entries[b.key] = b.now === undefined ? Demo.weather("Oslo", 3, "snow") : root.skyWeather("Berlin", 10, "clear", 6, 180, 0, b.now);
         return entries;
     }
     readonly property var scenes: root.sceneEntries()
@@ -242,23 +235,28 @@ Item {
         };
     }
 
-    readonly property var fillsDevice: ({
-            "device_id": "dev-fills",
-            "online": true,
-            "state": {
-                "values": root.fills
-            }
-        })
-
-    function wallTile(key, cols, color) {
+    function wallTile(key, cols, color, form) {
         return {
             "widget": Demo.widget("weather", [0, 0, cols, 1], {
-                "form": "sky",
+                "form": form ?? "sky",
                 "color": color
             }),
             "device": root.deviceFor(key)
         };
     }
+
+    readonly property var clockTile: ({
+            "widget": Demo.widget("clock", [0, 0, 1, 1], {
+                "color": "secondary_container"
+            }),
+            "device": {
+                "device_id": "dev-clock",
+                "online": true,
+                "state": {
+                    "utc_offset_s": root.clockOffsetS
+                }
+            }
+        })
 
     readonly property var wallTiles: {
         const tiles = [];
@@ -275,17 +273,21 @@ Item {
             tiles.push(root.wallTile(a.key, 1, color));
             tiles.push(root.wallTile(a.key, 2, color));
         }
+        for (const b of root.bodyForms)
+            tiles.push(root.wallTile(b.key, 1, "tertiary_container", b.form));
+        tiles.push(root.clockTile);
         return tiles;
     }
 
-    function fillsWallTile(key) {
-        return Demo.value(key, [0, 0, 1, 1], {
-            "form": key.startsWith("moon") ? "moon" : "sun",
-            "color": "tertiary_container"
+    function weatherWidget(form) {
+        return Demo.widget("weather", [0, 0, 1, 1], {
+            "form": form
         });
     }
 
-    readonly property var fillsTiles: Object.keys(root.fills).map(key => root.fillsWallTile(key))
+    function hhmm(iso) {
+        return Qt.formatTime(new Date(Date.parse(iso)), "HH:mm");
+    }
 
     function tileFor(key, cols) {
         return Items.tiles(wall).find(t => (t.widget.source === key || t.device?.device_id === `dev-${key}`) && (cols === undefined || t.widget.place.cols === cols)) ?? null;
@@ -322,11 +324,14 @@ Item {
         const sunNoonY = root.bodyOf("arc_noon", 2, "weatherSun")?.y;
         const sunSunriseY = root.bodyOf("arc_sunrise", 2, "weatherSun")?.y;
         const noonClock = CardLayouts.skyClock(root.scenes.arc_noon, Fresence.now);
+        const moon = root.bodyOf("moon_night", 1, "moonDisc");
+        const phase = CardLayouts.moonPhase(Fresence.now);
+        const clockNow = CardLayouts.clockAt(root.clockOffsetS, Fresence.now);
         return [
             {
                 "name": "every wall tile renders one CardTile",
                 "got": Items.tiles(wall).length,
-                "want": root.wallTiles.length + root.fillsTiles.length
+                "want": root.wallTiles.length
             },
             {
                 "name": "every tile's form loads",
@@ -390,21 +395,47 @@ Item {
                 "want": [true, false]
             },
             {
-                "name": "the moon form lights as much of the disc as its fill says",
-                "got": ["moon_crescent", "moon_gibbous"].map(k => root.bodyOf(k, 1, "moonDisc")?.lit),
-                "want": [0.25, 0.9],
+                "name": "the moon form lights the phase of the viewer's clock and names the lit share",
+                "got": [moon?.lit, moon?.litSide, root.textPartsOf("moon_night", 1)],
+                "want": [phase.illumination, phase.waxing ? 1 : -1, [`${Math.round(phase.illumination * 100)}%`]],
                 "tol": 0.001
             },
             {
-                "name": "the sun form puts the sun as far along its arc as its fill says",
-                "got": ["sun_morning", "sun_evening"].map(k => root.bodyOf(k, 1, "sunArc")?.progress),
-                "want": [0.2, 0.8],
+                "name": "the sun form puts the sun along the daylight gone by and shows it only by day",
+                "got": ["sun_morning", "sun_evening", "sun_night"].map(k => [root.bodyOf(k, 1, "sunArc")?.progress, root.bodyOf(k, 1, "sunArc")?.isDay]),
+                "want": [[150 / 780, true], [630 / 780, true], [0, false]],
+                "tol": 0.005
+            },
+            {
+                "name": "the sun form names the next sunset by day and the next sunrise at night, a dash without sun times",
+                "got": ["sun_morning", "sun_night", "sun_unknown"].map(k => root.textPartsOf(k, 1)),
+                "want": [[root.hhmm(root.scenes.sun_morning.sunset)], [root.hhmm(root.scenes.sun_night.sunrise)], ["-"]]
+            },
+            {
+                "name": "a sun without sun times draws no disc",
+                "got": root.bodyOf("sun_unknown", 1, "sunArc")?.shown,
+                "want": false
+            },
+            {
+                "name": "moon needs no weather, sun and sky do, clock needs the owner's offset",
+                "got": [CardLayouts.missing(root.weatherWidget("moon"), {}, Fresence.now), CardLayouts.missing(root.weatherWidget("sun"), {}, Fresence.now), CardLayouts.missing(root.weatherWidget("sky"), {}, Fresence.now), CardLayouts.missing(root.clockTile.widget, {}, Fresence.now), CardLayouts.missing(root.clockTile.widget, root.clockTile.device, Fresence.now)],
+                "want": [false, true, true, true, false]
+            },
+            {
+                "name": "only the sky lets go of the background",
+                "got": ["sky", "temp", "moon", "sun"].map(f => CardLayouts.takesBackground(root.weatherWidget(f))).concat([CardLayouts.takesBackground(root.clockTile.widget)]),
+                "want": [false, true, true, true, false]
+            },
+            {
+                "name": "the analog clock reads the hour and minute in the owner's zone",
+                "got": [CardLayouts.clockAt(0, Date.parse("2026-01-01T15:20:00Z")), CardLayouts.clockAt(-5 * 3600, Date.parse("2026-01-01T03:45:00Z"))].map(t => [t.hour, t.minute, t.hourTurns, t.minuteTurns]),
+                "want": [[15, 20, (3 + 20 / 60) / 12, 20 / 60], [22, 45, (10 + 45 / 60) / 12, 45 / 60]],
                 "tol": 0.001
             },
             {
-                "name": "the moon and sun forms caption the value's text",
-                "got": ["moon_crescent", "sun_evening"].map(k => root.textPartsOf(k, 1)),
-                "want": [["Waxing Crescent"], ["06:30 - 19:30"]]
+                "name": "the analog clock badges show the hour and the padded minute",
+                "got": root.textPartsOf("clock", 1).slice(-2),
+                "want": [String(clockNow.hour), String(clockNow.minute).padStart(2, "0")]
             }
         ];
     }
@@ -431,18 +462,6 @@ Item {
                 height: root.tileUnit
                 widget: tileItem.modelData.widget
                 device: tileItem.modelData.device
-            }
-        }
-
-        Repeater {
-            model: root.fillsTiles
-            delegate: CardTile {
-                id: fillItem
-                required property var modelData
-                width: root.tileUnit
-                height: root.tileUnit
-                widget: fillItem.modelData
-                device: root.fillsDevice
             }
         }
     }

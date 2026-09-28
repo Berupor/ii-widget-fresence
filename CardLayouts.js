@@ -16,34 +16,42 @@ const formFiles = {
         "bar": "TileBar.qml",
         "ring": "TileRing.qml",
         "dial": "TileDial.qml",
+        "figure": "TileFigure.qml",
+        "cells": "TileCells.qml",
         "banner": "TileBanner.qml",
         "clock": "TileClock.qml",
-        "timer": "TileTimer.qml",
-        "moon": "TileMoon.qml",
-        "sun": "TileSun.qml"
+        "timer": "TileTimer.qml"
     },
     "media": {
         "cover": "TileCover.qml",
+        "poster": "TilePoster.qml",
         "player": "TilePlayer.qml",
         "vinyl": "TileVinyl.qml",
+        "sleeve": "TileSleeve.qml",
         "wave": "TileWave.qml"
     },
     "game": {
         "banner": "TileGame.qml",
+        "hero": "TileGame.qml",
+        "ring": "TileGame.qml",
         "cover": "TileGame.qml"
     },
     "weather": {
         "sky": "TileWeatherLive.qml",
-        "temp": "TileWeather.qml"
+        "temp": "TileWeather.qml",
+        "moon": "TileMoon.qml",
+        "sun": "TileSun.qml"
     },
     "photo": {},
     "clip": {},
-    "image": {}
+    "image": {},
+    "clock": {}
 };
 const formlessFiles = {
     "photo": "TilePhoto.qml",
     "clip": "TileClip.qml",
-    "image": "TileImage.qml"
+    "image": "TileImage.qml",
+    "clock": "TileAnalogClock.qml"
 };
 
 const fullBleedTypes = ["game", "photo", "image"];
@@ -66,8 +74,67 @@ function shownShape(widget) {
     return widget.place?.cols === widget.place?.rows ? shape : "circle";
 }
 
+// app/shared ui/card/Gauges.kt BuiltinFigures: figure draws only these sources
+const figures = {
+    "cpu": "chip",
+    "memory": "stick",
+    "disk": "drive",
+    "battery": "battery"
+};
+
+function figureOf(source) {
+    return figures[source] ?? "";
+}
+
+// app/shared ui/card/MediaTiles.kt PosterForm and SleeveForm: below a tall place they
+// draw as the cover and the vinyl.
+const tallMediaFallbacks = {
+    "poster": "cover",
+    "sleeve": "vinyl"
+};
+
+function tallEnough(widget) {
+    return widget?.place?.rows >= 2 && widget.place.rows >= widget.place.cols;
+}
+
+// app/shared ui/card/Tiles.kt ValueTile: a figure without a picture is drawn as a ring
 function formFile(widget) {
-    return formFiles[widget?.type]?.[shownForm(widget)] ?? formlessFiles[widget?.type] ?? "";
+    const form = shownForm(widget);
+    if (widget?.type === "value" && form === "figure" && !figureOf(widget.source))
+        return formFiles.value.ring;
+    const drawn = widget?.type === "media" && form in tallMediaFallbacks && !tallEnough(widget) ? tallMediaFallbacks[form] : form;
+    return formFiles[widget?.type]?.[drawn] ?? formlessFiles[widget?.type] ?? "";
+}
+
+const bytesPerGiB = Math.pow(2, 30);
+const bytesPerTiB = Math.pow(2, 40);
+const wholeFromAmount = 10;
+
+// app/shared ui/card/Gauges.kt amount: one decimal only below 10
+function amount(bytes, scale) {
+    const x = bytes / scale;
+    if (x >= wholeFromAmount)
+        return String(Math.round(x));
+    const tenths = Math.round(x * 10);
+    return tenths % 10 === 0 ? String(tenths / 10) : `${Math.floor(tenths / 10)}.${tenths % 10}`;
+}
+
+function hasBytes(value) {
+    return value?.used_bytes !== undefined && value?.total_bytes !== undefined;
+}
+
+function bytesText(value) {
+    if (!hasBytes(value))
+        return "";
+    const scale = value.total_bytes >= bytesPerTiB ? bytesPerTiB : bytesPerGiB;
+    return `${amount(value.used_bytes, scale)} of ${amount(value.total_bytes, scale)} ${scale === bytesPerTiB ? "TB" : "GB"}`;
+}
+
+function compactBytesText(value) {
+    if (value?.used_bytes === undefined)
+        return "";
+    const scale = value.used_bytes >= bytesPerTiB ? bytesPerTiB : bytesPerGiB;
+    return `${amount(value.used_bytes, scale)} ${scale === bytesPerTiB ? "TB" : "GB"}`;
 }
 
 const insetBaseFraction = 0.14;
@@ -108,16 +175,16 @@ function tileInset(width, height, shape) {
 }
 
 function fullBleed(widget) {
-    return fullBleedTypes.includes(widget?.type);
+    return fullBleedTypes.includes(widget?.type) || formFile(widget) === formFiles.media.poster;
 }
 
 // protocol.md: background is ignored by a widget that paints its own art or scene
 function takesBackground(widget) {
     switch (widget?.type) {
     case "media":
-        return shownForm(widget) !== "cover";
+        return !["cover", "poster"].includes(shownForm(widget));
     case "weather":
-        return shownForm(widget) === "temp";
+        return shownForm(widget) !== "sky";
     case "value":
         return true;
     default:
@@ -219,13 +286,15 @@ function missing(widget, device, nowMs) {
     case "game":
         return !state?.game;
     case "weather":
-        return !state?.weather;
+        return shownForm(widget) !== "moon" && !state?.weather;
     case "photo":
         return !photoValid(device, nowMs);
     case "clip":
         return !clipMetaValid(device, nowMs);
     case "image":
         return !widget.url;
+    case "clock":
+        return state?.utc_offset_s === undefined;
     default:
         return true;
     }
@@ -342,5 +411,42 @@ function moonPhase(nowMs) {
     return {
         "illumination": (1 - Math.cos(2 * Math.PI * age)) / 2,
         "waxing": age < 0.5
+    };
+}
+
+const dayMs = 86400000;
+
+function nextAfter(dailyMs, nowMs) {
+    return dailyMs + (Math.floor((nowMs - dailyMs) / dayMs) + 1) * dayMs;
+}
+
+function daylight(weather, nowMs) {
+    const sunrise = Date.parse(weather?.sunrise ?? "");
+    const sunset = Date.parse(weather?.sunset ?? "");
+    if (isNaN(sunrise) || isNaN(sunset) || sunset <= sunrise)
+        return null;
+    const clock = skyClock(weather, nowMs);
+    if (clock.nowMin >= clock.sunriseMin && clock.nowMin < clock.sunsetMin)
+        return {
+            "isDay": true,
+            "progress": (clock.nowMin - clock.sunriseMin) / (clock.sunsetMin - clock.sunriseMin),
+            "next": nextAfter(sunset, nowMs)
+        };
+    return {
+        "isDay": false,
+        "progress": 0,
+        "next": nextAfter(sunrise, nowMs)
+    };
+}
+
+function clockAt(utcOffsetS, nowMs) {
+    const minuteOfDay = wrapDay(Math.floor((nowMs + utcOffsetS * 1000) / 60000));
+    const hour = Math.floor(minuteOfDay / 60);
+    const minute = minuteOfDay % 60;
+    return {
+        "hour": hour,
+        "minute": minute,
+        "hourTurns": ((hour % 12) + minute / 60) / 12,
+        "minuteTurns": minute / 60
     };
 }

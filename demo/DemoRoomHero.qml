@@ -39,17 +39,13 @@ Item {
                                     "form": "number",
                                     "label": "Tokyo",
                                     "color": "tertiary_container"
-                                }), Demo.value("window", [2, 0, 1, 1]), Demo.value("moon", [3, 0, 1, 1], {
+                                }), Demo.value("window", [2, 0, 1, 1]), Demo.widget("weather", [3, 0, 1, 1], {
                                     "form": "moon"
                                 })],
                             "state": {
                                 "values": {
                                     "local_time": root.text("03:12"),
-                                    "window": root.text("mpv"),
-                                    "moon": {
-                                        "text": "Waxing",
-                                        "fill": 0.62
-                                    }
+                                    "window": root.text("mpv")
                                 }
                             }
                         })]), Demo.member("acc-echo", [Demo.device({

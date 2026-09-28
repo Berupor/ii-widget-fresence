@@ -214,10 +214,31 @@ Item {
             }
         })])
 
+    readonly property var discs: Demo.member("acc-disc", [Demo.device({
+            "id": "dev-disc",
+            "account": "Dee",
+            "row": [Demo.widget("media", [0, 0, 1, 1], {
+                    "form": "poster"
+                }), Demo.widget("media", [1, 0, 1, 1], {
+                    "form": "sleeve"
+                })],
+            "detail": [Demo.widget("media", [0, 0, 2, 2], {
+                    "form": "poster"
+                }), Demo.widget("media", [2, 0, 2, 2], {
+                    "form": "sleeve"
+                }), Demo.widget("media", [0, 2, 2, 2], {
+                    "form": "poster",
+                    "color": "primary_container"
+                })],
+            "state": {
+                "media": Demo.playing("Teardrop", "Massive Attack", DemoCovers.url("teardrop.jpg"), 61000, 330000)
+            }
+        })])
+
     readonly property var snapshot: Demo.snapshot([Demo.device({
             "id": "dev-self",
             "account": "You"
-        })], [Demo.room("room-a", [root.ada, root.hid, root.mia, root.backdrop])])
+        })], [Demo.room("room-a", [root.ada, root.hid, root.mia, root.backdrop, root.discs])])
 
     function row(accountId: string): var {
         return Items.rowOf(root, accountId);
@@ -261,6 +282,8 @@ Item {
         const music = root.tile("acc-backdrop", "row", root.source("vibe"));
         const quiet = root.tile("acc-backdrop", "row", root.source("quiet"));
         const linked = root.tile("acc-backdrop", "row", root.source("linked"));
+        const discRow = root.tilesOf("acc-disc", "row");
+        const discDetail = root.tilesOf("acc-disc", "detail");
         return [
             {
                 "name": "every tile's form loads",
@@ -279,7 +302,7 @@ Item {
             },
             {
                 "name": "the image tile draws its https url",
-                "got": Items.findAll(image, it => it.fallbackIcon !== undefined && it.status !== undefined).map(a => [a.source, a.status]),
+                "got": Items.findAll(image, it => it.fallbackIcon !== undefined && it.status !== undefined && it.visible).map(a => [a.source, a.status]),
                 "want": [[DemoCovers.url("sm2-hero.jpg"), Image.Ready]]
             },
             {
@@ -333,6 +356,16 @@ Item {
                 "want": [[true, "#ffffff"], [true, "#ffffff"]]
             },
             {
+                "name": "poster and sleeve draw on a tall place and fall back to cover and vinyl on a small one",
+                "got": [discRow, discDetail].map(ts => ts.map(t => [t.form, Items.byName(t, "tileForm")[0]?.file])),
+                "want": [[["poster", "TileCover.qml"], ["sleeve", "TileVinyl.qml"]], [["poster", "TilePoster.qml"], ["sleeve", "TileSleeve.qml"], ["poster", "TilePoster.qml"]]]
+            },
+            {
+                "name": "a poster covers its whole tile, a music tile takes the cover's tint unless it has its own color",
+                "got": [discDetail[0].fullBleed, discRow[0].fullBleed, discDetail[1].mediaTinted, discDetail[2].mediaTinted],
+                "want": [true, false, true, false]
+            },
+            {
                 "name": "a background with no picture yet leaves the tile in its own color",
                 "got": [quiet?.backdropShown, String(quiet?.contentColor)],
                 "want": [false, String(Appearance.colors.colOnLayer2)]
@@ -357,6 +390,12 @@ Item {
             PresenceRow {
                 Layout.fillWidth: true
                 modelData: "acc-ada"
+                showDetails: true
+            }
+
+            PresenceRow {
+                Layout.fillWidth: true
+                modelData: "acc-disc"
                 showDetails: true
             }
         }

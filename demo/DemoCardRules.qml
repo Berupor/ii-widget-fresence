@@ -105,9 +105,31 @@ Item {
                 "want": "time"
             },
             {
-                "name": "weather is its own type, and moon forms belong only to their source",
-                "got": [Rules.formsOffered(root.config, "value", "battery", null).some(f => ["moon", "sun"].includes(f)), Rules.formsOffered(root.config, "weather", null, null), Rules.formsOffered(root.config, "value", "moon", null)],
-                "want": [false, ["sky", "temp"], ["moon"]]
+                "name": "moon and sun are weather forms, not value forms",
+                "got": [Rules.formsOffered(root.config, "value", "battery", null).some(f => ["moon", "sun"].includes(f)), Rules.formsOffered(root.config, "weather", null, null)],
+                "want": [false, ["sky", "temp", "moon", "sun"]]
+            },
+            {
+                "name": "a clock widget has no forms and prefers 1x1 and 2x2",
+                "got": [Rules.formsOffered(root.config, "clock", null, null), Rules.preferredSizes(null, "clock").map(s => `${s.cols}x${s.rows}`), Rules.otherTypes.includes("clock")],
+                "want": [[], ["1x1", "2x2"], true]
+            },
+            {
+                "name": "figure is offered only for sources with a picture, cells for any gauge",
+                "got": [Rules.formsOffered(root.config, "value", "memory", null).includes("figure"), Rules.formsOffered(root.config, "value", "custom", {
+                        "values": {
+                            "custom": {
+                                "text": "40%",
+                                "fill": 0.4
+                            }
+                        }
+                    }).filter(f => f === "figure" || f === "cells")],
+                "want": [true, ["cells"]]
+            },
+            {
+                "name": "ring, figure and cells prefer 1x1 and 2x1, dial only 1x1",
+                "got": ["ring", "figure", "cells", "dial"].map(f => Rules.preferredSizes(f).map(s => `${s.cols}x${s.rows}`)),
+                "want": [["1x1", "2x1"], ["1x1", "2x1"], ["1x1", "2x1"], ["1x1"]]
             },
             {
                 "name": "variants list only sizes that fit next to neighbours",

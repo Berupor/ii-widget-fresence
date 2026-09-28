@@ -9,6 +9,7 @@ import QtQuick.Layouts
 import QtQuick.Window
 import Qt5Compat.GraphicalEffects
 import "CardLayouts.js" as CardLayouts
+import "CardRules.js" as Rules
 
 /** One widget of a card, by protocol.md: the form file draws it, this is what the form reads. */
 Item {
@@ -63,9 +64,12 @@ Item {
                 return Fresence.inText(root.valueTimeMs);
             return root.timeDirection === "since" ? Fresence.agoText(root.valueTimeMs) : "-";
         }
-        return root.value.text || (root.value.fill !== undefined ? `${Math.round(root.value.fill * 100)}%` : "-");
+        return CardLayouts.bytesText(root.value) || root.value.text || (root.value.fill !== undefined ? `${Math.round(root.value.fill * 100)}%` : "-");
     }
     readonly property real fill: Math.max(0, Math.min(1, root.value?.fill ?? 0))
+    readonly property string subtext: root.value?.subtext ?? ""
+    readonly property string shortValueText: root.hasData ? (CardLayouts.compactBytesText(root.value) || root.shownValueText) : "-"
+    readonly property string ringIcon: root.icon || (Rules.sourceSymbols[root.widget?.source] ?? "")
     readonly property string labelText: root.widget?.label ?? ""
     readonly property string icon: root.widget?.icon ?? ""
     readonly property string labelIcon: root.icon && ((root.widget?.place?.cols ?? 1) > 1 || !root.labelText) ? root.icon : ""
@@ -83,8 +87,21 @@ Item {
     }
 
     readonly property var colorKeys: CardLayouts.colorKeysOf(root.widget?.color)
-    readonly property color tint: Appearance.colors[root.colorKeys[0]]
-    readonly property color contentColor: root.fullBleed || root.backdropShown ? "white" : Appearance.colors[root.colorKeys[1]]
+    readonly property bool paletteFromMedia: root.type === "media" && !!root.media && !root.widget?.color && !root.widget?.background
+    readonly property bool mediaTinted: root.paletteFromMedia && mediaArt.tinted
+    readonly property color tint: root.mediaTinted ? mediaArt.fill : Appearance.colors[root.colorKeys[0]]
+    readonly property color contentColor: root.fullBleed || root.backdropShown ? "white" : (root.mediaTinted ? mediaArt.content : Appearance.colors[root.colorKeys[1]])
+    readonly property color artPlaceholder: root.mediaTinted ? ColorUtils.mix(mediaArt.fill, mediaArt.content, 0.9) : Appearance.colors.colLayer1
+    readonly property color artAccent: root.mediaTinted ? mediaArt.accent : Appearance.colors.colSubtext
+
+    readonly property alias mediaPalette: mediaArt
+
+    ArtPalette {
+        id: mediaArt
+        url: root.paletteFromMedia ? (root.media.art_url ?? "") : ""
+        key: root.paletteFromMedia ? (root.media.artist || root.media.title || "") : ""
+        neutral: !root.paletteFromMedia
+    }
     readonly property color mutedContentColor: ColorUtils.transparentize(root.contentColor, 0.35)
 
     readonly property real dimmedOpacity: 0.45
@@ -256,7 +273,8 @@ Item {
                                 "game": "sports_esports",
                                 "photo": "photo_camera",
                                 "clip": "videocam",
-                                "image": "image"
+                                "image": "image",
+                                "clock": "schedule"
                             })[root.type] ?? "block"
                         iconSize: Appearance.font.pixelSize.larger
                         color: root.mutedContentColor
@@ -273,7 +291,8 @@ Item {
                                 "game": Translation.tr("Not in a game"),
                                 "photo": Translation.tr("No photo"),
                                 "clip": Translation.tr("No clip"),
-                                "image": Translation.tr("No picture")
+                                "image": Translation.tr("No picture"),
+                                "clock": Translation.tr("No time zone")
                             })[root.type] ?? ""
                     }
                 }

@@ -23,6 +23,8 @@ Item {
             source: form.media?.art_url ?? ""
             fallbackIcon: form.media?.kind === "video" ? "smart_display" : "music_note"
             playing: form.card.animating
+            color: form.card.artPlaceholder
+            fallbackColor: form.card.artAccent
         }
 
         ColumnLayout {

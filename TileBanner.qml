@@ -33,10 +33,10 @@ RowLayout {
 
         ShrinkThenWrapText {
             Layout.fillWidth: true
-            visible: form.card.labelText.length > 0
+            visible: text.length > 0
             largestSize: Appearance.font.pixelSize.smaller
             maxLines: 1
-            text: form.card.labelText
+            text: form.card.labelText || form.card.subtext
             color: form.card.mutedContentColor
         }
         ShrinkThenWrapText {

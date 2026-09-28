@@ -19,7 +19,7 @@ const rows = {
             "form": "text",
             "on_missing": "hide"
         }),
-        Demo.value("moon", [3, 0, 1, 1], {
+        Demo.widget("weather", [3, 0, 1, 1], {
             "form": "moon",
             "color": "primary_container",
             "on_missing": "hide"
@@ -115,10 +115,9 @@ const details = {
             "color": "tertiary_container",
             "on_missing": "dim"
         }),
-        Demo.value("moon", [0, 3, 1, 1], {
+        Demo.widget("weather", [0, 3, 1, 1], {
             "form": "moon",
             "color": "primary_container",
-            "label": "Moon",
             "on_missing": "dim"
         }),
         Demo.value("alarm", [1, 3, 1, 1], {
@@ -129,10 +128,13 @@ const details = {
             "time_mode": "until",
             "on_missing": "dim"
         }),
-        Demo.value("sun", [2, 3, 2, 1], {
+        Demo.widget("weather", [2, 3, 1, 1], {
             "form": "sun",
             "color": "tertiary_container",
-            "label": "Sun",
+            "on_missing": "dim"
+        }),
+        Demo.widget("clock", [3, 3, 1, 1], {
+            "color": "secondary_container",
             "on_missing": "dim"
         })
     ],
@@ -179,7 +181,7 @@ const details = {
             "color": "tertiary_container",
             "on_missing": "dim"
         }),
-        Demo.value("sun", [1, 2, 1, 1], {
+        Demo.widget("weather", [1, 2, 1, 1], {
             "form": "sun",
             "color": "tertiary_container",
             "on_missing": "dim"
@@ -256,22 +258,18 @@ function state(name, photoPath) {
                 "header": DemoCovers.url("cp2077-header.jpg")
             }),
             "media": Demo.playing("Turn Off the Lights", "Nite Jewel", DemoCovers.url("nightcall.jpg"), 40000, 210000),
-            "weather": Demo.weather("Reykjavik", 7, "clear"),
+            "weather": Demo.weather("Reykjavik", 7, "clear", {
+                "sunrise": Demo.iso(-Demo.minutes(17 * 60)),
+                "sunset": Demo.iso(-Demo.minutes(4 * 60))
+            }),
+            "utc_offset_s": 0,
             "values": {
                 "local_time": text("03:12"),
                 "window": text("◐ notes.md - nvim"),
-                "moon": {
-                    "text": "Waxing gibbous",
-                    "fill": 0.8
-                },
                 "app": text("mpv"),
                 "uptime": text("27h"),
                 "alarm": {
                     "time": Demo.iso(Demo.minutes(7 * 60 + 30))
-                },
-                "sun": {
-                    "text": "06:45 · 18:52",
-                    "fill": 0.35
                 }
             }
         };
@@ -295,13 +293,12 @@ function state(name, photoPath) {
                 "height": 800,
                 "expires_at": Demo.iso(Demo.minutes(50))
             },
-            "weather": Demo.weather("Barcelona", 24, "clear"),
+            "weather": Demo.weather("Barcelona", 24, "clear", {
+                "sunrise": Demo.iso(-Demo.minutes(7 * 60)),
+                "sunset": Demo.iso(Demo.minutes(6 * 60))
+            }),
             "values": {
                 "local_time": text("14:05"),
-                "sun": {
-                    "text": "07:30 · 20:40",
-                    "fill": 0.55
-                },
                 "where_i_am": text("Barcelona, for a week")
             }
         };

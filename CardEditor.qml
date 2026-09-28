@@ -151,7 +151,7 @@ Item {
         }
         const widget = Rules.newWidget(base, type, source, state, label);
         const list = Rules.widgetsOf(base, root.grid);
-        const next = Rules.added(list, widget, root.grid, target.at, Rules.preferredSizes(widget.form));
+        const next = Rules.added(list, widget, root.grid, target.at, Rules.preferredSizes(widget.form, widget.type));
         root.full = next === null;
         if (next) {
             root.draft = Rules.withWidgets(base, root.grid, next);

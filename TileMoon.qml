@@ -1,28 +1,25 @@
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
+import "CardLayouts.js" as CardLayouts
 
-/** The moon lit by fill, with the phase text under it. */
+/** The moon phase for the viewer's clock, with the lit share under it. */
 ColumnLayout {
     id: form
     required property var card
-    readonly property bool titled: form.height >= 100
+    readonly property var phase: CardLayouts.moonPhase(Fresence.now)
     spacing: 4
 
-    TileLabel {
-        visible: form.titled && (form.card.labelText.length > 0 || form.card.labelIcon.length > 0)
-        Layout.fillWidth: true
-        card: form.card
-        centered: true
-    }
     Canvas {
         id: disc
         objectName: "moonDisc"
         Layout.fillWidth: true
         Layout.fillHeight: true
-        readonly property real lit: form.card.hasData ? form.card.fill : 0
+        readonly property real lit: form.phase.illumination
+        readonly property real litSide: form.phase.waxing ? 1 : -1
         readonly property color ink: form.card.contentColor
         onLitChanged: disc.requestPaint()
+        onLitSideChanged: disc.requestPaint()
         onInkChanged: disc.requestPaint()
         onCanvasSizeChanged: disc.requestPaint()
 
@@ -41,7 +38,7 @@ ColumnLayout {
             ctx.beginPath();
             for (let i = 0; i <= steps; i++) {
                 const a = -Math.PI / 2 + Math.PI * i / steps;
-                const x = cx + r * Math.cos(a);
+                const x = cx + disc.litSide * r * Math.cos(a);
                 const y = cy + r * Math.sin(a);
                 if (i === 0)
                     ctx.moveTo(x, y);
@@ -50,19 +47,19 @@ ColumnLayout {
             }
             for (let i = steps; i >= 0; i--) {
                 const a = -Math.PI / 2 + Math.PI * i / steps;
-                ctx.lineTo(cx + r * (1 - 2 * disc.lit) * Math.cos(a), cy + r * Math.sin(a));
+                ctx.lineTo(cx + disc.litSide * r * (1 - 2 * disc.lit) * Math.cos(a), cy + r * Math.sin(a));
             }
             ctx.closePath();
             ctx.fill();
         }
     }
     ShrinkThenWrapText {
-        visible: form.card.hasData && form.card.value?.text
+        objectName: "moonLit"
         Layout.fillWidth: true
         horizontalAlignment: Text.AlignHCenter
         largestSize: Appearance.font.pixelSize.smaller
         maxLines: 1
-        text: form.card.value?.text ?? ""
+        text: `${Math.round(form.phase.illumination * 100)}%`
         color: form.card.contentColor
     }
 }

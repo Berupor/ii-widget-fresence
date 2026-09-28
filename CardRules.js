@@ -20,20 +20,15 @@ const builtinShapes = {
     "meeting": "time"
 };
 
-const sourceForms = {
-    "moon": ["moon"],
-    "sun": ["sun"]
-};
-
 const textForms = ["text", "big", "number", "banner"];
 
 const shapeForms = {
     "text": textForms,
-    "fill": ["ring", "dial", "bar", ...textForms],
+    "fill": ["ring", "figure", "cells", "dial", "bar", ...textForms],
     "time": ["clock", "timer"]
 };
 
-const otherTypes = ["media", "game", "weather", "photo", "image"];
+const otherTypes = ["media", "game", "weather", "clock", "photo", "image"];
 
 const colors = ["primary", "secondary", "tertiary", "error", "primary_container", "secondary_container", "tertiary_container", "error_container"];
 
@@ -64,9 +59,9 @@ const sourceNames = {
 };
 
 const sourceSymbols = {
-    "cpu": "developer_board",
-    "memory": "memory",
-    "disk": "storage",
+    "cpu": "memory",
+    "memory": "memory_alt",
+    "disk": "hard_drive",
     "load": "speed",
     "battery": "battery_full",
     "packages": "inventory_2",
@@ -75,9 +70,7 @@ const sourceSymbols = {
     "workspace": "desktop_windows",
     "uptime": "schedule",
     "alarm": "alarm",
-    "meeting": "event_busy",
-    "moon": "bedtime",
-    "sun": "wb_sunny"
+    "meeting": "event_busy"
 };
 
 const shapeSymbols = {
@@ -91,6 +84,7 @@ const typeNames = {
     "media": "Music and video",
     "game": "Game",
     "weather": "Weather",
+    "clock": "Clock",
     "photo": "Photo",
     "image": "Image"
 };
@@ -100,6 +94,7 @@ const typeSymbols = {
     "media": "music_note",
     "game": "sports_esports",
     "weather": "partly_cloudy_day",
+    "clock": "schedule",
     "photo": "photo_camera",
     "image": "image"
 };
@@ -125,18 +120,23 @@ const backgroundSymbols = {
 const formNames = {
     "ring": "Ring",
     "dial": "Dial",
+    "figure": "Figure",
+    "cells": "Cells",
     "bar": "Bar",
     "number": "Number",
     "text": "Text",
     "big": "Large",
     "clock": "Clock",
     "banner": "Banner",
+    "hero": "Hero",
     "sky": "Sky",
     "temp": "Temperature",
     "moon": "Moon",
     "sun": "Sun",
     "cover": "Cover",
+    "poster": "Poster",
     "vinyl": "Vinyl",
+    "sleeve": "Sleeve",
     "wave": "Wave",
     "player": "Player",
     "timer": "Timer"
@@ -179,10 +179,6 @@ function previewValueText(value) {
     return null;
 }
 
-function hasOwnForms(source) {
-    return source in sourceForms;
-}
-
 function shapeOfValue(value) {
     if (value?.time !== undefined)
         return "time";
@@ -203,7 +199,7 @@ function shapeOf(config, source, state) {
 
 function formsOffered(config, type, source, state) {
     if (type === "value")
-        return sourceForms[source] ?? shapeForms[shapeOf(config, source, state)];
+        return shapeForms[shapeOf(config, source, state)].filter(f => f !== "figure" || CardLayouts.figureOf(source));
     return CardLayouts.formsOf(type);
 }
 
@@ -214,15 +210,19 @@ function size(cols, rows) {
     };
 }
 
-function preferredSizes(form) {
+function preferredSizes(form, type) {
+    if (type === "clip" || type === "clock")
+        return [size(1, 1), size(2, 2)];
     switch (form) {
-    case "ring":
     case "dial":
     case "number":
     case "moon":
     case "sun":
     case "temp":
         return [size(1, 1)];
+    case "ring":
+    case "figure":
+    case "cells":
     case "text":
     case "big":
     case "clock":
@@ -234,11 +234,16 @@ function preferredSizes(form) {
     case "banner":
     case "player":
         return [size(2, 1), size(4, 1)];
+    case "hero":
+        return [size(4, 2), size(4, 1)];
     case "sky":
         return [size(2, 1), size(4, 2)];
     case "cover":
     case "vinyl":
         return [size(1, 1), size(2, 2)];
+    case "poster":
+    case "sleeve":
+        return [size(2, 2)];
     default:
         return [size(1, 1), size(2, 1), size(2, 2)];
     }
@@ -345,7 +350,7 @@ function removed(widgets, index) {
 function nextSize(widgets, index, grid) {
     const widget = widgets[index];
     const current = size(widget.place.cols, widget.place.rows);
-    const preferred = distinctSizes(preferredSizes(shownFormOf(widget)).filter(s => resized(widgets, index, s, grid) !== null).concat([current]));
+    const preferred = distinctSizes(preferredSizes(shownFormOf(widget), widget.type).filter(s => resized(widgets, index, s, grid) !== null).concat([current]));
     const sizes = preferred.length > 1 ? preferred : sizesFor(widgets, index, grid);
     const at = sizes.findIndex(s => sameSize(s, current));
     return resized(widgets, index, sizes[(at + 1) % sizes.length], grid);
@@ -440,7 +445,7 @@ function variants(config, widgets, index, grid, state) {
     const forms = offered.length > 0 ? offered : [null];
     const fitting = [];
     for (const form of forms)
-        for (const s of preferredSizes(form))
+        for (const s of preferredSizes(form, widget.type))
             if (resized(widgets, index, s, grid) !== null)
                 fitting.push({
                     "form": form,

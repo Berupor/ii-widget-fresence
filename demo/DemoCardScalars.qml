@@ -1,4 +1,4 @@
-//@ probe fresence -g 620x940 -s 1500
+//@ probe fresence -g 620x1560 -s 1500
 /**
  * A close-up of the value forms at a size where the bar fill, the ring gap and
  * the headline value are actually legible - a friend's row only ever shows them
@@ -111,6 +111,68 @@ Item {
         })
     ]
 
+    readonly property var gaugeWidgets: [
+        Demo.value("cpu", [0, 0, 1, 1], {
+            "form": "figure",
+            "on_missing": "hide"
+        }),
+        Demo.value("memory", [1, 0, 1, 1], {
+            "form": "figure",
+            "color": "secondary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("disk", [2, 0, 1, 1], {
+            "form": "figure",
+            "color": "tertiary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("battery", [3, 0, 1, 1], {
+            "form": "figure",
+            "color": "primary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("cpu", [0, 1, 2, 1], {
+            "form": "figure",
+            "label": "CPU",
+            "color": "secondary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("memory", [2, 1, 2, 1], {
+            "form": "ring",
+            "label": "Memory",
+            "color": "primary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("cpu", [0, 2, 1, 1], {
+            "form": "cells",
+            "label": "CPU",
+            "on_missing": "hide"
+        }),
+        Demo.value("custom", [1, 2, 1, 1], {
+            "form": "cells",
+            "label": "Custom",
+            "color": "tertiary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("cpu", [2, 2, 2, 1], {
+            "form": "cells",
+            "label": "Cores",
+            "color": "secondary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("session", [0, 3, 2, 1], {
+            "form": "text",
+            "color": "primary_container",
+            "on_missing": "hide"
+        }),
+        Demo.value("session", [2, 3, 2, 1], {
+            "form": "banner",
+            "icon": "code",
+            "color": "tertiary_container",
+            "on_missing": "hide"
+        })
+    ]
+
     readonly property var snapshot: Demo.snapshot([Demo.device({
                 "id": "dev-self",
                 "account": "You"
@@ -123,18 +185,31 @@ Item {
                                 "values": {
                                     "cpu": {
                                         "text": "63%",
-                                        "fill": 0.63
+                                        "fill": 0.63,
+                                        "parts": [0.9, 0.2, 0.75, 1, 0.4, 0.05, 0.6, 0.95]
                                     },
                                     "memory": {
                                         "text": "12.0/16.0G",
-                                        "fill": 0.75
+                                        "fill": 0.75,
+                                        "used_bytes": 12884901888,
+                                        "total_bytes": 17179869184
+                                    },
+                                    "custom": {
+                                        "text": "40%",
+                                        "fill": 0.4
+                                    },
+                                    "session": {
+                                        "text": "Reviewing a patch",
+                                        "subtext": "Zed"
                                     },
                                     "load": {
                                         "text": "2.40 / 8"
                                     },
                                     "disk": {
                                         "text": "47%",
-                                        "fill": 0.47
+                                        "fill": 0.47,
+                                        "used_bytes": 1034789347328,
+                                        "total_bytes": 2199023255552
                                     },
                                     "window": {
                                         "text": root.symbolTitle
@@ -157,7 +232,11 @@ Item {
     }
 
     function tileAt(index) {
-        return index < root.mainWidgets.length ? root.tileOf(mainGrid, root.mainWidgets, index) : root.tileOf(dialGrid, root.dialWidgets, index - root.mainWidgets.length);
+        const dialFrom = root.mainWidgets.length;
+        const gaugeFrom = dialFrom + root.dialWidgets.length;
+        if (index < dialFrom)
+            return root.tileOf(mainGrid, root.mainWidgets, index);
+        return index < gaugeFrom ? root.tileOf(dialGrid, root.dialWidgets, index - dialFrom) : root.tileOf(gaugeGrid, root.gaugeWidgets, index - gaugeFrom);
     }
 
     function part(index, name) {
@@ -172,6 +251,18 @@ Item {
         const valueBottom = value.mapToItem(null, 0, value.height).y;
         const captionTop = caption.mapToItem(null, 0, 0).y;
         return caption.visible && !caption.truncated && !value.truncated && valueBottom <= captionTop;
+    }
+
+    function gauge(index) {
+        return root.tileAt(root.mainWidgets.length + root.dialWidgets.length + index);
+    }
+
+    function gaugePart(index, name) {
+        return Items.byName(root.gauge(index), name)[0] ?? null;
+    }
+
+    function cellsOf(index) {
+        return Items.findAll(root.gauge(index), it => it.layoutOfCells !== undefined)[0] ?? null;
     }
 
     function dialSpinning(tile) {
@@ -201,8 +292,8 @@ Item {
         return [
             {
                 "name": "every fixture tile places on the grid",
-                "got": [mainGrid.placed.length, dialGrid.placed.length],
-                "want": [root.mainWidgets.length, root.dialWidgets.length]
+                "got": [mainGrid.placed.length, dialGrid.placed.length, gaugeGrid.placed.length],
+                "want": [root.mainWidgets.length, root.dialWidgets.length, root.gaugeWidgets.length]
             },
             {
                 "name": "every tile's form loads",
@@ -232,12 +323,42 @@ Item {
             {
                 "name": "a ring shows the value's own text and the widget's label under it",
                 "got": [root.part(1, "ringValue")?.text, root.part(7, "ringCaption")?.text],
-                "want": ["12.0/16.0G", "Disk"]
+                "want": ["12 of 16 GB", "Disk"]
             },
             {
-                "name": "ring captions sit below the value, whole",
-                "got": [root.ringCaptionClear(1), root.ringCaptionClear(7), root.ringCaptionClear(8)],
-                "want": [true, true, true]
+                "name": "a ring small enough to lose its caption box shows the source icon alone",
+                "got": [Items.byName(smallRingProbe, "ringValue")[0]?.visible, Items.byName(smallRingProbe, "ringCaption")[0]?.visible, root.part(1, "ringValue")?.visible],
+                "want": [false, false, true]
+            },
+            {
+                "name": "dial captions sit below the value, whole",
+                "got": root.ringCaptionClear(13),
+                "want": true
+            },
+            {
+                "name": "a 2x1 ring draws its value and label beside the ring",
+                "got": [root.gaugePart(5, "wideRingValue")?.text, root.gaugePart(5, "wideRingValue")?.visible, root.gaugePart(5, "ringValue")?.visible],
+                "want": ["12 of 16 GB", true, false]
+            },
+            {
+                "name": "memory and disk read as used of total, the cpu keeps its own text",
+                "got": [root.gaugePart(1, "figureCompact")?.text, root.gaugePart(2, "figureCompact")?.text, root.gaugePart(0, "figureCompact")?.text],
+                "want": ["12 GB", "964 GB", "63%"]
+            },
+            {
+                "name": "a wide figure gets the value and label beside the picture",
+                "got": [root.gaugePart(4, "figureValue")?.text, root.gaugePart(4, "figureValue")?.visible],
+                "want": ["63%", true]
+            },
+            {
+                "name": "cells light one cell per core from parts, and by fill round it without them",
+                "got": [6, 7, 8].map(index => root.cellsOf(index)?.count).concat([root.cellsOf(7)?.lit]),
+                "want": [8, 16, 8, 6]
+            },
+            {
+                "name": "a value subtext sits above a text sentence, and stands in for a banner's empty label",
+                "got": [root.gaugePart(9, "textSubtext")?.text, root.gaugePart(9, "textValue")?.text, root.gauge(10)?.subtext],
+                "want": ["Zed", "Reviewing a patch", "Zed"]
             },
             {
                 "name": "a bar fills by the value's fill, not by parsing its text",
@@ -319,9 +440,26 @@ Item {
             grid: "detail"
         }
 
+        CardGrid {
+            id: gaugeGrid
+            Layout.fillWidth: true
+            device: root.device
+            widgets: root.gaugeWidgets
+            grid: "detail"
+        }
+
         Item {
             Layout.fillHeight: true
         }
+    }
+
+    CardTile {
+        id: smallRingProbe
+        opacity: 0
+        width: 64
+        height: 64
+        widget: root.mainWidgets[1]
+        device: root.device
     }
 
     CardTile {

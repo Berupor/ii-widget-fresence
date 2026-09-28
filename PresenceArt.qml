@@ -14,6 +14,8 @@ Rectangle {
     required property string source
     property list<string> fallbacks: []
     property string fallbackIcon: "music_note"
+    property color fallbackColor: Appearance.colors.colSubtext
+    property real fallbackLift: 0
     property int fillMode: Image.PreserveAspectCrop
     property string fit: "cover"
     property int horizontalAlignment: Image.AlignHCenter
@@ -204,8 +206,9 @@ head -c4 "$target" 2>/dev/null
     MaterialSymbol {
         visible: root.status !== Image.Ready && root.fallbackIcon.length > 0
         anchors.centerIn: parent
+        anchors.verticalCenterOffset: -root.fallbackLift
         iconSize: Math.round(root.height * 0.4)
-        color: Appearance.colors.colSubtext
+        color: root.fallbackColor
         text: root.fallbackIcon
     }
 }

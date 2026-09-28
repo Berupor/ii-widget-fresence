@@ -31,7 +31,7 @@ Item {
         root.forceActiveFocus()
 
     function previewTextOf(id, value): string {
-        if (!value || Rules.hasOwnForms(id))
+        if (!value)
             return "";
         const p = Rules.previewValueText(value);
         if (!p)
