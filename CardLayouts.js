@@ -37,10 +37,12 @@ const formFiles = {
         "temp": "TileWeather.qml"
     },
     "photo": {},
+    "clip": {},
     "image": {}
 };
 const formlessFiles = {
     "photo": "TilePhoto.qml",
+    "clip": "TileClip.qml",
     "image": "TileImage.qml"
 };
 
@@ -145,6 +147,22 @@ function backgroundIsPhoto(widget, device, nowMs) {
     return backgroundKind(widget) === "photo" && photoValid(device, nowMs);
 }
 
+// A clip widget stays on the grid for its whole life even before the file is
+// local: clipMetaValid gates the widget, clipFileValid additionally gates the
+// background variant, which has no in-between "downloading" look of its own.
+function clipMetaValid(device, nowMs) {
+    const clip = device?.state?.clip ?? null;
+    return !!clip && Date.parse(clip.expires_at) > nowMs;
+}
+
+function clipFileValid(device, nowMs) {
+    return !!device?.clip_file && clipMetaValid(device, nowMs);
+}
+
+function backgroundIsClip(widget, device, nowMs) {
+    return backgroundKind(widget) === "clip" && clipFileValid(device, nowMs);
+}
+
 function missing(widget, device, nowMs) {
     const state = device?.state ?? null;
     switch (widget?.type) {
@@ -158,6 +176,8 @@ function missing(widget, device, nowMs) {
         return !state?.weather;
     case "photo":
         return !photoValid(device, nowMs);
+    case "clip":
+        return !clipMetaValid(device, nowMs);
     case "image":
         return !widget.url;
     default:

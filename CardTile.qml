@@ -33,10 +33,12 @@ Item {
     readonly property var weather: root.state?.weather ?? null
     readonly property var photo: root.state?.photo ?? null
     readonly property string photoFile: root.device?.photo_file ?? ""
+    readonly property string clipFile: root.device?.clip_file ?? ""
 
     readonly property bool backdropIsPhoto: CardLayouts.backgroundIsPhoto(root.widget, root.device, Fresence.now)
-    readonly property string backdropUrl: root.backdropIsPhoto ? "" : CardLayouts.backgroundUrl(root.widget, root.device)
-    readonly property bool hasBackdropSource: root.backdropIsPhoto || CardLayouts.isHttpsUrl(root.backdropUrl)
+    readonly property bool backdropIsClip: CardLayouts.backgroundIsClip(root.widget, root.device, Fresence.now)
+    readonly property string backdropUrl: root.backdropIsPhoto || root.backdropIsClip ? "" : CardLayouts.backgroundUrl(root.widget, root.device)
+    readonly property bool hasBackdropSource: root.backdropIsPhoto || root.backdropIsClip || CardLayouts.isHttpsUrl(root.backdropUrl)
     readonly property bool backdropShown: root.hasBackdropSource && backdropLoader.item?.status !== Image.Error
 
     readonly property bool ticks: root.animating && root.hasData && ((root.type === "value" && root.form === "timer") || root.type === "game" || (root.type === "media" && root.media?.playing === true))
@@ -138,7 +140,7 @@ Item {
             objectName: "tileBackdrop"
             anchors.fill: parent
             active: root.hasBackdropSource
-            sourceComponent: root.backdropIsPhoto ? backdropPhoto : backdropArt
+            sourceComponent: root.backdropIsPhoto ? backdropPhoto : (root.backdropIsClip ? backdropClip : backdropArt)
         }
 
         Component {
@@ -159,6 +161,34 @@ Item {
                 sourcePath: root.photoFile
                 playing: root.animating
                 settleGif: true
+            }
+        }
+
+        Component {
+            id: backdropClip
+            Item {
+                id: clipBackdrop
+                anchors.fill: parent
+
+                Loader {
+                    id: clipVideo
+                    anchors.fill: parent
+
+                    function load(): void {
+                        clipVideo.setSource(Qt.resolvedUrl("TileClipVideo.qml"), {
+                            "card": root,
+                            "autoLoop": false
+                        });
+                    }
+
+                    Component.onCompleted: clipVideo.load()
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: clipVideo.status === Loader.Ready
+                    onClicked: clipVideo.item.replay()
+                }
             }
         }
 
@@ -208,6 +238,7 @@ Item {
                             "media": "music_off",
                             "game": "sports_esports",
                             "photo": "photo_camera",
+                            "clip": "videocam",
                             "image": "image"
                         })[root.type] ?? "block"
                     iconSize: Appearance.font.pixelSize.larger
@@ -224,6 +255,7 @@ Item {
                             "media": Translation.tr("Nothing playing"),
                             "game": Translation.tr("Not in a game"),
                             "photo": Translation.tr("No photo"),
+                            "clip": Translation.tr("No clip"),
                             "image": Translation.tr("No picture")
                         })[root.type] ?? ""
                 }
