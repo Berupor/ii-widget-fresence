@@ -11,3 +11,4 @@
 -f demo/DemoRoomCards.qml -n cards -g 940x1100 -s 3000
 -f demo/DemoIncognito.qml -n incognito -g 440x210 -s 1500
 -f demo/DemoFriendCard.qml -n friendCard -g 420x560 -s 1500
+-f demo/DemoChess.qml -n chess -g 420x560 -s 2500

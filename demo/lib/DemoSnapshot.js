@@ -124,3 +124,22 @@ function weather(place, tempC, condition, extra) {
         "condition": condition
     }, extra ?? {});
 }
+
+// game: { fen, color, result, ending, opponent, opponent_rating, moves, delta }
+function chess(mode, rating, history, extra) {
+    return Object.assign({
+        "user": "gil_plays",
+        "mode": mode,
+        "rating": rating,
+        "history": history
+    }, extra ?? {});
+}
+
+function chessGame(fen, color, result, extra) {
+    return Object.assign({
+        "fen": fen,
+        "color": color,
+        "result": result,
+        "ended_at": iso(-minutes(90))
+    }, extra ?? {});
+}

@@ -42,6 +42,10 @@ const formFiles = {
         "moon": "TileMoon.qml",
         "sun": "TileSun.qml"
     },
+    "chess": {
+        "board": "TileChessBoard.qml",
+        "rating": "TileChessRating.qml"
+    },
     "photo": {},
     "clip": {},
     "image": {},
@@ -180,6 +184,11 @@ function tileInset(width, height, shape) {
     return Math.max(base, edge);
 }
 
+// The chess board and rating pad themselves, edge to edge like ChessTiles.kt
+function edgeToEdge(widget) {
+    return widget?.type === "chess";
+}
+
 function fullBleed(widget) {
     return fullBleedTypes.includes(widget?.type) || formFile(widget) === formFiles.media.poster;
 }
@@ -191,6 +200,8 @@ function takesBackground(widget) {
         return !["cover", "poster"].includes(shownForm(widget));
     case "weather":
         return shownForm(widget) !== "sky";
+    case "chess":
+        return shownForm(widget) !== "board";
     case "value":
         return true;
     default:
@@ -301,6 +312,8 @@ function missing(widget, device, nowMs) {
         return !state?.game;
     case "weather":
         return shownForm(widget) !== "moon" && !state?.weather;
+    case "chess":
+        return shownForm(widget) === "board" ? !state?.chess?.last : !state?.chess;
     case "photo":
         return !photoValid(device, nowMs);
     case "clip":
@@ -463,4 +476,128 @@ function clockAt(utcOffsetS, nowMs) {
         "hourTurns": ((hour % 12) + minute / 60) / 12,
         "minuteTurns": minute / 60
     };
+}
+
+const boardSide = 8;
+
+// Outlines in a 24x24 viewport, mirror Silhouettes in app/shared ui/card/ChessTiles.kt
+const pieceBase = "M4.5 18h15v3h-15z";
+const chessPieces = {
+    "k": {
+        "body": ["M10.75 1.5h2.5v2h2v2.5h-2v3h-2.5v-3h-2v-2.5h2z", "M6.5 8h11v2.5h-1.5l1.2 9h-10.4l1.2-9h-1.5z", pieceBase],
+        "cuts": []
+    },
+    "q": {
+        "body": ["M4 7.5l4.5 3.5 3.5-6 3.5 6 4.5-3.5-1.7 12h-12.6z", "M4 4.3a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4z", "M12 1.6a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4z", "M20 4.3a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 1 1 0-3.4z", pieceBase],
+        "cuts": []
+    },
+    "r": {
+        "body": ["M5.5 3.5h3v2.5h2v-2.5h3v2.5h2v-2.5h3v6h-2l0.6 10h-9.2l0.6-10h-2z", pieceBase],
+        "cuts": []
+    },
+    "b": {
+        "body": ["M12 2.5C16.2 5.5 17.5 8.2 17.5 10.5 17.5 13 15 14.5 12 14.5S6.5 13 6.5 10.5C6.5 8.2 7.8 5.5 12 2.5z", "M9.5 13h5l1.8 6.5h-8.6z", pieceBase],
+        "cuts": ["M13.8 5.4l1.3 1.3-3.3 3.3-1.3-1.3z"]
+    },
+    "n": {
+        "body": ["M18.2 19.5C18.8 12.5 18 7.5 13.8 4.3L13.25 2.7Q13 2 12.45 2.5L10.6 4.3C7.5 5.3 5.5 8.3 4.2 11.8 3.9 13.3 4.8 14.7 6.3 14.7 7.6 14.7 8.5 14.2 9.6 13.6C10 15.8 8.8 17.8 7.4 19.5Z", pieceBase],
+        "cuts": ["M11.3 6.4a1 1 0 1 1 0 2a1 1 0 1 1 0-2z"]
+    },
+    "p": {
+        "body": ["M12 3a3.8 3.8 0 1 1 0 7.6a3.8 3.8 0 1 1 0-7.6z", "M9 19.5l1.4-9.5h3.2l1.4 9.5z", "M5.5 18h13v3h-13z"],
+        "cuts": []
+    }
+};
+
+// Rows top to bottom, "" for an empty square; the player's own side is at the bottom
+function boardSquares(fen, side) {
+    const ranks = (fen ?? "").split(" ")[0].split("/").map(rank => rank.split("").reduce((squares, ch) => squares.concat(/\d/.test(ch) ? Array(Number(ch)).fill("") : [ch]), []));
+    const last = boardSide - 1;
+    return Array.from({
+        "length": boardSide
+    }, (_, row) => Array.from({
+            "length": boardSide
+        }, (_, col) => (side === "black" ? ranks[last - row]?.[last - col] : ranks[row]?.[col]) ?? ""));
+}
+
+const chessCorners = [
+    {
+        "top": true,
+        "start": false
+    },
+    {
+        "top": true,
+        "start": true
+    },
+    {
+        "top": false,
+        "start": false
+    },
+    {
+        "top": false,
+        "start": true
+    }
+];
+
+// The first corner whose cols x rows squares are all empty, null when there is none
+function freeCorner(squares, cols, rows) {
+    if (!(cols >= 1 && cols <= boardSide && rows >= 1 && rows <= boardSide))
+        return null;
+    return chessCorners.find(corner => {
+        const from = corner.top ? 0 : boardSide - rows;
+        const fromCol = corner.start ? 0 : boardSide - cols;
+        for (let row = from; row < from + rows; row++)
+            for (let col = fromCol; col < fromCol + cols; col++)
+                if (squares[row]?.[col])
+                    return false;
+        return true;
+    }) ?? null;
+}
+
+function deltaText(delta) {
+    return delta > 0 ? `+${delta}` : `${delta}`;
+}
+
+const summaryDropOrder = ["opponent", "rating", "caption"];
+
+// ChessTiles.kt keptParts: the parts of a game summary that fit next to the result line
+function keptParts(heights, resultHeight, available) {
+    const kept = Object.keys(heights).filter(part => heights[part] > 0);
+    for (const part of summaryDropOrder) {
+        if (kept.reduce((sum, p) => sum + heights[p], 0) + resultHeight > available && kept.includes(part))
+            kept.splice(kept.indexOf(part), 1);
+    }
+    return kept;
+}
+
+const chartMinSpan = 240;
+const chartFloor = 1;
+const chartHeadroom = 0.6;
+const bestMinSpan = 120;
+
+// ChessTiles.kt RatingChart: y of each rating in a chart `height` tall, the best line at y = top
+function chartYs(history, best, height, top) {
+    const hiRating = Math.max(...history);
+    const loRating = Math.min(...history);
+    const visible = Math.max(hiRating - loRating, chartMinSpan);
+    const middle = (hiRating + loRating) / 2;
+    const hasBest = best !== undefined && best !== null;
+    const hi = hasBest ? Math.max(best, hiRating) : middle + visible * chartHeadroom;
+    const lo = hasBest ? Math.min(loRating, hi - bestMinSpan) : middle - visible * chartFloor;
+    const from = hasBest ? top : 0;
+    return history.map(v => from + (height - from) * (1 - (v - lo) / (hi - lo)));
+}
+
+// ChessTiles.kt monotoneSlopes: y change per step at each point, flat at turning points
+function monotoneSlopes(values) {
+    const secants = values.slice(1).map((v, i) => v - values[i]);
+    return values.map((_, i) => {
+        const before = secants[i - 1];
+        const after = secants[i];
+        if (before === undefined)
+            return after ?? 0;
+        if (after === undefined)
+            return before;
+        return before * after <= 0 ? 0 : 2 * before * after / (before + after);
+    });
 }

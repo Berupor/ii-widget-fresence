@@ -27,12 +27,21 @@ Item {
     readonly property bool placeholder: root.unrecognized || (root.dimmed && root.type !== "value" && root.type !== "weather")
     readonly property bool fullBleed: CardLayouts.fullBleed(root.widget) && !root.placeholder
     readonly property bool wide: root.width > root.height
+    readonly property bool edgeToEdge: CardLayouts.edgeToEdge(root.widget) && !root.placeholder
+    readonly property real tileInset: CardLayouts.tileInset(root.width, root.height, root.shape)
+    readonly property string chessModeText: ({
+            "rapid": Translation.tr("Rapid"),
+            "blitz": Translation.tr("Blitz"),
+            "bullet": Translation.tr("Bullet"),
+            "daily": Translation.tr("Daily")
+        })[root.chess?.mode] ?? ""
 
     readonly property var state: root.device?.state ?? null
     readonly property var value: CardLayouts.valueOf(root.widget, root.state)
     readonly property var media: CardLayouts.mediaOf(root.widget, root.state)
     readonly property var game: root.state?.game ?? null
     readonly property var weather: root.state?.weather ?? null
+    readonly property var chess: root.state?.chess ?? null
     readonly property var photo: root.state?.photo ?? null
     readonly property string photoFile: root.device?.photo_file ?? ""
     readonly property string clipFile: root.device?.clip_file ?? ""
@@ -149,7 +158,7 @@ Item {
             id: surface
             anchors.fill: parent
 
-            layer.enabled: root.fullBleed || root.showsSky || root.hasBackdropSource
+            layer.enabled: root.fullBleed || root.edgeToEdge || root.showsSky || root.hasBackdropSource
             layer.effect: OpacityMask {
                 maskSource: Rectangle {
                     width: surface.width
@@ -238,7 +247,7 @@ Item {
                 color: Qt.rgba(0, 0, 0, 0.55)
             }
 
-            readonly property real inset: root.fullBleed ? 0 : CardLayouts.tileInset(root.width, root.height, root.shape)
+            readonly property real inset: root.fullBleed || root.edgeToEdge ? 0 : root.tileInset
 
             Item {
                 id: content
@@ -279,7 +288,8 @@ Item {
                                 "photo": "photo_camera",
                                 "clip": "videocam",
                                 "image": "image",
-                                "clock": "schedule"
+                                "clock": "schedule",
+                                "chess": "chess_queen"
                             })[root.type] ?? "block"
                         iconSize: Appearance.font.pixelSize.larger
                         color: root.mutedContentColor
@@ -297,6 +307,7 @@ Item {
                                 "photo": Translation.tr("No photo"),
                                 "clip": Translation.tr("No clip"),
                                 "image": Translation.tr("No picture"),
+                                "chess": Translation.tr("No games"),
                                 "clock": Translation.tr("No time zone")
                             })[root.type] ?? ""
                     }
