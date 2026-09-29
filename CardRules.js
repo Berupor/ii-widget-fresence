@@ -28,7 +28,8 @@ const shapeForms = {
     "time": ["clock", "timer"]
 };
 
-const otherTypes = ["media", "game", "weather", "clock", "photo", "image"];
+const chessTypes = ["chess"];
+const otherTypes = ["media", "game", "weather", "clock", "photo", "image"].concat(chessTypes);
 
 const colors = ["primary", "secondary", "tertiary", "error", "primary_container", "secondary_container", "tertiary_container", "error_container"];
 
@@ -36,9 +37,11 @@ const newValueKinds = ["text", "fill", "time", "command"];
 const defaultFill = 0.5;
 const defaultCommandIntervalS = 60;
 const saveDebounceMs = 700;
+const chessCheckDebounceMs = 500;
 
 const imageUrlPattern = /^https:\/\/\S+$/;
 const valueIdPattern = /^[a-z][a-z0-9_]*$/;
+const chessUserPattern = /^[A-Za-z0-9_-]{3,25}$/;
 const symbolNamePattern = /^[a-z0-9_]{1,64}$/;
 const maxNameLength = 64;
 
@@ -84,6 +87,7 @@ const typeNames = {
     "media": "Music and video",
     "game": "Game",
     "weather": "Weather",
+    "chess": "Chess",
     "clock": "Clock",
     "photo": "Photo",
     "image": "Image"
@@ -94,6 +98,7 @@ const typeSymbols = {
     "media": "music_note",
     "game": "sports_esports",
     "weather": "partly_cloudy_day",
+    "chess": "chess_queen",
     "clock": "schedule",
     "photo": "photo_camera",
     "image": "image"
@@ -138,6 +143,8 @@ const formNames = {
     "vinyl": "Vinyl",
     "sleeve": "Sleeve",
     "wave": "Wave",
+    "board": "Board",
+    "rating": "Rating",
     "player": "Player",
     "timer": "Timer"
 };
@@ -238,6 +245,10 @@ function preferredSizes(form, type) {
         return [size(4, 2), size(4, 1)];
     case "sky":
         return [size(2, 1), size(4, 2)];
+    case "board":
+        return [size(1, 1), size(2, 1), size(2, 2), size(4, 1), size(4, 2)];
+    case "rating":
+        return [size(1, 1), size(2, 1)];
     case "cover":
     case "vinyl":
         return [size(1, 1), size(2, 2)];
@@ -313,6 +324,131 @@ function resized(widgets, index, wanted, grid) {
     return canPlace(widgets, place, grid, index) ? replaced(widgets, index, place) : null;
 }
 
+function distance(a, b) {
+    return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
+}
+
+function nearest(spots, from) {
+    return spots.reduce((best, spot) => !best || distance(spot, from) < distance(best, from) ? spot : best, null);
+}
+
+function spotsOf(size, grid) {
+    const spots = [];
+    for (let row = 0; row <= rowsOf(grid) - size.rows; row++)
+        for (let col = 0; col <= CardLayouts.columns - size.cols; col++)
+            spots.push({
+                "col": col,
+                "row": row,
+                "cols": size.cols,
+                "rows": size.rows
+            });
+    return spots;
+}
+
+function swapped(widgets, index, col, row, grid) {
+    const origin = widgets[index].place;
+    const target = Object.assign({}, origin, {
+        "col": col,
+        "row": row
+    });
+    if (!CardLayouts.fits(target, grid))
+        return null;
+    const hit = widgets.map((w, i) => i).filter(i => i !== index && overlaps(widgets[i].place, target));
+    if (hit.length !== 1)
+        return null;
+    const other = hit[0];
+    const spot = nearest(spotsOf(widgets[other].place, grid).filter(s => overlaps(s, origin) && !overlaps(s, target) && !widgets.some((w, i) => i !== index && i !== other && overlaps(w.place, s))), origin);
+    if (!spot)
+        return null;
+    return widgets.map((w, i) => i === index ? Object.assign({}, w, {
+                "place": target
+            }) : i === other ? Object.assign({}, w, {
+                "place": spot
+            }) : w);
+}
+
+function moveOrSwap(widgets, index, col, row, grid) {
+    return moved(widgets, index, col, row, grid) ?? swapped(widgets, index, col, row, grid);
+}
+
+function pushDirection(other, origin, grown) {
+    const right = other.col >= origin.col + origin.cols;
+    const down = other.row >= origin.row + origin.rows;
+    if (right !== down)
+        return right ? "right" : "down";
+    return grown.col + grown.cols - other.col <= grown.row + grown.rows - other.row ? "right" : "down";
+}
+
+function pushedPast(place, pusher, direction) {
+    return direction === "right" ? Object.assign({}, place, {
+        "col": pusher.col + pusher.cols
+    }) : Object.assign({}, place, {
+        "row": pusher.row + pusher.rows
+    });
+}
+
+function nearestFree(places, index, from, absent, grid) {
+    return nearest(spotsOf(from, grid).filter(spot => places.every((p, i) => i === index || absent.has(i) || !overlaps(p, spot))), from);
+}
+
+// Growing a widget pushes the ones in its way aside, null when something has nowhere to go
+function stretched(widgets, index, wanted, grid) {
+    const origin = widgets[index].place;
+    const grown = Object.assign({}, origin, wanted);
+    if (!CardLayouts.fits(grown, grid))
+        return null;
+    const places = widgets.map(w => w.place);
+    places[index] = grown;
+    const evicted = new Set();
+    const movers = [[index, null]];
+    while (movers.length > 0) {
+        const [mover, push] = movers.shift();
+        if (evicted.has(mover))
+            continue;
+        for (let j = 0; j < places.length; j++) {
+            if (j === index || j === mover || evicted.has(j) || !overlaps(places[j], places[mover]))
+                continue;
+            const direction = push ?? pushDirection(places[j], origin, grown);
+            const shifted = pushedPast(places[j], places[mover], direction);
+            if (CardLayouts.fits(shifted, grid)) {
+                places[j] = shifted;
+                movers.push([j, direction]);
+            } else {
+                evicted.add(j);
+            }
+        }
+    }
+    const order = Array.from(evicted).sort((a, b) => widgets[a].place.row - widgets[b].place.row || widgets[a].place.col - widgets[b].place.col);
+    for (const j of order) {
+        evicted.delete(j);
+        const spot = nearestFree(places, j, widgets[j].place, evicted, grid);
+        if (!spot)
+            return null;
+        places[j] = spot;
+    }
+    return widgets.map((w, i) => Object.assign({}, w, {
+            "place": places[i]
+        }));
+}
+
+// The largest size up to the wanted one that fits, the widgets unchanged when none does
+function stretchedToward(widgets, index, wanted, grid) {
+    const place = widgets[index].place;
+    const cols = clamp(wanted.cols, 1, CardLayouts.columns - place.col);
+    const rows = clamp(wanted.rows, 1, rowsOf(grid) - place.row);
+    const sizes = [];
+    for (let c = 1; c <= cols; c++)
+        for (let r = 1; r <= rows; r++)
+            sizes.push(size(c, r));
+    sizes.sort((a, b) => b.cols * b.rows - a.cols * a.rows || b.cols - a.cols);
+    for (const s of sizes) {
+        const next = stretched(widgets, index, s, grid);
+        if (next)
+            return next;
+    }
+    return widgets;
+}
+
 function allSizes(grid) {
     const sizes = [];
     for (let rows = 1; rows <= rowsOf(grid); rows++)
@@ -350,10 +486,10 @@ function removed(widgets, index) {
 function nextSize(widgets, index, grid) {
     const widget = widgets[index];
     const current = size(widget.place.cols, widget.place.rows);
-    const preferred = distinctSizes(preferredSizes(shownFormOf(widget), widget.type).filter(s => resized(widgets, index, s, grid) !== null).concat([current]));
+    const preferred = distinctSizes(preferredSizes(shownFormOf(widget), widget.type).filter(s => stretched(widgets, index, s, grid) !== null).concat([current]));
     const sizes = preferred.length > 1 ? preferred : sizesFor(widgets, index, grid);
     const at = sizes.findIndex(s => sameSize(s, current));
-    return resized(widgets, index, sizes[(at + 1) % sizes.length], grid);
+    return stretched(widgets, index, sizes[(at + 1) % sizes.length], grid);
 }
 
 function draggedPlace(place, drag, dxCells, dyCells) {
@@ -605,6 +741,79 @@ function valueIdFor(name, taken) {
     }
 }
 
+function isChessUser(name) {
+    return chessUserPattern.test(name);
+}
+
+function withChessUser(config, text) {
+    return withFields(config, {
+        "chess_user": text.trim()
+    });
+}
+
+const chessRecordKeys = ["win", "loss", "draw"];
+const chessModeNames = {
+    "rapid": "Rapid",
+    "blitz": "Blitz",
+    "bullet": "Bullet",
+    "daily": "Daily"
+};
+const httpOk = 200;
+const httpNotFound = 404;
+
+function chessGames(block) {
+    return chessRecordKeys.reduce((sum, key) => sum + (Number.isInteger(block?.record?.[key]) ? block.record[key] : 0), 0);
+}
+
+// The chess.com stats answer as the app's ChessPlayers reads it: the mode with most games, its last rating
+function chessPlayer(httpStatus, body) {
+    if (httpStatus === httpNotFound)
+        return {
+            "kind": "missing"
+        };
+    if (httpStatus !== httpOk)
+        return {
+            "kind": "unreachable"
+        };
+    let stats;
+    try {
+        stats = JSON.parse(body);
+    } catch (e) {
+        return {
+            "kind": "unreachable"
+        };
+    }
+    const played = Object.keys(chessModeNames).filter(m => stats?.[`chess_${m}`] !== null && typeof stats?.[`chess_${m}`] === "object");
+    if (played.length === 0)
+        return {
+            "kind": "found"
+        };
+    const mode = played.reduce((best, m) => chessGames(stats[`chess_${m}`]) > chessGames(stats[`chess_${best}`]) ? m : best);
+    const rating = stats[`chess_${mode}`].last?.rating;
+    return Object.assign({
+        "kind": "found",
+        "mode": mode
+    }, Number.isInteger(rating) ? {
+        "rating": rating
+    } : {});
+}
+
+function newChessUser(config, stored) {
+    const user = config?.chess_user;
+    return user !== undefined && isChessUser(user) && user !== stored?.chess_user ? user : null;
+}
+
+// check: { user, player } as the live check last saw it, player null while it runs
+function awaitsChessCheck(config, check, stored) {
+    const user = newChessUser(config, stored);
+    return user !== null && (check?.user !== user || !check.player);
+}
+
+function chessUserMissing(config, check, stored) {
+    const user = newChessUser(config, stored);
+    return user !== null && check?.user === user && check.player?.kind === "missing";
+}
+
 function isValidValue(value) {
     if (value.time !== undefined)
         return value.text === undefined && value.fill === undefined;
@@ -612,13 +821,15 @@ function isValidValue(value) {
 }
 
 // Problem codes, the order they are listed in
-const problemCodes = ["value_source", "image_url", "background_url", "name_length", "value_id", "value_empty", "command"];
+const problemCodes = ["value_source", "image_url", "background_url", "name_length", "value_id", "value_empty", "command", "chess_user", "chess_missing"];
 
 function problems(config) {
     const found = new Set();
     const names = [config.account_name, config.device_name].filter(n => n !== undefined);
     if (names.some(n => n.length === 0 || n.length > maxNameLength))
         found.add("name_length");
+    if (config.chess_user !== undefined && !isChessUser(config.chess_user))
+        found.add("chess_user");
     for (const w of widgetsOf(config, "row").concat(widgetsOf(config, "detail"))) {
         if (w.type === "value" && !w.source)
             found.add("value_source");
@@ -689,6 +900,27 @@ function sampleValues(nowMs) {
     };
 }
 
+function sampleChess(nowMs) {
+    return {
+        "user": "xlamid",
+        "mode": "rapid",
+        "rating": 1225,
+        "best": 1272,
+        "history": [1217, 1226, 1236, 1245, 1254, 1246, 1254, 1246, 1238, 1239, 1248, 1257, 1249, 1241, 1250, 1243, 1251, 1245, 1253, 1245, 1254, 1263, 1255, 1264, 1272, 1264, 1258, 1266, 1258, 1266, 1258, 1266, 1259, 1253, 1236, 1215, 1238, 1219, 1202, 1225],
+        "last": {
+            "fen": "r7/p7/R5p1/2R2b2/kB6/5P2/P1N1r1PP/6K1 b - - 0 31",
+            "color": "white",
+            "result": "win",
+            "ending": "checkmate",
+            "opponent": "tsv365",
+            "opponent_rating": 1283,
+            "moves": 31,
+            "delta": 23,
+            "ended_at": new Date(nowMs - 25 * 60000).toISOString()
+        }
+    };
+}
+
 function placeholderValue(shape, nowMs) {
     switch (shape) {
     case "text":
@@ -743,6 +975,7 @@ function preview(config, state, nowMs) {
             "sunrise": new Date(nowMs - 5 * 3600000).toISOString(),
             "sunset": new Date(nowMs + 7 * 3600000).toISOString()
         },
+        "chess": config.chess_user ? (real.chess ?? sampleChess(nowMs)) : undefined,
         "values": Object.assign(values, real.values ?? {})
     });
 }

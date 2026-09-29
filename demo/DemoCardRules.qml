@@ -49,6 +49,35 @@ Item {
         };
     }
 
+    function cell(col, row, cols, rows) {
+        return {
+            "type": "weather",
+            "place": root.place(col, row, cols, rows)
+        };
+    }
+
+    readonly property var shownDevice: ({
+            "state": {
+                "weather": {}
+            }
+        })
+
+    function packed(widgets, grid) {
+        return CardLayouts.placed(widgets, grid, root.shownDevice, 0).map(p => root.place(p.col, p.row, p.cols, p.rows));
+    }
+
+    function places(widgets) {
+        return widgets?.map(w => w.place) ?? null;
+    }
+
+    function sizeNames(sizes) {
+        return sizes.map(s => `${s.cols}x${s.rows}`);
+    }
+
+    readonly property var chessConfig: ({
+            "chess_user": "xlamid"
+        })
+
     readonly property var game: ({
             "type": "game",
             "place": root.place(0, 0, 0, 0)
@@ -253,6 +282,207 @@ Item {
                 "name": "cookie and clover only draw their polygon on a square place, otherwise they show as a circle",
                 "got": [root.shaped(undefined, 2, 1), root.shaped("cookie", 2, 2), root.shaped("cookie", 2, 1), root.shaped("clover", 1, 3), root.shaped("circle", 4, 1)],
                 "want": ["rounded", "cookie", "circle", "circle", "circle"]
+            },
+            {
+                "name": "a drop on another widget swaps them when the sizes allow",
+                "got": [root.places(Rules.moveOrSwap(root.grid, 0, 2, 0, "detail")), Rules.swapped([root.media(0, 0, 2, 1), root.media(2, 0, 2, 1)], 0, 3, 0, "row"), root.places(Rules.swapped([root.media(0, 0, 2, 1), root.media(2, 0, 2, 1)], 0, 2, 0, "row"))?.[0]],
+                "want": [[root.place(2, 0, 2, 2), root.place(0, 0, 2, 1)], null, root.place(2, 0, 2, 1)]
+            },
+            {
+                "name": "a stretch pushes neighbours along the growth in a chain",
+                "got": root.places(Rules.stretched([root.media(0, 0, 1, 1), root.media(1, 0, 1, 1), root.media(2, 0, 1, 1)], 0, Rules.size(2, 1), "row")),
+                "want": [root.place(0, 0, 2, 1), root.place(2, 0, 1, 1), root.place(3, 0, 1, 1)]
+            },
+            {
+                "name": "a stretch down pushes the widget below down",
+                "got": root.places(Rules.stretched([root.media(0, 0, 1, 1), root.media(0, 1, 1, 1)], 0, Rules.size(1, 2), "detail"))?.[1],
+                "want": root.place(0, 2, 1, 1)
+            },
+            {
+                "name": "a stretch pushes each neighbour by where it stands",
+                "got": root.places(Rules.stretched([root.media(0, 0, 1, 1), root.media(1, 0, 1, 1), root.media(0, 1, 1, 1)], 0, Rules.size(2, 2), "detail")),
+                "want": [root.place(0, 0, 2, 2), root.place(2, 0, 1, 1), root.place(0, 2, 1, 1)]
+            },
+            {
+                "name": "a diagonal neighbour moves along the shorter shift",
+                "got": [Rules.stretched([root.media(0, 0, 1, 1), root.media(1, 2, 1, 1)], 0, Rules.size(2, 4), "detail")[1].place, Rules.stretched([root.media(0, 0, 1, 1), root.media(1, 2, 1, 1)], 0, Rules.size(3, 3), "detail")[1].place],
+                "want": [root.place(2, 2, 1, 1), root.place(1, 3, 1, 1)]
+            },
+            {
+                "name": "a neighbour pushed off the edge takes the nearest free spot",
+                "got": root.places(Rules.stretched(root.grid, 0, Rules.size(3, 2), "detail")),
+                "want": [root.place(0, 0, 3, 2), root.place(2, 2, 2, 1)]
+            },
+            {
+                "name": "a stretch with no room for neighbours stops at the last size that fits",
+                "got": [Rules.stretched([root.media(0, 0, 1, 1), root.media(2, 0, 1, 1), root.media(3, 0, 1, 1)], 0, Rules.size(3, 1), "row"), root.places(Rules.stretchedToward([root.media(0, 0, 1, 1), root.media(2, 0, 1, 1), root.media(3, 0, 1, 1)], 0, Rules.size(3, 1), "row"))],
+                "want": [null, [root.place(0, 0, 2, 1), root.place(2, 0, 1, 1), root.place(3, 0, 1, 1)]]
+            },
+            {
+                "name": "a stretch back to the original size returns the neighbours",
+                "got": Rules.stretchedToward(root.grid, 0, Rules.size(2, 2), "detail"),
+                "want": root.grid
+            },
+            {
+                "name": "widgets outside the grid are not rendered",
+                "got": [root.packed([root.cell(2, 0, 2, 1), root.cell(0, 1, 4, 1)], "row"), root.packed([root.cell(2, 0, 2, 1), root.cell(0, 1, 4, 1)], "detail")],
+                "want": [[root.place(0, 0, 2, 1)], [root.place(0, 0, 2, 1), root.place(0, 1, 4, 1)]]
+            },
+            {
+                "name": "hidden widgets leave no empty rows",
+                "got": root.packed([root.cell(0, 3, 2, 1)], "detail"),
+                "want": [root.place(0, 0, 2, 1)]
+            },
+            {
+                "name": "a row packs widgets to the left keeping their order",
+                "got": root.packed([root.cell(3, 0, 1, 1), root.cell(1, 0, 2, 1)], "row"),
+                "want": [root.place(2, 0, 1, 1), root.place(0, 0, 2, 1)]
+            },
+            {
+                "name": "detail pulls widgets into holes left by hidden ones",
+                "got": root.packed([root.cell(0, 0, 1, 1), root.cell(2, 1, 2, 1), root.cell(0, 2, 2, 1)], "detail"),
+                "want": [root.place(0, 0, 1, 1), root.place(1, 0, 2, 1), root.place(0, 1, 2, 1)]
+            },
+            {
+                "name": "a widget does not jump over one above it",
+                "got": root.packed([root.cell(0, 0, 2, 2), root.cell(0, 3, 4, 1)], "detail"),
+                "want": [root.place(0, 0, 2, 2), root.place(0, 2, 4, 1)]
+            },
+            {
+                "name": "chess offers a board and a rating, the board in every size that fits a row or a detail cell",
+                "got": [Rules.formsOffered(root.config, "chess", null, null), root.sizeNames(Rules.preferredSizes("board", "chess")), root.sizeNames(Rules.preferredSizes("rating", "chess")), Rules.chessTypes],
+                "want": [["board", "rating"], ["1x1", "2x1", "2x2", "4x1", "4x2"], ["1x1", "2x1"], ["chess"]]
+            },
+            {
+                "name": "a chess username is trimmed, empty means unset and it follows the chess.com pattern",
+                "got": [Rules.withChessUser(root.config, "  xlamid ").chess_user, Rules.withChessUser(root.config, "   ").chess_user, Rules.problems(Rules.withChessUser(root.config, "tsv-365_x")), Rules.problems(root.config), ["ab", "a".repeat(26), "x lamid", "xlamid!", "кирилл"].map(u => Rules.problems(Rules.withChessUser(root.config, u)).join())],
+                "want": ["xlamid", undefined, [], [], ["chess_user", "chess_user", "chess_user", "chess_user", "chess_user"]]
+            },
+            {
+                "name": "the chess preview waits for the username",
+                "got": [Rules.preview(root.config, null, 0).chess, !!Rules.preview(root.chessConfig, null, 0).chess?.last],
+                "want": [undefined, true]
+            },
+            {
+                "name": "the chess.com check shows the mode with most games, an unknown player is missing, trouble is unreachable",
+                "got": [Rules.chessPlayer(200, JSON.stringify({
+                        "fide": 0,
+                        "chess_rapid": {
+                            "last": {
+                                "rating": 1225
+                            },
+                            "record": {
+                                "win": 60,
+                                "loss": 50,
+                                "draw": 5
+                            }
+                        },
+                        "chess_blitz": {
+                            "last": {
+                                "rating": 900
+                            },
+                            "record": {
+                                "win": 3,
+                                "loss": 4,
+                                "draw": 0
+                            }
+                        }
+                    })), Rules.chessPlayer(200, "{}"), Rules.chessPlayer(404, "").kind, Rules.chessPlayer(429, "").kind, Rules.chessPlayer(200, "not json").kind],
+                "want": [
+                    {
+                        "kind": "found",
+                        "mode": "rapid",
+                        "rating": 1225
+                    },
+                    {
+                        "kind": "found"
+                    },
+                    "missing",
+                    "unreachable",
+                    "unreachable"
+                ]
+            },
+            {
+                "name": "a new chess user waits for its own check",
+                "got": [Rules.awaitsChessCheck({
+                        "chess_user": "xlamid2"
+                    }, null, {
+                        "chess_user": "xlamid"
+                    }), Rules.awaitsChessCheck({
+                        "chess_user": "xlamid2"
+                    }, {
+                        "user": "xlamid",
+                        "player": {
+                            "kind": "found"
+                        }
+                    }, {
+                        "chess_user": "xlamid"
+                    }), Rules.awaitsChessCheck({
+                        "chess_user": "xlamid2"
+                    }, {
+                        "user": "xlamid2",
+                        "player": null
+                    }, {
+                        "chess_user": "xlamid"
+                    }), Rules.awaitsChessCheck({
+                        "chess_user": "xlamid2"
+                    }, {
+                        "user": "xlamid2",
+                        "player": {
+                            "kind": "unreachable"
+                        }
+                    }, {
+                        "chess_user": "xlamid"
+                    }), Rules.awaitsChessCheck(root.chessConfig, null, root.chessConfig), Rules.awaitsChessCheck({}, null, root.chessConfig)],
+                "want": [true, true, true, false, false, false]
+            },
+            {
+                "name": "only a missing new chess user blocks saving",
+                "got": [Rules.chessUserMissing({
+                        "chess_user": "typo"
+                    }, {
+                        "user": "typo",
+                        "player": {
+                            "kind": "missing"
+                        }
+                    }, {
+                        "chess_user": "gone"
+                    }), Rules.chessUserMissing({
+                        "chess_user": "typo"
+                    }, {
+                        "user": "typo",
+                        "player": {
+                            "kind": "unreachable"
+                        }
+                    }, {
+                        "chess_user": "gone"
+                    }), Rules.chessUserMissing({
+                        "chess_user": "gone"
+                    }, {
+                        "user": "gone",
+                        "player": {
+                            "kind": "missing"
+                        }
+                    }, {
+                        "chess_user": "gone"
+                    })],
+                "want": [true, false, false]
+            },
+            {
+                "name": "new values are savable right away",
+                "got": Rules.newValueKinds.map(kind => Rules.problems(Rules.withValue({}, "fresh", Rules.newValueSource(kind, "in a call", 0)))),
+                "want": [[], [], [], []]
+            },
+            {
+                "name": "a deleted value leaves the status and an empty status is dropped",
+                "got": [Rules.statusOf(Rules.withValue(Rules.withStatus(Rules.withValue({}, "vibe", {
+                        "value": {
+                            "text": "chill"
+                        }
+                    }), ["vibe", "window"]), "vibe", null)), "status" in Rules.withStatus({
+                        "status": ["window"]
+                    }, [])],
+                "want": [["window"], false]
             },
             {
                 "name": "a widget of an unknown type is neither known nor missing, so it keeps its place",

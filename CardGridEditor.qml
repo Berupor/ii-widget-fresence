@@ -28,6 +28,7 @@ Item {
     readonly property real cellSize: Math.max(0, (root.width - (root.columns - 1) * root.spacing) / root.columns)
     readonly property real step: root.cellSize + root.spacing
     readonly property real handleSize: 22
+    property var stretched: null
 
     function span(cells: int): real {
         return cells > 0 ? cells * root.cellSize + (cells - 1) * root.spacing : 0;
@@ -95,7 +96,7 @@ Item {
             id: cell
             required property var modelData
             required property int index
-            readonly property var place: cell.modelData.place
+            readonly property var place: root.stretched ? root.stretched[cell.index].place : cell.modelData.place
             readonly property bool isSelected: cell.index === root.selectedIndex
             readonly property bool dimmed: CardLayouts.missing(cell.modelData, root.device, Fresence.now)
 
@@ -104,14 +105,23 @@ Item {
             property real dx: 0
             property real dy: 0
             readonly property var target: cell.drag ? Rules.draggedPlace(cell.place, cell.drag, cell.dx, cell.dy) : null
-            readonly property bool targetValid: !cell.target || Rules.canPlace(root.widgets, cell.target, root.grid, cell.index)
-            readonly property var shownPlace: cell.drag === "resize" && cell.target && CardLayouts.fits(cell.target, root.grid) ? cell.target : cell.place
+            readonly property bool targetValid: cell.drag !== "move" || !cell.target || Rules.moveOrSwap(root.widgets, cell.index, cell.target.col, cell.target.row, root.grid) !== null
+
+            function stretchTo(): void {
+                root.stretched = Rules.stretchedToward(root.widgets, cell.index, Rules.size(cell.target.cols, cell.target.rows), root.grid);
+            }
 
             function finish(): void {
-                const next = cell.drag === "move" ? Rules.moved(root.widgets, cell.index, cell.target.col, cell.target.row, root.grid) : Rules.resized(root.widgets, cell.index, Rules.size(cell.target.cols, cell.target.rows), root.grid);
+                const next = cell.drag === "move" ? Rules.moveOrSwap(root.widgets, cell.index, cell.target.col, cell.target.row, root.grid) : root.stretched;
                 cell.drag = "";
+                root.stretched = null;
                 if (next)
                     root.edited(next);
+            }
+
+            function cancel(): void {
+                cell.drag = "";
+                root.stretched = null;
             }
 
             z: cell.drag ? 2 : cell.isSelected ? 1 : 0
@@ -120,15 +130,15 @@ Item {
                 id: body
                 x: cell.place.col * root.step + (cell.drag === "move" ? cell.dx * root.step : 0)
                 y: cell.place.row * root.step + (cell.drag === "move" ? cell.dy * root.step : 0)
-                width: root.span(cell.shownPlace.cols)
-                height: root.span(cell.shownPlace.rows)
+                width: root.span(cell.place.cols)
+                height: root.span(cell.place.rows)
                 scale: cell.drag === "move" ? 1.03 : 1
                 opacity: cell.dimmed && !cell.drag ? 0.6 : 1
 
                 CardTile {
                     anchors.fill: parent
                     widget: Object.assign({}, cell.modelData, {
-                        "place": cell.shownPlace
+                        "place": cell.place
                     })
                     device: root.previewDevice
                 }
@@ -165,12 +175,12 @@ Item {
                         else
                             root.selected(cell.isSelected ? -1 : cell.index);
                     }
-                    onCanceled: cell.drag = ""
+                    onCanceled: cell.cancel()
                 }
             }
 
             Rectangle {
-                visible: !!cell.target
+                visible: cell.drag === "move"
                 x: (cell.target?.col ?? 0) * root.step
                 y: (cell.target?.row ?? 0) * root.step
                 width: root.span(cell.target?.cols ?? 0)
@@ -211,9 +221,10 @@ Item {
                     cell.drag = "resize";
                     cell.dx = dx / root.step;
                     cell.dy = dy / root.step;
+                    cell.stretchTo();
                 }
                 onDropped: cell.finish()
-                onCanceled: cell.drag = ""
+                onCanceled: cell.cancel()
             }
         }
     }

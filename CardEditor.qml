@@ -5,6 +5,7 @@ import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Io
 import "CardRules.js" as Rules
 
 /** The card editor of the fresence app: this device's row and detail grids, saved to the agent's config. */
@@ -19,13 +20,15 @@ Item {
     // idle | pending | saved | invalid | failed
     property string saveState: "idle"
     property var draftProblems: []
+    // { user, player } of the chess.com check, player null while it runs
+    property var chessCheck: null
     property string saveError: ""
 
     property string grid: "row"
     property int selectedIndex: -1
     // null, or where the data sheet puts what it picks: { "at": [col, row] | null }, { "replace": index } or { "status": true }
     property var picking: null
-    property bool full: false
+    readonly property bool hasRoom: Rules.firstFree(root.widgets, Rules.size(1, 1), root.grid) !== null
 
     readonly property var widgets: root.draft ? Rules.widgetsOf(root.draft, root.grid) : []
     readonly property var device: Fresence.selfDevice
@@ -56,7 +59,55 @@ Item {
         }
     }
 
-    onDraftChanged: {
+    readonly property string checkableChessUser: root.draft?.chess_user !== undefined && Rules.isChessUser(root.draft.chess_user) ? root.draft.chess_user : ""
+
+    onCheckableChessUserChanged: {
+        chessCheckTimer.stop();
+        root.chessCheck = root.checkableChessUser ? {
+            "user": root.checkableChessUser,
+            "player": null
+        } : null;
+        if (root.chessCheck)
+            chessCheckTimer.restart();
+    }
+
+    function runChessCheck(): void {
+        if (Fresence.underHarness || chessCheckProc.running || !root.chessCheck)
+            return;
+        chessCheckProc.user = root.chessCheck.user;
+        chessCheckProc.running = true;
+    }
+
+    Timer {
+        id: chessCheckTimer
+        interval: Rules.chessCheckDebounceMs
+        onTriggered: root.runChessCheck()
+    }
+
+    Process {
+        id: chessCheckProc
+        property string user: ""
+        command: ["curl", "-s", "-m", "10", "-A", "fresence", "-w", "\n%{http_code}", `https://api.chess.com/pub/player/${chessCheckProc.user.toLowerCase()}/stats`]
+        stdout: StdioCollector {
+            id: chessReply
+        }
+        onExited: {
+            const cut = chessReply.text.lastIndexOf("\n");
+            const player = Rules.chessPlayer(parseInt(chessReply.text.slice(cut + 1), 10), chessReply.text.slice(0, cut));
+            if (root.chessCheck?.user === chessCheckProc.user)
+                root.chessCheck = {
+                    "user": chessCheckProc.user,
+                    "player": player
+                };
+            else if (root.chessCheck && !chessCheckTimer.running)
+                root.runChessCheck();
+        }
+    }
+
+    onChessCheckChanged: root.refreshSave()
+    onDraftChanged: root.refreshSave()
+
+    function refreshSave(): void {
         saveTimer.stop();
         if (!root.draft)
             return;
@@ -65,13 +116,14 @@ Item {
                 root.saveState = "idle";
             return;
         }
-        root.draftProblems = Rules.problems(root.draft);
+        root.draftProblems = Rules.problems(root.draft).concat(Rules.chessUserMissing(root.draft, root.chessCheck, root.stored) ? ["chess_missing"] : []);
         if (root.draftProblems.length > 0) {
             root.saveState = "invalid";
             return;
         }
         root.saveState = "pending";
-        saveTimer.restart();
+        if (!Rules.awaitsChessCheck(root.draft, root.chessCheck, root.stored))
+            saveTimer.restart();
     }
 
     Timer {
@@ -90,8 +142,14 @@ Item {
             return Translation.tr("a name must be 1 to 64 characters");
         case "value_id":
             return Translation.tr("a value name must use Latin letters, digits and _");
+        case "background_url":
+            return Translation.tr("a background needs an https:// address");
         case "value_empty":
             return Translation.tr("a value has neither text nor time");
+        case "chess_user":
+            return Translation.tr("a chess.com username is 3 to 25 Latin letters, digits, _ or -");
+        case "chess_missing":
+            return Translation.tr("no such player on chess.com");
         default:
             return Translation.tr("a command needs an interval");
         }
@@ -120,15 +178,12 @@ Item {
     function showGrid(grid: string): void {
         root.grid = grid;
         root.selectedIndex = -1;
-        root.full = false;
     }
 
     function startAdding(): void {
-        root.full = Rules.firstFree(root.widgets, Rules.size(1, 1), root.grid) === null;
-        if (!root.full)
-            root.picking = {
-                "at": null
-            };
+        root.picking = {
+            "at": null
+        };
     }
 
     // base can carry a just-created value, kept even when the widget does not fit
@@ -152,7 +207,6 @@ Item {
         const widget = Rules.newWidget(base, type, source, state, label);
         const list = Rules.widgetsOf(base, root.grid);
         const next = Rules.added(list, widget, root.grid, target.at, Rules.preferredSizes(widget.form, widget.type));
-        root.full = next === null;
         if (next) {
             root.draft = Rules.withWidgets(base, root.grid, next);
             root.selectedIndex = next.length - 1;
@@ -346,6 +400,7 @@ Item {
 
             StyledText {
                 Layout.fillWidth: true
+                visible: root.hasRoom
                 text: Translation.tr("Click an empty cell to add a widget. Drag a selected widget to move it, drag its corner to resize.")
                 wrapMode: Text.WordWrap
                 color: Appearance.colors.colSubtext
@@ -368,24 +423,30 @@ Item {
                     if (source)
                         root.draft = Rules.withValue(root.draft, source, v);
                 }
+                chessCheck: root.chessCheck
+                onChessUserEdited: user => root.draft = Rules.withChessUser(root.draft, user)
                 onChangeDataRequested: root.picking = {
                     "replace": root.selectedIndex
                 }
             }
 
+            ConfigSwitch {
+                buttonIcon: "tune"
+                text: Translation.tr("Advanced editor")
+                checked: root.draft?.advanced_editor === true
+                onCheckedChanged: {
+                    if (checked !== (root.draft?.advanced_editor === true))
+                        root.draft = Rules.withFields(root.draft, {
+                            "advanced_editor": checked ? true : null
+                        });
+                }
+            }
+
             RippleButtonWithIcon {
+                visible: root.hasRoom
                 materialIcon: "add"
                 mainText: Translation.tr("Add widget")
                 onClicked: root.startAdding()
-            }
-
-            StyledText {
-                Layout.fillWidth: true
-                visible: root.full
-                text: Translation.tr("No room left: shrink or remove a widget")
-                wrapMode: Text.WordWrap
-                color: Appearance.colors.colError
-                font.pixelSize: Appearance.font.pixelSize.smaller
             }
         }
     }

@@ -155,27 +155,46 @@ Item {
                         }
                     }
 
-                    StyledText {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 16
-                        Layout.topMargin: 8
-                        visible: root.otherTypes.length > 0
-                        text: Translation.tr("Other")
-                        color: Appearance.colors.colSubtext
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    TypeGroup {
+                        title: Translation.tr("Other")
+                        types: root.otherTypes.filter(t => !Rules.chessTypes.includes(t))
                     }
 
-                    Repeater {
-                        model: root.otherTypes
-
-                        delegate: Choice {
-                            required property string modelData
-                            symbol: Rules.typeSymbols[modelData] ?? "widgets"
-                            title: Translation.tr(Rules.typeNames[modelData] ?? modelData)
-                            onClicked: root.picked(modelData, null)
-                        }
+                    TypeGroup {
+                        title: Translation.tr("Chess")
+                        types: root.otherTypes.filter(t => Rules.chessTypes.includes(t))
                     }
                 }
+            }
+        }
+    }
+
+    component TypeGroup: ColumnLayout {
+        id: group
+        property string title
+        property var types: []
+
+        Layout.fillWidth: true
+        visible: group.types.length > 0
+        spacing: 4
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: 16
+            Layout.topMargin: 8
+            text: group.title
+            color: Appearance.colors.colSubtext
+            font.pixelSize: Appearance.font.pixelSize.smaller
+        }
+
+        Repeater {
+            model: group.types
+
+            delegate: Choice {
+                required property string modelData
+                symbol: Rules.typeSymbols[modelData] ?? "widgets"
+                title: Translation.tr(Rules.typeNames[modelData] ?? modelData)
+                onClicked: root.picked(modelData, null)
             }
         }
     }

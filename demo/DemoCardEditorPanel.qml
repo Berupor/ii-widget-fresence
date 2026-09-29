@@ -2,8 +2,8 @@
 /**
  * The widget panel and "what to show" data sheet added on top of CardEditor: adding from an
  * empty cell, replacing data, creating and deleting a custom value, the size/form gallery, and
- * clearing a label/icon/colour back to unset. Ends with the panel open and its More section
- * expanded on a two-cell-wide tile.
+ * clearing a label/icon/colour back to unset. Ends with the panel open on a two-cell-wide tile
+ * with the advanced editor on.
  */
 import ".."
 import qs.modules.common
@@ -130,6 +130,10 @@ Item {
             root.seen.afterVariant = [editor.widgets[0].place, editor.widgets[0].form];
 
             editor.selectedIndex = 1;
+            root.seen.labelHiddenByDefault = !root.field("Label").visible;
+            editor.draft = Object.assign({}, editor.draft, {
+                "advanced_editor": true
+            });
             root.field("Label").text = "Battery meter";
             root.field("A Material Symbols name").text = "coffee";
             root.colorSwatches().find(s => s.modelData === "secondary").clicked();
@@ -152,7 +156,6 @@ Item {
             root.seen.problemAfter = editor.draftProblems.includes("image_url");
             root.seen.imageUrl = editor.widgets[editor.widgets.length - 1].url;
 
-            Items.byName(editor, "widgetPanel")[0].more = true;
             root.step = 2;
             break;
         }
@@ -196,6 +199,11 @@ Item {
                 "name": "the gallery applies the picked form and size",
                 "got": [root.seen.variantCount, root.seen.afterVariant],
                 "want": [3, [root.place(0, 0, 2, 1), "timer"]]
+            },
+            {
+                "name": "the label stays hidden until the advanced editor is on",
+                "got": root.seen.labelHiddenByDefault,
+                "want": true
             },
             {
                 "name": "a field takes a value",

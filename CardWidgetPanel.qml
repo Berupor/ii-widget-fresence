@@ -8,7 +8,7 @@ import QtQuick.Layouts
 import "CardLayouts.js" as CardLayouts
 import "CardRules.js" as Rules
 
-/** The selected tile's editor: change data, value fields, a size/form gallery, and collapsible extras. */
+/** The selected tile's editor: change data, value fields, a size/form gallery, icon and color, and the extras of the advanced editor. */
 ColumnLayout {
     id: root
     objectName: "widgetPanel"
@@ -18,11 +18,13 @@ ColumnLayout {
     required property string grid
     property var state: null
     property var previewDevice: null
+    property var chessCheck: null
 
     signal changed(var widget)
     signal variantChosen(var variant)
     signal valueChanged(var source)
     signal changeDataRequested
+    signal chessUserEdited(string user)
 
     readonly property var widget: root.widgets[root.index] ?? null
     readonly property string sourceId: root.widget?.type === "value" ? (root.widget.source ?? "") : ""
@@ -32,7 +34,8 @@ ColumnLayout {
     readonly property string symbol: root.widget ? Rules.widgetSymbol(root.widget, root.shape) : ""
     readonly property var variants: root.widget ? Rules.variants(root.config, root.widgets, root.index, root.grid, root.state) : []
 
-    property bool more: false
+    readonly property bool advanced: root.config?.advanced_editor === true
+    readonly property bool showsIcon: root.widget?.type === "value" && !["dial", "figure"].includes(CardLayouts.shownForm(root.widget))
 
     function withField(fields): void {
         if (root.widget)
@@ -102,6 +105,27 @@ ColumnLayout {
                 }
             }
 
+            ChessUserField {
+                Layout.fillWidth: true
+                visible: root.widget?.type === "chess"
+                user: root.config?.chess_user ?? ""
+                check: root.chessCheck
+                onChanged: user => root.chessUserEdited(user)
+            }
+
+            MaterialTextField {
+                Layout.fillWidth: true
+                visible: root.valueSource !== null
+                placeholderText: Translation.tr("Value name")
+                text: root.widget?.label ?? ""
+                onTextChanged: {
+                    if (text !== (root.widget?.label ?? ""))
+                        root.withField({
+                            "label": text
+                        });
+                }
+            }
+
             ValueFields {
                 Layout.fillWidth: true
                 visible: root.valueSource !== null
@@ -118,34 +142,13 @@ ColumnLayout {
                 onPicked: v => root.variantChosen(v)
             }
 
-            RippleButton {
-                implicitHeight: 32
-                buttonRadius: Appearance.rounding.small
-                colBackground: "transparent"
-                colBackgroundHover: Appearance.colors.colLayer2Hover
-                onClicked: root.more = !root.more
-
-                contentItem: RowLayout {
-                    spacing: 4
-
-                    StyledText {
-                        text: Translation.tr("More")
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                    }
-                    MaterialSymbol {
-                        text: root.more ? "expand_less" : "expand_more"
-                        iconSize: Appearance.font.pixelSize.large
-                    }
-                }
-            }
-
             ColumnLayout {
                 Layout.fillWidth: true
-                visible: root.more
                 spacing: 14
 
                 MaterialTextField {
                     Layout.fillWidth: true
+                    visible: root.advanced && root.widget?.type === "value" && root.valueSource === null
                     placeholderText: Translation.tr("Label")
                     text: root.widget?.label ?? ""
                     onTextChanged: {
@@ -158,6 +161,7 @@ ColumnLayout {
 
                 ColumnLayout {
                     Layout.fillWidth: true
+                    visible: root.showsIcon
                     spacing: 6
 
                     StyledText {
@@ -195,127 +199,179 @@ ColumnLayout {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    visible: root.advanced
+                    spacing: 14
 
-                    StyledText {
-                        text: Translation.tr("Shape")
-                        color: Appearance.colors.colSubtext
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                    }
-                    ShapePicker {
-                        selected: root.widget?.shape ?? "rounded"
-                        onPicked: shape => root.withField({
-                                "shape": shape === "rounded" ? null : shape
-                            })
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    visible: root.shape === "time"
-                    spacing: 6
-
-                    StyledText {
-                        text: Translation.tr("Time")
-                        color: Appearance.colors.colSubtext
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                    }
-                    ConfigSelectionArray {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        currentValue: root.widget?.time_mode ?? "auto"
-                        onSelected: v => root.withField({
-                                "time_mode": v === "auto" ? null : v
-                            })
-                        options: [
-                            {
-                                "displayName": Translation.tr("Auto"),
-                                "value": "auto"
-                            },
-                            {
-                                "displayName": Translation.tr("Until"),
-                                "value": "until"
-                            },
-                            {
-                                "displayName": Translation.tr("Since"),
-                                "value": "since"
-                            }
-                        ]
-                    }
-                }
+                        spacing: 6
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    visible: CardLayouts.takesBackground(root.widget)
-                    spacing: 6
-
-                    StyledText {
-                        text: Translation.tr("Background")
-                        color: Appearance.colors.colSubtext
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        StyledText {
+                            text: Translation.tr("Shape")
+                            color: Appearance.colors.colSubtext
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                        }
+                        ShapePicker {
+                            selected: root.widget?.shape ?? "rounded"
+                            onPicked: shape => root.withField({
+                                    "shape": shape === "rounded" ? null : shape
+                                })
+                        }
                     }
-                    ConfigSelectionArray {
+
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        currentValue: root.widget?.background?.kind ?? ""
-                        onSelected: v => root.withField({
-                                "background": v === "" ? null : v === "url" ? {
-                                    "kind": v,
-                                    "url": root.widget?.background?.url ?? ""
-                                } : {
-                                    "kind": v
+                        visible: root.shape === "time"
+                        spacing: 6
+
+                        StyledText {
+                            text: Translation.tr("Time")
+                            color: Appearance.colors.colSubtext
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                        }
+                        ConfigSelectionArray {
+                            Layout.fillWidth: true
+                            currentValue: root.widget?.time_mode ?? "auto"
+                            onSelected: v => root.withField({
+                                    "time_mode": v === "auto" ? null : v
+                                })
+                            options: [
+                                {
+                                    "displayName": Translation.tr("Auto"),
+                                    "value": "auto"
+                                },
+                                {
+                                    "displayName": Translation.tr("Until"),
+                                    "value": "until"
+                                },
+                                {
+                                    "displayName": Translation.tr("Since"),
+                                    "value": "since"
                                 }
-                            })
-                        options: [""].concat(Rules.backgroundKinds).map(k => ({
-                                "displayName": Translation.tr(Rules.backgroundNames[k]),
-                                "icon": Rules.backgroundSymbols[k],
-                                "value": k
-                            }))
+                            ]
+                        }
                     }
-                    MaterialTextField {
+
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        visible: root.widget?.background?.kind === "url"
-                        placeholderText: Translation.tr("Picture address https://, a GIF plays for a few seconds")
-                        text: root.widget?.background?.url ?? ""
-                        onTextChanged: {
-                            const url = text.trim();
-                            if (url !== (root.widget?.background?.url ?? ""))
-                                root.withField({
-                                    "background": {
-                                        "kind": "url",
-                                        "url": url
+                        visible: CardLayouts.takesBackground(root.widget)
+                        spacing: 6
+
+                        StyledText {
+                            text: Translation.tr("Background")
+                            color: Appearance.colors.colSubtext
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                        }
+                        ConfigSelectionArray {
+                            Layout.fillWidth: true
+                            currentValue: root.widget?.background?.kind ?? ""
+                            onSelected: v => root.withField({
+                                    "background": v === "" ? null : v === "url" ? {
+                                        "kind": v,
+                                        "url": root.widget?.background?.url ?? ""
+                                    } : {
+                                        "kind": v
                                     }
-                                });
+                                })
+                            options: [""].concat(Rules.backgroundKinds).map(k => ({
+                                    "displayName": Translation.tr(Rules.backgroundNames[k]),
+                                    "icon": Rules.backgroundSymbols[k],
+                                    "value": k
+                                }))
+                        }
+                        MaterialTextField {
+                            Layout.fillWidth: true
+                            visible: root.widget?.background?.kind === "url"
+                            placeholderText: Translation.tr("Picture address https://, a GIF plays for a few seconds")
+                            text: root.widget?.background?.url ?? ""
+                            onTextChanged: {
+                                const url = text.trim();
+                                if (url !== (root.widget?.background?.url ?? ""))
+                                    root.withField({
+                                        "background": {
+                                            "kind": "url",
+                                            "url": url
+                                        }
+                                    });
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        StyledText {
+                            text: Translation.tr("When there is no data")
+                            color: Appearance.colors.colSubtext
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                        }
+                        ConfigSelectionArray {
+                            Layout.fillWidth: true
+                            currentValue: root.widget?.on_missing ?? "hide"
+                            onSelected: v => root.withField({
+                                    "on_missing": v === "hide" ? null : v
+                                })
+                            options: [
+                                {
+                                    "displayName": Translation.tr("Dim"),
+                                    "value": "dim"
+                                },
+                                {
+                                    "displayName": Translation.tr("Hide"),
+                                    "value": "hide"
+                                }
+                            ]
                         }
                     }
                 }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 6
-
-                    StyledText {
-                        text: Translation.tr("When there is no data")
-                        color: Appearance.colors.colSubtext
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                    }
-                    ConfigSelectionArray {
-                        Layout.fillWidth: true
-                        currentValue: root.widget?.on_missing ?? "hide"
-                        onSelected: v => root.withField({
-                                "on_missing": v === "hide" ? null : v
-                            })
-                        options: [
-                            {
-                                "displayName": Translation.tr("Dim"),
-                                "value": "dim"
-                            },
-                            {
-                                "displayName": Translation.tr("Hide"),
-                                "value": "hide"
-                            }
-                        ]
-                    }
-                }
             }
+        }
+    }
+
+    component ChessUserField: ColumnLayout {
+        id: chessField
+        property string user
+        property var check: null
+        signal changed(string user)
+
+        readonly property var player: chessField.check?.user === chessField.user ? chessField.check.player : null
+        readonly property bool malformed: chessField.user !== "" && !Rules.isChessUser(chessField.user)
+        readonly property string hint: {
+            if (chessField.malformed)
+                return Translation.tr("A chess.com username is 3 to 25 Latin letters, digits, _ or -");
+            if (chessField.user === "" || chessField.check?.user !== chessField.user)
+                return "";
+            switch (chessField.player?.kind) {
+            case undefined:
+                return Translation.tr("Checking...");
+            case "missing":
+                return Translation.tr("No such player on chess.com");
+            case "found":
+                return [Translation.tr(Rules.chessModeNames[chessField.player.mode] ?? ""), chessField.player.rating].filter(v => v).join(" ") || Translation.tr("Player found");
+            default:
+                return "";
+            }
+        }
+
+        spacing: 2
+
+        MaterialTextField {
+            Layout.fillWidth: true
+            placeholderText: Translation.tr("chess.com username")
+            text: chessField.user
+            onTextChanged: {
+                if (text.trim() !== chessField.user)
+                    chessField.changed(text);
+            }
+        }
+
+        StyledText {
+            Layout.leftMargin: 4
+            visible: chessField.hint !== ""
+            text: chessField.hint
+            color: chessField.malformed || chessField.player?.kind === "missing" ? Appearance.colors.colError : Appearance.colors.colSubtext
+            font.pixelSize: Appearance.font.pixelSize.smaller
         }
     }
 
