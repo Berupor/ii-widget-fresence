@@ -23,7 +23,8 @@ Item {
     readonly property string form: CardLayouts.shownForm(root.widget)
     readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden
     readonly property bool hasData: !root.dimmed
-    readonly property bool placeholder: root.dimmed && root.type !== "value" && root.type !== "weather"
+    readonly property bool unrecognized: root.type !== "" && !CardLayouts.knownType(root.type)
+    readonly property bool placeholder: root.unrecognized || (root.dimmed && root.type !== "value" && root.type !== "weather")
     readonly property bool fullBleed: CardLayouts.fullBleed(root.widget) && !root.placeholder
     readonly property bool wide: root.width > root.height
 
@@ -270,7 +271,7 @@ Item {
 
                     MaterialSymbol {
                         Layout.alignment: Qt.AlignHCenter
-                        text: ({
+                        text: root.unrecognized ? "system_update" : ({
                                 "media": "music_off",
                                 "game": "sports_esports",
                                 "photo": "photo_camera",
@@ -288,7 +289,7 @@ Item {
                         elide: Text.ElideRight
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         color: root.mutedContentColor
-                        text: ({
+                        text: root.unrecognized ? Translation.tr("Update the app") : ({
                                 "media": Translation.tr("Nothing playing"),
                                 "game": Translation.tr("Not in a game"),
                                 "photo": Translation.tr("No photo"),

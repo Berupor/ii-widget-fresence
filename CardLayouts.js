@@ -60,6 +60,12 @@ function formsOf(type) {
     return Object.keys(formFiles[type] ?? {});
 }
 
+// app/shared ui/card/Tiles.kt UnrecognizedTile: a type from a newer peer keeps its
+// place as an update placeholder.
+function knownType(type) {
+    return type in formFiles;
+}
+
 function shownForm(widget) {
     const forms = formsOf(widget?.type);
     return forms.includes(widget?.form) ? widget.form : (forms[0] ?? "");
@@ -304,7 +310,7 @@ function missing(widget, device, nowMs) {
     case "clock":
         return state?.utc_offset_s === undefined;
     default:
-        return true;
+        return false;
     }
 }
 

@@ -253,6 +253,14 @@ Item {
                 "name": "cookie and clover only draw their polygon on a square place, otherwise they show as a circle",
                 "got": [root.shaped(undefined, 2, 1), root.shaped("cookie", 2, 2), root.shaped("cookie", 2, 1), root.shaped("clover", 1, 3), root.shaped("circle", 4, 1)],
                 "want": ["rounded", "cookie", "circle", "circle", "circle"]
+            },
+            {
+                "name": "a widget of an unknown type is neither known nor missing, so it keeps its place",
+                "got": [CardLayouts.knownType("hologram"), CardLayouts.missing({
+                        "type": "hologram",
+                        "place": root.place(0, 0, 1, 1)
+                    }, {}, 0), CardLayouts.knownType("clock")],
+                "want": [false, false, true]
             }
         ];
     }
