@@ -27,7 +27,7 @@ Item {
     readonly property string condition: sky.weather?.condition ?? "clouds"
     readonly property bool isDay: sky.nowMin >= sky.sunriseMin && sky.nowMin < sky.sunsetMin
     readonly property real tempC: sky.weather?.temp_c ?? 15
-    readonly property real precipMM: sky.weather?.precip_mm ?? (sky.condition === "snow" ? 1 : (sky.condition === "rain" || sky.condition === "thunder") ? 2 : 0)
+    readonly property real precipMM: sky.weather?.precip_mm ?? (sky.showsSnow || sky.showsGrains ? 1 : sky.showsRain ? 2 : 0)
     readonly property real windKmph: sky.weather?.wind_kmh ?? 6
     readonly property real windDirDeg: sky.weather?.wind_dir_deg ?? 0
 
@@ -41,15 +41,24 @@ Item {
     readonly property real dayProgress: sky.arcProgress(sky.nowMin, sky.sunriseMin, sky.sunsetMin)
     readonly property real nightProgress: sky.arcProgress(((sky.nowMin - sky.sunsetMin) % 1440 + 1440) % 1440, 0, ((sky.sunriseMin - sky.sunsetMin) % 1440 + 1440) % 1440)
 
-    readonly property bool showsRain: sky.condition === "rain" || sky.condition === "thunder"
-    readonly property bool showsSnow: sky.condition === "snow"
-    readonly property bool showsClouds: sky.condition === "clouds" || sky.showsRain || sky.showsSnow
-    readonly property bool showsClear: sky.condition === "clear"
+    readonly property bool showsSun: ["clear", "mostly_clear", "partly", "showers", "snow_showers"].includes(sky.condition)
+    readonly property bool showsRain: ["rain", "showers", "thunder", "hail"].includes(sky.condition)
+    readonly property bool showsDrizzle: sky.condition === "drizzle"
+    readonly property bool showsSnow: sky.condition === "snow" || sky.condition === "snow_showers"
+    readonly property bool showsGrains: sky.condition === "snow_grains"
+    readonly property bool showsHail: sky.condition === "hail"
+    readonly property bool showsFlash: sky.condition === "thunder" || sky.condition === "hail"
+    readonly property bool showsShowerCloud: sky.condition === "showers" || sky.condition === "snow_showers"
+    readonly property bool showsLoneCloud: sky.condition === "mostly_clear"
+    readonly property bool showsClouds: sky.condition !== "clear" && sky.condition !== "fog"
     readonly property bool showsFog: sky.condition === "fog"
-    readonly property bool showsThunder: sky.condition === "thunder"
+    readonly property bool windy: sky.windKmph >= sky.strongWindKmph
+    readonly property real strongWindKmph: 40
+    readonly property bool overcast: sky.condition === "clouds" || sky.condition === "drizzle"
+    readonly property int driftingCloudCount: sky.overcast ? 4 : sky.condition === "partly" ? 2 : sky.showsLoneCloud ? 0 : sky.showsShowerCloud ? 1 : 3
 
     readonly property real intensity: Math.max(0, Math.min(1, sky.precipMM / 8))
-    readonly property real windTilt: Math.max(-24, Math.min(24, -(sky.windKmph / 40) * 24 * Math.sin(sky.windDirDeg * Math.PI / 180)))
+    readonly property real windTilt: Math.max(-24, Math.min(24, -(sky.windKmph / sky.strongWindKmph) * 24 * Math.sin(sky.windDirDeg * Math.PI / 180)))
 
     readonly property real coldC: -5
     readonly property real hotC: 32
@@ -71,6 +80,9 @@ Item {
     readonly property color starColor: ColorUtils.transparentize(sky.contentColor, 0.25)
     readonly property color cloudColor: ColorUtils.transparentize(sky.contentColor, 0.55)
     readonly property color rainColor: ColorUtils.transparentize(sky.contentColor, 0.3)
+    readonly property color drizzleColor: ColorUtils.transparentize(sky.contentColor, 0.45)
+    readonly property color hailColor: ColorUtils.transparentize(sky.contentColor, 0.05)
+    readonly property color windColor: ColorUtils.transparentize(sky.contentColor, 0.45)
     readonly property color snowColor: ColorUtils.transparentize(sky.contentColor, 0.1)
     readonly property color fogColor: ColorUtils.transparentize(sky.contentColor, 0.82)
     readonly property color flashColor: ColorUtils.transparentize(sky.contentColor, 0)
@@ -141,6 +153,38 @@ Item {
         };
     }
 
+    readonly property real showerPrecipTop: heldCloud.y + heldCloud.height * 0.75
+    readonly property real precipTop: sky.showsShowerCloud ? sky.showerPrecipTop : 0
+
+    function precipSpawnRange(travel) {
+        return sky.showsShowerCloud ? {
+            "min": heldCloud.x + heldCloud.width * 0.1,
+            "max": heldCloud.x + heldCloud.width * 0.9
+        } : sky.driftSpawnRange(travel, sky.width);
+    }
+
+    component Cycle: QtObject {
+        id: cycle
+        required property real durationMs
+        required property real offset
+        property real progress: sky.animPhase >= 0 ? ((sky.animPhase + cycle.offset * cycle.durationMs) % cycle.durationMs) / cycle.durationMs : cycle.offset
+
+        SequentialAnimation on progress {
+            running: sky.running && sky.animPhase < 0
+            NumberAnimation {
+                from: cycle.offset
+                to: 1
+                duration: cycle.durationMs * (1 - cycle.offset)
+            }
+            NumberAnimation {
+                from: 0
+                to: 1
+                duration: cycle.durationMs
+                loops: Animation.Infinite
+            }
+        }
+    }
+
     Rectangle {
         anchors.fill: parent
         color: sky.toneWash
@@ -163,7 +207,7 @@ Item {
 
     Item {
         anchors.fill: parent
-        visible: sky.showsClear
+        visible: sky.showsSun
 
         // At the low ends of the arc (sunrise, sunset) a third of the disc sinks below
         // the tile's own clip, in the empty band under the temperature; the Sunny
@@ -186,7 +230,7 @@ Item {
             }
 
             Repeater {
-                model: sky.showsClear && sky.isDay ? 8 : 0
+                model: sky.showsSun && sky.isDay ? 8 : 0
                 delegate: Rectangle {
                     id: ray
                     required property int index
@@ -334,10 +378,10 @@ Item {
     Item {
         id: precip
         anchors.fill: parent
-        visible: sky.showsClouds
+        visible: sky.showsClouds || sky.windy
         clip: true
 
-        layer.enabled: sky.showsClouds
+        layer.enabled: sky.showsClouds || sky.windy
         layer.effect: OpacityMask {
             maskSource: sky.wide ? precipMaskWide : precipMaskTall
         }
@@ -348,8 +392,9 @@ Item {
                 id: drop
                 required property int index
                 readonly property real fallDuration: 650 - sky.intensity * 250 + sky.hash(drop.index + 9) * 300
-                readonly property real travelX: (sky.height + 2 * drop.height) * Math.tan(sky.windTilt * Math.PI / 180)
-                readonly property var spawnRange: sky.driftSpawnRange(drop.travelX, sky.width)
+                readonly property real fallSpan: sky.height - sky.precipTop + 2 * drop.height
+                readonly property real travelX: drop.fallSpan * Math.tan(sky.windTilt * Math.PI / 180)
+                readonly property var spawnRange: sky.precipSpawnRange(drop.travelX)
                 readonly property real startX: drop.spawnRange.min + sky.hash(drop.index + 3) * (drop.spawnRange.max - drop.spawnRange.min)
                 readonly property real pinnedProgress: (sky.animPhase % drop.fallDuration) / drop.fallDuration
                 width: 2
@@ -358,11 +403,11 @@ Item {
                 color: sky.rainColor
                 rotation: -sky.windTilt
                 x: sky.animPhase >= 0 ? drop.startX + drop.travelX * drop.pinnedProgress : drop.startX
-                y: sky.animPhase >= 0 ? -drop.height + (sky.height + 2 * drop.height) * drop.pinnedProgress : -drop.height
+                y: sky.precipTop - drop.height + (sky.animPhase >= 0 ? drop.fallSpan * drop.pinnedProgress : 0)
 
                 NumberAnimation on y {
                     running: sky.running && sky.showsRain && sky.animPhase < 0
-                    from: -drop.height
+                    from: sky.precipTop - drop.height
                     to: sky.height + drop.height
                     duration: drop.fallDuration
                     loops: Animation.Infinite
@@ -383,16 +428,16 @@ Item {
                 id: flake
                 required property int index
                 readonly property real snowTilt: sky.windTilt * 0.6
-                readonly property real driftSpan: (sky.height + 2 * flake.height) * Math.tan(flake.snowTilt * Math.PI / 180)
-                readonly property var spawnRange: sky.driftSpawnRange(flake.driftSpan, sky.width)
+                readonly property real driftSpan: (sky.height - sky.precipTop + 2 * flake.height) * Math.tan(flake.snowTilt * Math.PI / 180)
+                readonly property var spawnRange: sky.precipSpawnRange(flake.driftSpan)
                 readonly property real baseX: flake.spawnRange.min + sky.hash(flake.index + 4) * (flake.spawnRange.max - flake.spawnRange.min)
-                readonly property real driftX: (flake.y + flake.height) * Math.tan(flake.snowTilt * Math.PI / 180)
+                readonly property real driftX: (flake.y - sky.precipTop + flake.height) * Math.tan(flake.snowTilt * Math.PI / 180)
                 property real swayOffset: 0
                 width: 3 + sky.hash(flake.index + 6) * 3
                 height: flake.width
                 rotation: -flake.snowTilt
                 x: flake.baseX + flake.driftX + flake.swayOffset
-                y: -flake.height
+                y: sky.precipTop - flake.height
 
                 Rectangle {
                     anchors.fill: parent
@@ -402,7 +447,7 @@ Item {
 
                 NumberAnimation on y {
                     running: sky.running && sky.showsSnow
-                    from: -flake.height
+                    from: sky.precipTop - flake.height
                     to: sky.height + flake.height
                     duration: 2200 - sky.intensity * 500 + sky.hash(flake.index + 13) * 1200
                     loops: Animation.Infinite
@@ -424,13 +469,149 @@ Item {
             }
         }
 
+        Repeater {
+            model: sky.showsDrizzle ? Math.min(44, Math.round(16 + sky.intensity * 200)) : 0
+            delegate: Rectangle {
+                id: mist
+                required property int index
+                readonly property real fallDuration: 1500 + sky.hash(mist.index + 9) * 700
+                readonly property real travelX: (sky.height + 2 * mist.height) * Math.tan(sky.windTilt * Math.PI / 180)
+                readonly property var spawnRange: sky.driftSpawnRange(mist.travelX, sky.width)
+                readonly property real startX: mist.spawnRange.min + sky.hash(mist.index + 3) * (mist.spawnRange.max - mist.spawnRange.min)
+                readonly property Cycle cycle: Cycle {
+                    durationMs: mist.fallDuration
+                    offset: sky.hash(mist.index + 31)
+                }
+                width: 1.2
+                height: sky.height * (0.035 + sky.hash(mist.index) * 0.025)
+                radius: width / 2
+                color: sky.drizzleColor
+                rotation: -sky.windTilt
+                x: mist.startX + mist.travelX * mist.cycle.progress
+                y: -mist.height + (sky.height + 2 * mist.height) * mist.cycle.progress
+            }
+        }
+
+        Repeater {
+            model: sky.showsGrains ? 34 : 0
+            delegate: Rectangle {
+                id: grain
+                required property int index
+                readonly property Cycle cycle: Cycle {
+                    durationMs: 1000 + sky.hash(grain.index + 9) * 400
+                    offset: sky.hash(grain.index + 31)
+                }
+                width: 2.2
+                height: grain.width
+                radius: width / 2
+                color: sky.snowColor
+                x: sky.hash(grain.index + 3) * sky.width - grain.width / 2
+                y: -grain.height + (sky.height + 2 * grain.height) * grain.cycle.progress
+            }
+        }
+
+        Repeater {
+            model: sky.showsHail ? 12 : 0
+            delegate: Rectangle {
+                id: pellet
+                required property int index
+                readonly property real fallShare: 0.72
+                readonly property real bounce: Math.max(0, (pellet.cycle.progress - pellet.fallShare) / (1 - pellet.fallShare))
+                readonly property real landedY: sky.height - pellet.height - sky.height * 0.12 * 4 * pellet.bounce * (1 - pellet.bounce)
+                readonly property Cycle cycle: Cycle {
+                    durationMs: 700 + sky.hash(pellet.index + 9) * 250
+                    offset: sky.hash(pellet.index + 31)
+                }
+                width: 2 * (2 + sky.hash(pellet.index + 6) * 1.5)
+                height: pellet.width
+                radius: width / 2
+                color: sky.hailColor
+                opacity: 1 - pellet.bounce
+                x: sky.hash(pellet.index + 3) * sky.width - pellet.width / 2
+                y: pellet.cycle.progress < pellet.fallShare ? -pellet.height + sky.height * pellet.cycle.progress / pellet.fallShare : pellet.landedY
+            }
+        }
+
+        Repeater {
+            model: sky.windy ? 5 : 0
+            delegate: Rectangle {
+                id: streak
+                required property int index
+                readonly property Cycle cycle: Cycle {
+                    durationMs: 900 + sky.hash(streak.index + 9) * 500
+                    offset: sky.hash(streak.index + 31)
+                }
+                readonly property real travelled: -streak.width + (sky.width + 2 * streak.width) * streak.cycle.progress
+                width: sky.width * (0.18 + 0.12 * sky.hash(streak.index))
+                height: 1.5
+                radius: height / 2
+                color: sky.windColor
+                opacity: Math.sin(streak.cycle.progress * Math.PI)
+                x: sky.windTilt < 0 ? sky.width - streak.travelled - streak.width : streak.travelled
+                y: sky.height * (0.3 + 0.6 * sky.hash(streak.index + 2))
+            }
+        }
+
         Item {
             id: clouds
             anchors.fill: parent
             clip: true
 
+            Item {
+                id: heldCloud
+                visible: sky.showsShowerCloud || sky.showsLoneCloud
+                readonly property real puffSize: Math.min(sky.width, sky.height) * 0.34 * (sky.showsShowerCloud ? 1 : 0.6)
+                readonly property real swayMs: sky.animPhase >= 0 ? sky.animPhase : heldCloud.liveSwayMs
+                property real liveSwayMs: 0
+                readonly property real sway: Math.sin(Math.PI * heldCloud.swayMs / 7000)
+                width: heldCloud.puffSize * 2.2
+                height: heldCloud.puffSize * 1.1
+                x: sky.sceneStart + (sky.width - sky.sceneStart) * 0.36 + sky.width * 0.03 * heldCloud.sway - heldCloud.width / 2
+                y: sky.height * 0.02
+                opacity: sky.showsShowerCloud ? 0.75 : 0.55
+
+                layer.enabled: heldCloud.visible
+                layer.effect: GaussianBlur {
+                    radius: Math.min(sky.width, sky.height) * 0.08
+                    samples: 12
+                    transparentBorder: true
+                }
+
+                Rectangle {
+                    y: heldCloud.puffSize * 0.35
+                    width: heldCloud.width
+                    height: heldCloud.puffSize * 0.75
+                    radius: height / 2
+                    color: sky.cloudColor
+                }
+                Rectangle {
+                    x: heldCloud.width / 2 - heldCloud.puffSize * 0.75
+                    y: heldCloud.puffSize * -0.05
+                    width: heldCloud.puffSize
+                    height: width
+                    radius: width / 2
+                    color: sky.cloudColor
+                }
+                Rectangle {
+                    x: heldCloud.width / 2 + heldCloud.puffSize * 0.07
+                    y: heldCloud.puffSize * 0.22
+                    width: heldCloud.puffSize * 0.76
+                    height: width
+                    radius: width / 2
+                    color: sky.cloudColor
+                }
+
+                NumberAnimation on liveSwayMs {
+                    running: sky.running && heldCloud.visible && sky.animPhase < 0
+                    from: 0
+                    to: 14000
+                    duration: 14000
+                    loops: Animation.Infinite
+                }
+            }
+
             Repeater {
-                model: sky.showsClouds ? 3 : 0
+                model: sky.showsClouds ? sky.driftingCloudCount : 0
                 delegate: Item {
                     id: cloud
                     required property int index
@@ -442,7 +623,7 @@ Item {
                     width: cloud.puffSize * 2.4
                     height: cloud.puffSize * 1.3
                     x: cloud.baseX
-                    y: sky.height * 0.04 * sky.hash(cloud.index + 2) - cloud.height * 0.35
+                    y: sky.overcast ? sky.height * 0.18 * sky.hash(cloud.index + 2) - cloud.height * 0.2 : sky.height * 0.04 * sky.hash(cloud.index + 2) - cloud.height * 0.35
                     opacity: 0.22 + 0.18 * cloud.depth
                     scale: 0.85 + 0.3 * cloud.depth
 
@@ -550,7 +731,7 @@ Item {
         anchors.fill: parent
         color: sky.flashColor
         gradient: sky.wide ? flashGradient : null
-        opacity: sky.showsThunder && sky.animPhase >= 0 ? sky.pinnedFlashOpacity(sky.animPhase) : 0
+        opacity: sky.showsFlash && sky.animPhase >= 0 ? sky.pinnedFlashOpacity(sky.animPhase) : 0
 
         Gradient {
             id: flashGradient
@@ -585,7 +766,7 @@ Item {
             id: flashTimer
             property int strikes: 0
             interval: sky.firstStrikeMs
-            running: sky.running && sky.showsThunder && sky.animPhase < 0
+            running: sky.running && sky.showsFlash && sky.animPhase < 0
             repeat: true
             onTriggered: {
                 flashPulse.restart();

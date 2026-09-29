@@ -69,7 +69,7 @@ Item {
     readonly property var devices: [root.arcDevice, root.thunderDevice]
 
     function checks() {
-        const arcSky = Items.findAll(wallRepeater.itemAt(0), it => it.condition !== undefined && it.showsThunder !== undefined)[0] ?? null;
+        const arcSky = Items.findAll(wallRepeater.itemAt(0), it => it.condition !== undefined && it.showsFlash !== undefined)[0] ?? null;
         return [
             {
                 "name": "the arc tile's day/night follows frame, not the clock",

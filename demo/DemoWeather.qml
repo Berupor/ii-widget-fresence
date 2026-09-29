@@ -180,6 +180,69 @@ Item {
             "wind": 6,
             "windDir": 200,
             "city": "Phoenix"
+        },
+        {
+            "key": "mostly_clear",
+            "condition": "mostly_clear",
+            "temp": 18,
+            "precip": 0,
+            "wind": 6,
+            "windDir": 200,
+            "city": "Lyon"
+        },
+        {
+            "key": "drizzle",
+            "condition": "drizzle",
+            "temp": 11,
+            "precip": 0.3,
+            "wind": 8,
+            "windDir": 180,
+            "city": "Bergen"
+        },
+        {
+            "key": "showers",
+            "condition": "showers",
+            "temp": 16,
+            "precip": 2,
+            "wind": 10,
+            "windDir": 200,
+            "city": "Auckland"
+        },
+        {
+            "key": "snow_showers",
+            "condition": "snow_showers",
+            "temp": -1,
+            "precip": 1.5,
+            "wind": 10,
+            "windDir": 320,
+            "city": "Tromso"
+        },
+        {
+            "key": "snow_grains",
+            "condition": "snow_grains",
+            "temp": -6,
+            "precip": 0.5,
+            "wind": 6,
+            "windDir": 320,
+            "city": "Reykjavik"
+        },
+        {
+            "key": "hail",
+            "condition": "hail",
+            "temp": 12,
+            "precip": 4,
+            "wind": 20,
+            "windDir": 270,
+            "city": "Denver"
+        },
+        {
+            "key": "clear_gale",
+            "condition": "clear",
+            "temp": 17,
+            "precip": 0,
+            "wind": 50,
+            "windDir": 270,
+            "city": "Chicago"
         }
     ]
 
@@ -294,7 +357,7 @@ Item {
     }
 
     function skyFor(key, cols) {
-        return Items.findAll(root.tileFor(key, cols), it => it.condition !== undefined && it.showsThunder !== undefined)[0] ?? null;
+        return Items.findAll(root.tileFor(key, cols), it => it.condition !== undefined && it.showsFlash !== undefined)[0] ?? null;
     }
 
     function textPartsOf(key, cols) {
@@ -318,6 +381,7 @@ Item {
         const windW = root.skyFor("wind_w");
         const clearCold = root.skyFor("clear_cold");
         const clearHot = root.skyFor("clear_hot");
+        const [mostlyClear, drizzle, showers, snowShowers, snowGrains, hail, clearGale] = ["mostly_clear", "drizzle", "showers", "snow_showers", "snow_grains", "hail", "clear_gale"].map(k => root.skyFor(k));
         const arcDayKeys = ["arc_sunrise", "arc_morning", "arc_noon", "arc_late_afternoon", "arc_sunset"];
         const arcNightKeys = ["arc_dusk", "arc_midnight", "arc_predawn"];
         const sunXs = arcDayKeys.map(k => root.bodyOf(k, 2, "weatherSun")?.x);
@@ -340,8 +404,18 @@ Item {
             },
             {
                 "name": "the sky reads its condition and day/night off state.weather",
-                "got": [clearDay?.condition, clearDay?.isDay, clearNight?.isDay, thunderDay?.showsThunder, thunderDay?.showsRain, snowNight?.showsSnow],
+                "got": [clearDay?.condition, clearDay?.isDay, clearNight?.isDay, thunderDay?.showsFlash, thunderDay?.showsRain, snowNight?.showsSnow],
                 "want": ["clear", true, false, true, true, true]
+            },
+            {
+                "name": "each new condition picks its own layers: sun, rain, drizzle, snow, grains, hail, flash, shower cloud, lone cloud",
+                "got": [mostlyClear, drizzle, showers, snowShowers, snowGrains, hail].map(c => ["showsSun", "showsRain", "showsDrizzle", "showsSnow", "showsGrains", "showsHail", "showsFlash", "showsShowerCloud", "showsLoneCloud"].map(f => c?.[f] ? 1 : 0).join("")),
+                "want": ["100000001", "001000000", "110000010", "100100010", "000010000", "010001100"]
+            },
+            {
+                "name": "strong wind draws streaks under any condition, calm air draws none",
+                "got": [clearGale?.windy, clearGale?.showsClouds, mostlyClear?.windy, rainCalm?.windy],
+                "want": [true, false, false, false]
             },
             {
                 "name": "heavier rain reads a higher intensity than light rain",
