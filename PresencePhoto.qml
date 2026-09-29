@@ -79,6 +79,8 @@ Rectangle {
             height: root.imageHeight
             sourcePath: root.path
             playing: root.animating
+            settleGif: root.settleGif
+            settleSeconds: root.settleSeconds
             thumbnailSizeName: "x-large" // The default sizes itself off sourceSize, which is 0 before the first load
             // Panoramas get letterboxed rather than gutted; anything taller is cropped to maxHeight
             fillMode: !root.cropped && root.naturalHeight > 0 && root.naturalHeight < root.minHeight ? Image.PreserveAspectFit : Image.PreserveAspectCrop

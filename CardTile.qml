@@ -188,7 +188,8 @@ Item {
                     fallbackIcon: ""
                     source: root.backdropUrl
                     playing: root.animating
-                    settleGif: true
+                    settleGif: Fresence.opt("pauseGifs")
+                    settleSeconds: Fresence.opt("gifPauseSeconds")
                 }
             }
 
@@ -197,7 +198,8 @@ Item {
                 LocalPicture {
                     sourcePath: root.photoFile
                     playing: root.animating
-                    settleGif: true
+                    settleGif: Fresence.opt("pauseGifs")
+                    settleSeconds: Fresence.opt("gifPauseSeconds")
                 }
             }
 
