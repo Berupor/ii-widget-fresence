@@ -96,24 +96,9 @@ Item {
                 width: Math.round(plate.width * disc.labelFraction)
                 height: label.width
 
-                layer.enabled: true
-                layer.effect: OpacityMask {
-                    maskSource: Rectangle {
-                        width: label.width
-                        height: label.height
-                        radius: label.width / 2
-                    }
-                }
-
-                PresenceArt {
-                    id: labelArt
+                Item {
+                    id: spinner
                     anchors.fill: parent
-                    radius: 0
-                    color: disc.card.artPlaceholder
-                    source: disc.media?.art_url ?? ""
-                    media: disc.media
-                    fallbackIcon: ""
-                    playing: disc.card.animating
 
                     RotationAnimation on rotation {
                         running: true
@@ -122,6 +107,29 @@ Item {
                         from: 0
                         to: 360
                         duration: disc.turnDurationMs
+                    }
+
+                    Item {
+                        anchors.fill: parent
+                        layer.enabled: true
+                        layer.effect: OpacityMask {
+                            maskSource: Rectangle {
+                                width: label.width
+                                height: label.height
+                                radius: label.width / 2
+                            }
+                        }
+
+                        PresenceArt {
+                            id: labelArt
+                            anchors.fill: parent
+                            radius: 0
+                            color: disc.card.artPlaceholder
+                            source: disc.media?.art_url ?? ""
+                            media: disc.media
+                            fallbackIcon: ""
+                            playing: disc.card.animating
+                        }
                     }
                 }
 

@@ -411,12 +411,24 @@ Item {
                 }
             }
 
-            NumberAnimation on liveMs {
+            NumberAnimation {
+                id: flight
+                paused: !sky.running
+                target: shootingStar
+                property: "liveMs"
+                duration: shootingStar.flightMs
+            }
+
+            Timer {
+                interval: shootingStar.everyMs
+                repeat: true
                 running: sky.running && sky.showsSun && !sky.isDay && sky.animPhase < 0
-                from: 0
-                to: shootingStar.everyMs * 1000
-                duration: shootingStar.everyMs * 1000
-                loops: Animation.Infinite
+                onTriggered: {
+                    const periodStart = (shootingStar.index + 1) * shootingStar.everyMs;
+                    flight.from = periodStart;
+                    flight.to = periodStart + shootingStar.flightMs;
+                    flight.restart();
+                }
             }
         }
     }
@@ -426,28 +438,52 @@ Item {
         anchors.fill: parent
         visible: sky.showsFog
 
+        Rectangle {
+            id: hazeShape
+            visible: false
+            width: sky.width * 1.3
+            height: sky.height * 0.4
+            radius: height / 2
+            color: sky.fogColor
+        }
+
+        GaussianBlur {
+            id: hazeBlur
+            visible: false
+            width: hazeShape.width
+            height: hazeShape.height
+            source: hazeShape
+            radius: Math.max(sky.width, sky.height) * 0.12
+            samples: 16
+            transparentBorder: true
+        }
+
+        ShaderEffectSource {
+            id: hazeTexture
+            visible: false
+            sourceItem: sky.showsFog ? hazeBlur : null
+            sourceRect: Qt.rect(-hazeBlur.radius, -hazeBlur.radius, hazeShape.width + 2 * hazeBlur.radius, hazeShape.height + 2 * hazeBlur.radius)
+        }
+
         Repeater {
             model: sky.showsFog ? 3 : 0
-            delegate: Rectangle {
+            delegate: Item {
                 id: haze
                 required property int index
                 // Wide enough, and drifting in a narrow enough band, that both edges stay
                 // covered by overflow at every point of the drift - or a still frame (not
                 // sky.running) would freeze on the rest x below and leave the right edge bare.
-                width: sky.width * 1.3
-                height: sky.height * 0.4
-                radius: height / 2
-                color: sky.fogColor
+                width: hazeShape.width
+                height: hazeShape.height
                 y: sky.height * (0.08 + 0.28 * haze.index)
                 x: -sky.width * 0.15
 
-                // Blurred here, on the shape itself, so drifting only moves the cached
-                // layer texture instead of rerunning the blur every frame.
-                layer.enabled: true
-                layer.effect: GaussianBlur {
-                    radius: Math.max(sky.width, sky.height) * 0.12
-                    samples: 16
-                    transparentBorder: true
+                ShaderEffect {
+                    property variant source: hazeTexture
+                    x: -hazeBlur.radius
+                    y: -hazeBlur.radius
+                    width: hazeTexture.sourceRect.width
+                    height: hazeTexture.sourceRect.height
                 }
 
                 SequentialAnimation on x {
@@ -720,11 +756,61 @@ Item {
                 }
             }
 
+            Item {
+                id: cloudShape
+                readonly property real puffSize: Math.min(sky.width, sky.height) * 0.275
+                visible: false
+                width: cloudShape.puffSize * 2.4
+                height: cloudShape.puffSize * 1.3
+
+                Rectangle {
+                    width: cloudShape.puffSize * 1.3
+                    height: cloudShape.puffSize * 0.9
+                    radius: height / 2
+                    color: sky.cloudColor
+                    anchors.centerIn: parent
+                }
+                Rectangle {
+                    width: cloudShape.puffSize * 0.9
+                    height: cloudShape.puffSize * 0.8
+                    radius: height / 2
+                    color: sky.cloudColor
+                    x: cloudShape.puffSize * 0.15
+                    y: cloudShape.puffSize * 0.1
+                }
+                Rectangle {
+                    width: cloudShape.puffSize * 0.8
+                    height: cloudShape.puffSize * 0.7
+                    radius: height / 2
+                    color: sky.cloudColor
+                    x: cloudShape.width - width - cloudShape.puffSize * 0.15
+                    y: cloudShape.puffSize * 0.18
+                }
+            }
+
+            GaussianBlur {
+                id: cloudBlur
+                visible: false
+                width: cloudShape.width
+                height: cloudShape.height
+                source: cloudShape
+                radius: Math.min(sky.width, sky.height) * 0.08
+                samples: 12
+                transparentBorder: true
+            }
+
+            ShaderEffectSource {
+                id: cloudTexture
+                visible: false
+                sourceItem: sky.showsClouds && sky.driftingCloudCount > 0 ? cloudBlur : null
+            }
+
             Repeater {
                 model: sky.showsClouds ? sky.driftingCloudCount : 0
-                delegate: Item {
+                delegate: ShaderEffect {
                     id: cloud
                     required property int index
+                    property variant source: cloudTexture
                     readonly property real depth: 0.55 + sky.hash(cloud.index) * 0.45
                     readonly property real puffSize: Math.min(sky.width, sky.height) * (0.2 + 0.1 * cloud.depth)
                     readonly property real crossingMs: Math.max(sky.minCloudCrossingMs, sky.cloudCrossingMs - sky.windKmph * sky.cloudCrossingMsPerKmph) / cloud.depth
@@ -739,39 +825,6 @@ Item {
                     y: sky.overcast ? sky.height * 0.18 * sky.hash(cloud.index + 2) - cloud.height * 0.2 : sky.height * 0.04 * sky.hash(cloud.index + 2) - cloud.height * 0.35
                     opacity: 0.3 + 0.3 * cloud.depth
                     scale: 0.85 + 0.3 * cloud.depth
-
-                    // Blurred here, on the static puffs, so drifting only moves the cached
-                    // layer texture instead of rerunning the blur every frame.
-                    layer.enabled: true
-                    layer.effect: GaussianBlur {
-                        radius: Math.min(sky.width, sky.height) * 0.08
-                        samples: 12
-                        transparentBorder: true
-                    }
-
-                    Rectangle {
-                        width: cloud.puffSize * 1.3
-                        height: cloud.puffSize * 0.9
-                        radius: height / 2
-                        color: sky.cloudColor
-                        anchors.centerIn: parent
-                    }
-                    Rectangle {
-                        width: cloud.puffSize * 0.9
-                        height: cloud.puffSize * 0.8
-                        radius: height / 2
-                        color: sky.cloudColor
-                        x: cloud.puffSize * 0.15
-                        y: cloud.puffSize * 0.1
-                    }
-                    Rectangle {
-                        width: cloud.puffSize * 0.8
-                        height: cloud.puffSize * 0.7
-                        radius: height / 2
-                        color: sky.cloudColor
-                        x: cloud.width - width - cloud.puffSize * 0.15
-                        y: cloud.puffSize * 0.18
-                    }
                 }
             }
         }
