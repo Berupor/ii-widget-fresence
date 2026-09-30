@@ -7,9 +7,9 @@ import "ArtPalette.js" as Palette
 
 /**
  * Colors taken from a picture, as app/shared ui/card/ArtPalette.kt does for music and
- * game tiles: the average hue of the picture at `url` decides fill, content, accent and
- * shade. Until the picture is sampled the colors are the neutral ones, a picture that
- * cannot be read falls back to the hue of `key`.
+ * game tiles: the theme color of the picture at `url` (scored quantization of a 64 px
+ * copy) decides fill, content, accent and shade. Until the picture is sampled the colors
+ * are the neutral ones, a picture that cannot be read falls back to the hue of `key`.
  */
 Item {
     id: root
@@ -42,11 +42,10 @@ Item {
         id: sampler
         readonly property string file: source.cacheFilePath
         running: !root.neutral && root.url.length > 0 && root.sampled.length === 0 && source.downloaded
-        command: ["magick", `${sampler.file}[0]`, "-resize", "1x1!", "-format", "%[hex:p{0,0}]", "info:"]
+        command: ["magick", `${sampler.file}[0]`, "-resize", "64x64>", "-alpha", "off", "-depth", "8", "-compress", "none", "ppm:-"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const hex = text.trim().slice(0, 6);
-                const seed = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : Palette.artlessSeed(root.key);
+                const seed = Palette.seedOf(Palette.pixelsOfPpm(text)) || Palette.artlessSeed(root.key);
                 Palette.remember(root.url, seed);
                 root.sampled = seed;
             }
