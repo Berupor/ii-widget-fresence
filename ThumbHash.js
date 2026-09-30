@@ -169,9 +169,19 @@ function bmpOf(image) {
     return bytes;
 }
 
+const dataUrlMemoSize = 32;
+const dataUrlMemo = new Map();
+
 /// Data URL of the blurred preview for a base64url thumbhash, or "" when it does not decode
 function dataUrl(hash) {
-    const bytes = bytesOf(hash ?? "");
+    const key = hash ?? "";
+    if (dataUrlMemo.has(key))
+        return dataUrlMemo.get(key);
+    const bytes = bytesOf(key);
     const image = bytes ? decode(bytes) : null;
-    return image ? "data:image/bmp;base64," + base64Of(bmpOf(image)) : "";
+    const url = image ? "data:image/bmp;base64," + base64Of(bmpOf(image)) : "";
+    if (dataUrlMemo.size >= dataUrlMemoSize)
+        dataUrlMemo.delete(dataUrlMemo.keys().next().value);
+    dataUrlMemo.set(key, url);
+    return url;
 }

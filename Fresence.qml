@@ -642,20 +642,27 @@ Singleton {
         return Translation.tr("%1 of %2 online").arg(root.onlineCount).arg(root.memberCount);
     }
 
-    property var _pending: null
+    property string _pending: ""
 
     function ingest(line: string): void {
         const text = line.trim();
         if (!text)
             return;
+        root._pending = text;
+        if (!flushTimer.running)
+            flushTimer.start();
+    }
+
+    function flushPending(): void {
+        const text = root._pending;
+        root._pending = "";
         try {
             const snapshot = JSON.parse(text);
             if (!snapshot?.status)
                 return;
-            root._pending = snapshot;
             root.retryDelay = root.retryMin;
-            if (!flushTimer.running)
-                flushTimer.start();
+            root.snapshot = CardLayouts.shared(root.snapshot, snapshot);
+            root.now = Date.now();
         } catch (e) {
             // A torn line keeps the last good snapshot
         }
@@ -665,13 +672,7 @@ Singleton {
     Timer {
         id: flushTimer
         interval: 250
-        onTriggered: {
-            if (root._pending === null)
-                return;
-            root.snapshot = root._pending;
-            root._pending = null;
-            root.now = Date.now();
-        }
+        onTriggered: root.flushPending()
     }
 
     Process {
@@ -707,7 +708,7 @@ Singleton {
         }
         onExited: exitCode => {
             flushTimer.stop();
-            root._pending = null;
+            root._pending = "";
             root.snapshot = null;
             root.watchExitCode = exitCode;
             root.wantRunning = false;

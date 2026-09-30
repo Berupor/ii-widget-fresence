@@ -38,6 +38,7 @@ AbstractBackgroundWidget {
 
     // The host keeps the card loaded, so switching it off is opacity, not unloading
     opacity: (root.shown && !(GlobalStates.screenLocked && !root.visibleWhenLocked)) ? 1 : 0
+    visible: root.opacity > 0
     implicitWidth: Fresence.opt("wallpaperWidth")
     implicitHeight: card.implicitHeight
 

@@ -384,6 +384,21 @@ function samePlaced(a, b) {
     return a.length === b.length && a.every((p, i) => p.widget === b[i].widget && p.dimmed === b[i].dimmed && p.col === b[i].col && p.row === b[i].row && p.cols === b[i].cols && p.rows === b[i].rows);
 }
 
+function shared(prev, next) {
+    if (prev === next)
+        return prev;
+    if (typeof prev !== "object" || typeof next !== "object" || prev === null || next === null || Array.isArray(prev) !== Array.isArray(next))
+        return next;
+    const keys = Object.keys(next);
+    const merged = Array.isArray(next) ? [] : {};
+    let identical = keys.length === Object.keys(prev).length;
+    for (const key of keys) {
+        merged[key] = shared(prev[key], next[key]);
+        identical = identical && key in prev && merged[key] === prev[key];
+    }
+    return identical ? prev : merged;
+}
+
 function isHttpsUrl(url) {
     return typeof url === "string" && /^https:\/\/\S+$/.test(url);
 }
