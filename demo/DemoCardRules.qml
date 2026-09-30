@@ -364,30 +364,13 @@ Item {
                 "want": [undefined, true]
             },
             {
-                "name": "the chess.com check shows the mode with most games, an unknown player is missing, trouble is unreachable",
-                "got": [Rules.chessPlayer(200, JSON.stringify({
-                        "fide": 0,
-                        "chess_rapid": {
-                            "last": {
-                                "rating": 1225
-                            },
-                            "record": {
-                                "win": 60,
-                                "loss": 50,
-                                "draw": 5
-                            }
-                        },
-                        "chess_blitz": {
-                            "last": {
-                                "rating": 900
-                            },
-                            "record": {
-                                "win": 3,
-                                "loss": 4,
-                                "draw": 0
-                            }
-                        }
-                    })), Rules.chessPlayer(200, "{}"), Rules.chessPlayer(404, "").kind, Rules.chessPlayer(429, "").kind, Rules.chessPlayer(200, "not json").kind],
+                "name": "the chess check shows the profile the agent found, exit 5 is a missing player, any other trouble is unreachable",
+                "got": [Rules.chessPlayer(0, JSON.stringify({
+                        "mode": "rapid",
+                        "rating": 1225
+                    })), Rules.chessPlayer(0, "{}"), Rules.chessPlayer(0, JSON.stringify({
+                        "mode": "chess960"
+                    })), Rules.chessPlayer(5, "").kind, Rules.chessPlayer(1, "").kind, Rules.chessPlayer(0, "not json").kind],
                 "want": [
                     {
                         "kind": "found",
@@ -397,9 +380,37 @@ Item {
                     {
                         "kind": "found"
                     },
+                    {
+                        "kind": "found"
+                    },
                     "missing",
                     "unreachable",
                     "unreachable"
+                ]
+            },
+            {
+                "name": "a config that moved on keeps its own changes and takes only what the editor changed",
+                "got": [Rules.rebased({
+                        "a": 1,
+                        "b": [1],
+                        "c": 3
+                    }, {
+                        "a": 1,
+                        "b": [2],
+                        "d": 4
+                    }, {
+                        "a": 9,
+                        "b": [1],
+                        "c": 3,
+                        "e": 5
+                    })],
+                "want": [
+                    {
+                        "a": 9,
+                        "b": [2],
+                        "e": 5,
+                        "d": 4
+                    }
                 ]
             },
             {

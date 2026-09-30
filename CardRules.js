@@ -552,6 +552,20 @@ function sameConfig(a, b) {
     return canonicalJson(a) === canonicalJson(b);
 }
 
+// What the editor changed from base to draft, laid over a config that moved on meanwhile
+function rebased(base, draft, latest) {
+    const next = Object.assign({}, latest);
+    for (const key of new Set(Object.keys(base).concat(Object.keys(draft)))) {
+        if (canonicalJson(base[key]) === canonicalJson(draft[key]))
+            continue;
+        if (draft[key] === undefined)
+            delete next[key];
+        else
+            next[key] = draft[key];
+    }
+    return next;
+}
+
 function widgetsOf(config, grid) {
     return config?.[grid] ?? [];
 }
@@ -751,50 +765,38 @@ function withChessUser(config, text) {
     });
 }
 
-const chessRecordKeys = ["win", "loss", "draw"];
 const chessModeNames = {
     "rapid": "Rapid",
     "blitz": "Blitz",
     "bullet": "Bullet",
     "daily": "Daily"
 };
-const httpOk = 200;
-const httpNotFound = 404;
+const chessNotFoundExitCode = 5;
 
-function chessGames(block) {
-    return chessRecordKeys.reduce((sum, key) => sum + (Number.isInteger(block?.record?.[key]) ? block.record[key] : 0), 0);
-}
-
-// The chess.com stats answer as the app's ChessPlayers reads it: the mode with most games, its last rating
-function chessPlayer(httpStatus, body) {
-    if (httpStatus === httpNotFound)
+// `fresence chess` answers a profile as JSON, and exits chessNotFoundExitCode for an unknown player
+function chessPlayer(exitCode, body) {
+    if (exitCode === chessNotFoundExitCode)
         return {
             "kind": "missing"
         };
-    if (httpStatus !== httpOk)
+    if (exitCode !== 0)
         return {
             "kind": "unreachable"
         };
-    let stats;
+    let profile;
     try {
-        stats = JSON.parse(body);
+        profile = JSON.parse(body);
     } catch (e) {
         return {
             "kind": "unreachable"
         };
     }
-    const played = Object.keys(chessModeNames).filter(m => stats?.[`chess_${m}`] !== null && typeof stats?.[`chess_${m}`] === "object");
-    if (played.length === 0)
-        return {
-            "kind": "found"
-        };
-    const mode = played.reduce((best, m) => chessGames(stats[`chess_${m}`]) > chessGames(stats[`chess_${best}`]) ? m : best);
-    const rating = stats[`chess_${mode}`].last?.rating;
     return Object.assign({
-        "kind": "found",
-        "mode": mode
-    }, Number.isInteger(rating) ? {
-        "rating": rating
+        "kind": "found"
+    }, chessModeNames[profile?.mode] !== undefined ? {
+        "mode": profile.mode
+    } : {}, Number.isInteger(profile?.rating) ? {
+        "rating": profile.rating
     } : {});
 }
 

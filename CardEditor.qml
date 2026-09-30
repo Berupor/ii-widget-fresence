@@ -88,13 +88,12 @@ Item {
     Process {
         id: chessCheckProc
         property string user: ""
-        command: ["curl", "-s", "-m", "10", "-A", "fresence", "-w", "\n%{http_code}", `https://api.chess.com/pub/player/${chessCheckProc.user.toLowerCase()}/stats`]
+        command: Fresence.agentCommand(["chess", chessCheckProc.user])
         stdout: StdioCollector {
             id: chessReply
         }
-        onExited: {
-            const cut = chessReply.text.lastIndexOf("\n");
-            const player = Rules.chessPlayer(parseInt(chessReply.text.slice(cut + 1), 10), chessReply.text.slice(0, cut));
+        onExited: exitCode => {
+            const player = Rules.chessPlayer(exitCode, chessReply.text);
             if (root.chessCheck?.user === chessCheckProc.user)
                 root.chessCheck = {
                     "user": chessCheckProc.user,

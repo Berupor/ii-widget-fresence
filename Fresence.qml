@@ -12,6 +12,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "CardLayouts.js" as CardLayouts
+import "CardRules.js" as Rules
 
 Singleton {
     id: root
@@ -533,10 +534,9 @@ Singleton {
         createRoomProc.running = true;
     }
 
-    // busctl rather than the CLI: it answers with the full room id, the CLI prints a short one
     Process {
         id: createRoomProc
-        command: root.agentBusCall("CreateRoom", [])
+        command: root.agentCommand(["room", "create", "--json"])
         stdout: StdioCollector {
             id: createRoomReply
         }
@@ -546,63 +546,57 @@ Singleton {
         onExited: exitCode => {
             root.creatingRoom = false;
             if (exitCode !== 0) {
-                root.notify(root.busFailureText(createRoomErrors.text, Translation.tr("Could not create a room")));
+                root.notify(root.cliFailureText(exitCode, createRoomErrors.text, Translation.tr("Could not create a room")));
                 return;
             }
             try {
-                root.selectRoom(JSON.parse(createRoomReply.text).data[0]);
+                root.selectRoom(JSON.parse(createRoomReply.text).room_id);
             } catch (e) {
                 root.notify(Translation.tr("Could not create a room"));
             }
         }
     }
 
-    // The card grids live in the agent's config, only its D-Bus api reads and writes them
-    function agentBusCall(method: string, args): var {
-        return ["busctl", "--user", "--json=short", "call", "app.fresence.Agent", "/app/fresence/Agent", "app.fresence.Agent1", method].concat(args);
+    function cliFailureText(exitCode: int, stderr: string, fallback: string): string {
+        const said = stderr.trim().split("\n").pop().replace(/^fresence: /, "");
+        return root.failureText(exitCode, said || fallback);
     }
 
-    function busFailureText(stderr: string, fallback: string): string {
-        return stderr.trim().split("\n")[0].replace(/^Call failed: /, "") || fallback;
-    }
+    readonly property int configChangedExitCode: 4
+    readonly property int configWriteAttempts: 5
+    readonly property int configRetryMs: 200
 
-    property bool configLoading: false
     property string configLoadError: ""
+    property bool configWanted: false
 
     // A demo scene answers a load by emitting configLoaded itself
     signal configLoaded(var config)
     signal configSaved(var config)
     signal configSaveFailed(var config, string error)
 
+    // The config and its config_rev the agent was last known to hold, what a write is checked against
+    property var configBase: null
+    property int configBaseRev: -1
+
     function loadConfig(): void {
-        if (root.underHarness || root.configLoading)
+        if (root.underHarness)
             return;
         root.configLoadError = "";
-        root.configLoading = true;
-        configLoadProc.running = true;
+        if (root.snapshot) {
+            root.adoptConfig(root.snapshot);
+            root.configLoaded(root.configBase);
+            return;
+        }
+        if (root.agentState === "missing" || root.agentState === "not_running") {
+            root.configLoadError = root.failureText(root.agentState === "not_running" ? root.notRunningExitCode : 0, Translation.tr("Could not open the card settings"));
+            return;
+        }
+        root.configWanted = true;
     }
 
-    Process {
-        id: configLoadProc
-        command: root.agentBusCall("Config", [])
-        stdout: StdioCollector {
-            id: configReply
-        }
-        stderr: StdioCollector {
-            id: configLoadErrors
-        }
-        onExited: exitCode => {
-            root.configLoading = false;
-            if (exitCode !== 0) {
-                root.configLoadError = root.busFailureText(configLoadErrors.text, Translation.tr("Could not open the card settings"));
-                return;
-            }
-            try {
-                root.configLoaded(JSON.parse(JSON.parse(configReply.text).data[0]));
-            } catch (e) {
-                root.configLoadError = Translation.tr("Could not open the card settings");
-            }
-        }
+    function adoptConfig(snapshot): void {
+        root.configBase = snapshot.config ?? {};
+        root.configBaseRev = snapshot.config_rev ?? 0;
     }
 
     property bool configSaving: false
@@ -619,27 +613,67 @@ Singleton {
             return;
         }
         root.configSaving = true;
-        configSaveProc.sent = config;
-        configSaveProc.command = root.agentBusCall("SetConfig", ["s", JSON.stringify(config)]);
+        configSaveProc.requested = config;
+        configSaveProc.outgoing = config;
+        configSaveProc.attempt = 0;
+        root.sendConfig();
+    }
+
+    // The agent moved on from configBase: changes made elsewhere stay, the editor's own are laid over them
+    function syncConfigBase(): void {
+        const snapshot = root.snapshot;
+        if (!snapshot || snapshot.config_rev === root.configBaseRev)
+            return;
+        const latest = snapshot.config ?? {};
+        if (!Rules.sameConfig(latest, root.configBase))
+            configSaveProc.outgoing = Rules.rebased(root.configBase ?? {}, configSaveProc.outgoing, latest);
+        root.adoptConfig(snapshot);
+    }
+
+    function sendConfig(): void {
+        root.syncConfigBase();
+        configSaveProc.attempt += 1;
+        configSaveProc.command = ["bash", "-c", "PATH=\"$HOME/.local/bin:$PATH\"; printf '%s' \"$1\" | fresence config write --rev \"$2\"", "fresence", JSON.stringify(configSaveProc.outgoing), `${root.configBaseRev}`];
         configSaveProc.running = true;
+    }
+
+    function finishSave(error: string): void {
+        const requested = configSaveProc.requested;
+        root.configSaving = false;
+        if (error === "")
+            root.configSaved(requested);
+        else
+            root.configSaveFailed(requested, error);
+        const next = root._queuedConfig;
+        root._queuedConfig = null;
+        if (next !== null)
+            root.saveConfig(next);
+    }
+
+    Timer {
+        id: configRetryTimer
+        interval: root.configRetryMs
+        onTriggered: root.sendConfig()
     }
 
     Process {
         id: configSaveProc
-        property var sent: null
+        property var requested: null
+        property var outgoing: null
+        property int attempt: 0
         stderr: StdioCollector {
             id: configSaveErrors
         }
         onExited: exitCode => {
-            root.configSaving = false;
-            if (exitCode === 0)
-                root.configSaved(configSaveProc.sent);
-            else
-                root.configSaveFailed(configSaveProc.sent, root.busFailureText(configSaveErrors.text, Translation.tr("Could not save the card")));
-            const next = root._queuedConfig;
-            root._queuedConfig = null;
-            if (next !== null)
-                root.saveConfig(next);
+            if (exitCode === 0) {
+                root.configBase = configSaveProc.outgoing;
+                root.configBaseRev = -1;
+                root.finishSave("");
+            } else if (exitCode === root.configChangedExitCode && configSaveProc.attempt < root.configWriteAttempts) {
+                configRetryTimer.restart();
+            } else {
+                root.finishSave(root.cliFailureText(exitCode, configSaveErrors.text, Translation.tr("Could not save the card")));
+            }
         }
     }
 
@@ -670,6 +704,10 @@ Singleton {
             root.retryDelay = root.retryMin;
             root.snapshot = CardLayouts.shared(root.snapshot, snapshot);
             root.now = root.clock();
+            if (root.configWanted) {
+                root.configWanted = false;
+                root.loadConfig();
+            }
         } catch (e) {
             // A torn line keeps the last good snapshot
         }

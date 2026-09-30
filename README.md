@@ -51,7 +51,8 @@ runs and is linked, the Room tab says what is missing: it starts the unit, and t
 `fresence://` code pasted into it, an invite from a friend or a code from "Link a device"
 on your other device. The widget holds no keys and never talks to the server: the room
 comes from `fresence watch`, joining and linking go through `fresence join` and
-`fresence link`, hiding and sharing through `fresence incognito` and `fresence photo`.
+`fresence link`, hiding and sharing through `fresence incognito` and `fresence photo`, card
+settings through `fresence config write` and `fresence chess`, new rooms through `fresence room create`.
 
 What a card shows is up to its owner: the `row` and `detail` grids of each device live
 in the agent's config. The widget's settings have a My card tab that edits this device's
