@@ -26,7 +26,7 @@ StyledText {
     function fitsAt(size: real): bool {
         probe.font.pixelSize = size;
         probe.font.letterSpacing = fitText.value ? fitText.valueLetterSpacing * size : 0;
-        return probe.lineCount <= fitText.maxLines && probe.contentWidth <= fitText.width + 0.5;
+        return probe.lineCount <= fitText.maxLines && probe.contentWidth <= fitText.width;
     }
 
     function fit(): void {
