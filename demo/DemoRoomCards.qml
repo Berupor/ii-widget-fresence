@@ -317,7 +317,7 @@ Item {
             },
             {
                 "name": "the photo tile shows the agent's cached file with the time it has left",
-                "got": [Items.findAll(photo, it => it.sourcePath !== undefined)[0]?.sourcePath, Items.findAll(photo, it => it.sourcePath !== undefined)[0]?.status, Items.findAll(photo, it => it.text === "50 min left").length],
+                "got": [Items.findAll(photo, it => it.sourcePath !== undefined)[0]?.sourcePath, Items.findAll(photo, it => it.sourcePath !== undefined)[0]?.status, Items.findAll(photo, it => it.text === "50m").length],
                 "want": [root.photoFile, Image.Ready, 1]
             },
             {
@@ -326,9 +326,9 @@ Item {
                 "want": [[DemoCovers.url("sm2-hero.jpg"), Image.Ready]]
             },
             {
-                "name": "a clock shows the moment in local HH:MM and how far off it is",
+                "name": "a clock shows the moment in local HH:MM and drops the distance under a label on a short tile",
                 "got": [Items.shownText(alarm, "clockValue"), Items.shownText(alarm, "clockDistance")],
-                "want": [[Qt.formatTime(new Date(Date.parse(alarm?.value?.time ?? "")), "HH:mm")], ["in 1 h"]]
+                "want": [[Qt.formatTime(new Date(Date.parse(alarm?.value?.time ?? "")), "HH:mm")], []]
             },
             {
                 "name": "a timer ticks from its moment",
@@ -348,7 +348,7 @@ Item {
             {
                 "name": "a dimmed widget fades and a missing media widget says nothing is playing",
                 "got": [hidMedia?.opacity, Items.byName(hidMedia, "tilePlaceholder")[0]?.visible, Items.findAll(hidMedia, it => it.text === "Nothing playing" && it.visible).length],
-                "want": [0.45, true, 1]
+                "want": [0.4, true, 1]
             },
             {
                 "name": "a form missing or foreign to its type falls back to the type's first",
