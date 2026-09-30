@@ -20,6 +20,7 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
 
     readonly property string photoPath: FileUtils.trimFileProtocol(Qt.resolvedUrl("covers/teardrop.jpg"))
 

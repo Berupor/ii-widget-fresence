@@ -1,13 +1,15 @@
 .pragma library
 
-// Snapshots by protocol/schema/snapshot.json for the scenes, times relative to now
-// so "last seen", timers and media positions read the same on every run.
+// Snapshots by protocol/schema/snapshot.json for the scenes, times relative to a
+// pinned local moment that the scenes also give Fresence.frozenAt, so clocks,
+// "last seen", timers and media positions read the same on every run.
 
+const now = Date.parse("2026-09-30T12:00:00");
 const selfAccount = "acc-self";
 const selfDevice = "dev-self";
 
 function iso(offsetMs) {
-    return new Date(Date.now() + offsetMs).toISOString();
+    return new Date(now + offsetMs).toISOString();
 }
 
 function minutes(n) {
@@ -17,7 +19,7 @@ function minutes(n) {
 function clockText(atMs) {
     const at = new Date(atMs);
     const time = Qt.formatTime(at, "HH:mm");
-    return at.toDateString() === new Date().toDateString() ? time : `${Qt.formatDate(at, "dd.MM")} ${time}`;
+    return at.toDateString() === new Date(now).toDateString() ? time : `${Qt.formatDate(at, "dd.MM")} ${time}`;
 }
 
 function widget(type, place, extra) {

@@ -17,6 +17,7 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
 
     readonly property var snapshot: Demo.snapshot([Demo.device({
                 "id": "dev-self",
@@ -75,8 +76,13 @@ Item {
                 "tol": 0.02
             },
             {
-                "name": "a playing vinyl turns",
-                "got": Items.findAll(vinyl, it => it.rotation > 0).length > 0,
+                "name": "a playing vinyl turns once the scene's clock runs",
+                "got": (() => {
+                    Fresence.frozenAt = 0;
+                    const turning = Items.findAll(vinyl, it => it.turning === true).length > 0;
+                    Fresence.frozenAt = Demo.now;
+                    return turning;
+                })(),
                 "want": true
             },
             {

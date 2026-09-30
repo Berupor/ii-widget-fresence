@@ -193,13 +193,20 @@ Singleton {
     }
 
     // Re-reads the clock for relative times, time_mode and photo expiry between snapshots
-    property real now: Date.now()
+    property real now: root.clock()
+
+    // Scenes pin the clock so their shots come out the same on every run; nothing animates while it is pinned
+    property real frozenAt: 0
+
+    function clock(): real {
+        return root.frozenAt > 0 ? root.frozenAt : Date.now();
+    }
 
     Timer {
         interval: 5000
         running: root.shouldRun
         repeat: true
-        onTriggered: root.now = Date.now()
+        onTriggered: root.now = root.clock()
     }
 
     function spanOf(ms: real): var {
@@ -662,7 +669,7 @@ Singleton {
                 return;
             root.retryDelay = root.retryMin;
             root.snapshot = CardLayouts.shared(root.snapshot, snapshot);
-            root.now = Date.now();
+            root.now = root.clock();
         } catch (e) {
             // A torn line keeps the last good snapshot
         }

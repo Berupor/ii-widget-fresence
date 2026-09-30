@@ -16,6 +16,7 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
 
     readonly property var snapshot: Demo.snapshot([Demo.device({
                 "id": "dev-self",
@@ -57,7 +58,7 @@ Item {
             {
                 "name": "an alarm clock reads its moment in local HH:MM and drops the distance under a label on a short tile",
                 "got": [Items.shownText(nyxRow, "clockValue")[0] ?? "", Items.shownText(nyxRow, "clockDistance")[0] ?? ""],
-                "want": [Demo.clockText(Date.now() + Demo.minutes(7 * 60 + 30)), ""]
+                "want": [Demo.clockText(Demo.now + Demo.minutes(7 * 60 + 30)), ""]
             },
             {
                 "name": "with the game on the card, the status line says what else she is up to",

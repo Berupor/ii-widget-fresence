@@ -19,6 +19,7 @@ import "lib/DemoItems.js" as Items
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
     readonly property real columnWidth: (root.width - 48) / 2
 
     function text(t: string): var {

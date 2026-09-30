@@ -15,6 +15,7 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
 
     readonly property var history: [1180, 1204, 1196, 1231, 1219, 1247, 1262, 1251, 1279, 1293, 1288, 1310]
     readonly property string endgame: "8/5pk1/6p1/8/3R4/8/5PPP/6K1 w - - 0 40"

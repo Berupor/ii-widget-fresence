@@ -14,6 +14,7 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
 
     readonly property var snapshot: Demo.snapshot([Demo.device({
                 "id": "dev-self",

@@ -16,6 +16,7 @@ import QtQuick
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
     property int frame: 0
 
     readonly property int totalFrames: 40

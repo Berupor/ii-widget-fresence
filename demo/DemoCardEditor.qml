@@ -208,7 +208,10 @@ Item {
         ];
     }
 
-    Component.onCompleted: Fresence.ingest(JSON.stringify(root.snapshot))
+    Component.onCompleted: {
+        Fresence.frozenAt = Demo.now;
+        Fresence.ingest(JSON.stringify(root.snapshot));
+    }
 
     Rectangle {
         anchors.fill: parent

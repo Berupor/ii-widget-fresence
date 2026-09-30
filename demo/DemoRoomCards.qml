@@ -20,6 +20,7 @@ import "lib/DemoItems.js" as Items
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
 
     readonly property string photoFile: FileUtils.trimFileProtocol(String(Qt.resolvedUrl("covers/rdr2-hero.jpg")))
     readonly property var colorRoles: ["primary", "secondary", "tertiary", "error", "primary_container", "secondary_container", "tertiary_container", "error_container"]

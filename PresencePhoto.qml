@@ -22,7 +22,7 @@ Rectangle {
     property bool settleGif: false
     property int settleSeconds: 4
 
-    readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden
+    readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden && Fresence.frozenAt === 0
     readonly property bool showsUrl: root.url.length > 0
     readonly property var shownImage: root.showsUrl ? remoteImage.item : image
     readonly property int status: root.shownImage?.status ?? Image.Null

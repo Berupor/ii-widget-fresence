@@ -17,6 +17,7 @@ import QtQuick
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
     readonly property int tileUnit: 96
     readonly property int gap: 8
 

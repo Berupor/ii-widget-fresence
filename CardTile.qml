@@ -21,7 +21,7 @@ Item {
 
     readonly property string type: root.widget?.type ?? ""
     readonly property string form: CardLayouts.shownForm(root.widget)
-    readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden
+    readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden && Fresence.frozenAt === 0
     readonly property bool hasData: !root.dimmed
     readonly property bool unrecognized: root.type !== "" && !CardLayouts.knownType(root.type)
     readonly property bool placeholder: root.unrecognized || (root.dimmed && root.type !== "value" && root.type !== "weather")
@@ -61,7 +61,7 @@ Item {
         running: root.ticks
         repeat: true
         triggeredOnStart: true
-        onTriggered: root.tickNow = Date.now()
+        onTriggered: root.tickNow = Fresence.clock()
     }
 
     readonly property real valueTimeMs: root.value?.time !== undefined ? Date.parse(root.value.time) : NaN

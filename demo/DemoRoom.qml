@@ -20,6 +20,7 @@ import "lib/DemoItems.js" as Items
 
 Item {
     id: root
+    Component.onCompleted: Fresence.frozenAt = Demo.now
 
     property string scenario: "plain"
     readonly property bool edge: root.scenario === "edge"

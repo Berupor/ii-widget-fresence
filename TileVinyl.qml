@@ -29,6 +29,7 @@ Item {
         property bool labelGlyph: true
         readonly property var media: disc.card.media
         readonly property bool playing: disc.media?.playing === true
+        readonly property bool turning: disc.playing && disc.card.animating
         readonly property bool hasArt: (disc.media?.art_url ?? "").length > 0
         readonly property real mediaProgress: CardLayouts.mediaProgress(disc.media, disc.card.now)
         readonly property real progress: Math.max(0, disc.mediaProgress)
@@ -102,7 +103,7 @@ Item {
 
                     RotationAnimation on rotation {
                         running: true
-                        paused: !disc.playing || !disc.card.animating
+                        paused: !disc.turning
                         loops: Animation.Infinite
                         from: 0
                         to: 360
