@@ -28,6 +28,9 @@ Item {
     readonly property real lightSquareAlpha: 0.16
     readonly property real darkSquareAlpha: 0.06
     readonly property real chipMarginSquares: 0.5
+    readonly property real captionSize: 12
+    readonly property real chipTextSize: 14
+    readonly property real footerRatingSize: 28
 
     readonly property color ink: form.card.contentColor
     readonly property color fill: form.card.tint
@@ -40,12 +43,15 @@ Item {
             return form.game.ending === "checkmate" ? Translation.tr("Won by checkmate") : Translation.tr("Win");
         return form.game?.result === "loss" ? Translation.tr("Loss") : Translation.tr("Draw");
     }
+    readonly property string shortResultText: form.game?.result === "win" ? Translation.tr("Win") : form.resultText
     readonly property string opponentText: {
         const opponent = [form.game?.opponent, form.game?.opponent_rating].filter(v => v !== undefined && v !== null).join(" ");
         const moves = form.game?.moves;
         const movesText = moves === undefined ? "" : (moves === 1 ? Translation.tr("1 move") : Translation.tr("%1 moves").arg(moves));
         return [opponent, movesText].filter(v => v).join(", ");
     }
+
+    onResultTextChanged: summary.shortened = false
 
     component DeltaChip: Rectangle {
         id: chip
@@ -59,7 +65,12 @@ Item {
             id: chipText
             anchors.centerIn: parent
             text: CardLayouts.deltaText(chip.delta)
+            font.pixelSize: form.chipTextSize
             font.weight: Font.DemiBold
+            font.letterSpacing: -0.02 * form.chipTextSize
+            font.features: ({
+                    "tnum": 1
+                })
             color: Appearance.colors.colOnPrimary
         }
     }
@@ -150,6 +161,7 @@ Item {
 
         readonly property bool chipBeside: !form.roomy && form.width - form.height >= form.chipBesideWidth
         readonly property real gap: 2
+        property bool shortened: false
         readonly property real resultSmallest: 12
         readonly property real resultLargest: form.roomy ? 22 : 16
         readonly property real availableHeight: summary.height - 2 * (form.roomy ? form.pad : form.pad / 2)
@@ -177,27 +189,31 @@ Item {
                 Layout.fillWidth: true
                 visible: summary.kept.includes("caption")
                 text: form.card.chessModeText
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: form.captionSize
+                font.weight: Font.Medium
                 color: form.card.mutedContentColor
                 elide: Text.ElideRight
                 maximumLineCount: 1
             }
             ShrinkThenWrapText {
+                id: resultLabel
                 Layout.fillWidth: true
                 Layout.preferredWidth: 0
                 largestSize: summary.resultLargest
-                wrapBelow: summary.resultSmallest
                 maxLines: summary.twoLines ? 2 : 1
-                text: form.resultText
+                text: summary.shortened ? form.shortResultText : form.resultText
                 font.weight: Font.DemiBold
                 color: form.card.contentColor
+                onFitsChanged: if (!resultLabel.fits)
+                    summary.shortened = true
             }
             StyledText {
                 id: opponentCaption
                 Layout.fillWidth: true
                 visible: summary.kept.includes("opponent")
                 text: form.opponentText
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: form.captionSize
+                font.weight: Font.Medium
                 color: form.card.mutedContentColor
                 elide: Text.ElideRight
                 maximumLineCount: 1
@@ -210,10 +226,11 @@ Item {
                 visible: summary.kept.includes("rating")
                 spacing: 8
 
-                StyledText {
+                ShrinkThenWrapText {
+                    largestSize: form.footerRatingSize
+                    maxLines: 1
+                    value: true
                     text: `${form.chess?.rating ?? ""}`
-                    font.pixelSize: Appearance.font.pixelSize.huge
-                    font.weight: Font.Medium
                     color: form.card.contentColor
                 }
                 DeltaChip {

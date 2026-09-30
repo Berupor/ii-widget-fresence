@@ -13,10 +13,15 @@ Item {
     readonly property var place: form.card.widget.place
     readonly property var history: (form.chess?.history?.length ?? 0) > 1 ? form.chess.history : null
     readonly property var best: form.history && form.chess.best !== undefined ? form.chess.best : null
-    readonly property string bestText: Translation.tr("best")
+    readonly property string bestText: Translation.tr("Best")
     readonly property real pad: form.card.tileInset
     readonly property real chartGap: 8
     readonly property real captionPiece: 14
+    readonly property real captionSize: 12
+    readonly property real bestValueSize: 22
+    readonly property real tallRatingMinSize: 24
+    readonly property real smallRatingMinSize: 8
+    readonly property real smallRatingMaxSize: 48
     readonly property real queenFraction: 0.45
     readonly property real tallRatingFraction: 0.3
     readonly property real oneRowChartHeight: 0.7
@@ -129,7 +134,8 @@ Item {
                     }
                     StyledText {
                         text: form.card.chessModeText
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.pixelSize: form.captionSize
+                        font.weight: Font.Medium
                         color: form.card.mutedContentColor
                     }
                 }
@@ -137,10 +143,11 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredWidth: 0
                     Layout.preferredHeight: form.height * form.tallRatingFraction
-                    largestSize: Math.max(24, Math.min(64, Math.floor(form.height * form.tallRatingFraction / 1.2)))
+                    largestSize: Math.max(form.tallRatingMinSize, Math.min(64, Math.floor(form.height * form.tallRatingFraction / 1.2)))
+                    minSize: form.tallRatingMinSize
                     maxLines: 1
+                    value: true
                     text: `${form.chess?.rating ?? ""}`
-                    font.weight: Font.Medium
                     color: form.card.contentColor
                 }
             }
@@ -152,14 +159,16 @@ Item {
                 StyledText {
                     Layout.alignment: Qt.AlignRight
                     text: form.bestText
-                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.pixelSize: form.captionSize
+                    font.weight: Font.Medium
                     color: form.card.mutedContentColor
                 }
-                StyledText {
+                ShrinkThenWrapText {
                     Layout.alignment: Qt.AlignRight
+                    largestSize: form.bestValueSize
+                    maxLines: 1
+                    value: true
                     text: `${form.best}`
-                    font.pixelSize: Appearance.font.pixelSize.larger
-                    font.weight: Font.Medium
                     color: form.card.contentColor
                 }
             }
@@ -169,7 +178,8 @@ Item {
             Layout.leftMargin: form.pad
             Layout.topMargin: form.chartGap
             text: `${form.bestText} ${form.best}`
-            font.pixelSize: Appearance.font.pixelSize.smaller
+            font.pixelSize: form.captionSize
+            font.weight: Font.Medium
             color: form.card.mutedContentColor
         }
         RatingChart {
@@ -218,10 +228,11 @@ Item {
                     Layout.preferredHeight: parent.height * (1 - form.queenFraction)
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
-                    largestSize: Math.max(Appearance.font.pixelSize.smallest, Math.min(48, Math.floor(parent.height * (1 - form.queenFraction) / 1.2)))
+                    largestSize: Math.max(form.smallRatingMinSize, Math.min(form.smallRatingMaxSize, Math.floor(parent.height * (1 - form.queenFraction) / 1.2)))
+                    minSize: form.smallRatingMinSize
                     maxLines: 1
+                    value: true
                     text: `${form.chess?.rating ?? ""}`
-                    font.weight: Font.Medium
                     color: form.card.contentColor
                 }
                 Item {
@@ -240,7 +251,8 @@ Item {
             StyledText {
                 visible: form.best !== null
                 text: `${form.bestText} ${form.best}`
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: form.captionSize
+                font.weight: Font.Medium
                 color: form.card.mutedContentColor
             }
             RatingChart {

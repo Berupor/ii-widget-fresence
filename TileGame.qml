@@ -24,7 +24,74 @@ Item {
     readonly property real elapsedMs: isNaN(form.startedMs) ? 0 : Math.max(0, form.card.now - form.startedMs)
     readonly property string sessionText: Fresence.stopwatchText(form.elapsedMs)
     readonly property real inset: CardLayouts.tileInset(form.width, form.height, form.card.shape)
-    readonly property bool rowBanner: form.height < 120
+    readonly property bool rowBanner: form.height < form.roomyHeight
+    readonly property real roomyHeight: 120
+    readonly property real titleSmallSize: 14
+    readonly property real titleMediumSize: 16
+    readonly property real headlineSize: 24
+    readonly property real labelMediumSize: 12
+    readonly property real labelSmallSize: 11
+    readonly property real hourMs: 3600000
+    readonly property real minuteMs: 60000
+    readonly property real zoneOffsetMs: (form.card.state?.utc_offset_s ?? -new Date().getTimezoneOffset() * 60) * 1000
+    readonly property var sessions: form.game?.today ?? []
+    readonly property bool eveningHero: form.card.widget?.place?.rows >= 2 && form.sessions.length > 0
+    readonly property var labelSteps: [1, 2, 3, 4, 6, 12]
+    readonly property int maxLabelGaps: 3
+    readonly property real eveningMinWindowMs: 6 * form.hourMs
+    readonly property real earlierSessionAlpha: 0.45
+    readonly property real trackAlpha: 0.22
+    readonly property var evening: form.eveningHero ? form.eveningOf() : null
+
+    function twoDigits(value: real): string {
+        return String(Math.floor(value)).padStart(2, "0");
+    }
+
+    function hourMinute(ms: real): string {
+        return `${Math.floor(ms / form.hourMs)}:${form.twoDigits(ms / form.minuteMs % 60)}`;
+    }
+
+    function timeOfDay(atMs: real): string {
+        const local = new Date(atMs + form.zoneOffsetMs);
+        return `${form.twoDigits(local.getUTCHours())}:${form.twoDigits(local.getUTCMinutes())}`;
+    }
+
+    function floorToHour(ms: real): real {
+        const local = ms + form.zoneOffsetMs;
+        return local - (local % form.hourMs + form.hourMs) % form.hourMs - form.zoneOffsetMs;
+    }
+
+    function shortDuration(ms: real): string {
+        const minutes = Math.floor(ms / form.minuteMs);
+        return minutes < 60 ? Translation.tr("%1m").arg(minutes) : Translation.tr("%1 h %2 min").arg(Math.floor(minutes / 60)).arg(form.twoDigits(minutes % 60));
+    }
+
+    function eveningOf(): var {
+        const spans = form.sessions.map(session => ({
+                    "from": Date.parse(session.started_at),
+                    "to": session.ended_at ? Date.parse(session.ended_at) : form.card.now,
+                    "current": !session.ended_at
+                }));
+        const from = form.floorToHour(Math.min(...spans.map(span => span.from)));
+        const wanted = Math.max(form.floorToHour(form.card.now) + form.hourMs, from + form.eveningMinWindowMs);
+        const hours = Math.ceil((wanted - from) / form.hourMs);
+        const step = form.labelSteps.find(candidate => Math.ceil(hours / candidate) <= form.maxLabelGaps) ?? form.labelSteps[form.labelSteps.length - 1];
+        const to = from + Math.ceil(hours / step) * step * form.hourMs;
+        const window = to - from;
+        const share = ms => Math.max(0, Math.min(1, (ms - from) / window));
+        const labels = [];
+        for (let at = from; at <= to; at += step * form.hourMs)
+            labels.push(form.twoDigits(new Date(at + form.zoneOffsetMs).getUTCHours()));
+        return {
+            "labels": labels,
+            "total": spans.reduce((sum, span) => sum + Math.max(0, span.to - span.from), 0),
+            "segments": spans.map(span => ({
+                        "from": share(span.from),
+                        "to": share(span.to),
+                        "current": span.current
+                    }))
+        };
+    }
 
     readonly property var wideUrls: [form.art.hero, form.art.header, form.art.cover].filter(url => !!url)
     readonly property var tallUrls: [form.art.cover, form.art.header, form.art.hero].filter(url => !!url)
@@ -32,6 +99,7 @@ Item {
     readonly property real scrimStart: 0.3
     readonly property real scrimAlpha: 0.92
     readonly property real pillScrimAlpha: 0.45
+    readonly property real chipScrimAlpha: 0.65
     readonly property color neutralContent: Appearance.colors[form.card.colorKeys[1]]
     readonly property color content: art.tinted ? art.content : form.neutralContent
     readonly property color mutedContent: ColorUtils.transparentize(form.content, 0.35)
@@ -87,7 +155,7 @@ Item {
     component GameLogo: Item {
         id: logo
         property int alignment: Qt.AlignVCenter | Qt.AlignLeft
-        property int nameSize: Appearance.font.pixelSize.normal
+        property real nameSize: form.titleSmallSize
         property color nameColor: "white"
         readonly property bool pictured: !!form.art.logo && picture.status !== Image.Error
 
@@ -123,6 +191,8 @@ Item {
     }
 
     component SessionPill: Rectangle {
+        id: pill
+        property string text: form.sessionText
         implicitWidth: pillRow.implicitWidth + 15
         implicitHeight: pillRow.implicitHeight + 6
         radius: height / 2
@@ -139,17 +209,34 @@ Item {
             }
             StyledText {
                 objectName: "gameSession"
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: form.labelMediumSize
+                font.weight: Font.Medium
                 color: art.tinted ? art.content : "white"
-                text: form.sessionText
+                text: pill.text
             }
+        }
+    }
+
+    component SessionLine: StyledText {
+        id: line
+        readonly property string full: Translation.tr("%1 in game").arg(form.sessionText)
+        objectName: "gameSession"
+        maximumLineCount: 1
+        elide: Text.ElideRight
+        font.pixelSize: form.labelSmallSize
+        text: fullMetrics.advanceWidth <= line.width ? line.full : form.sessionText
+
+        TextMetrics {
+            id: fullMetrics
+            font: line.font
+            text: line.full
         }
     }
 
     Loader {
         anchors.fill: parent
         sourceComponent: ({
-                "hero": hero,
+                "hero": form.eveningHero ? eveningHero : hero,
                 "ring": ring,
                 "cover": cover
             })[form.shownForm] ?? (form.rowBanner ? bannerRow : bannerTall)
@@ -204,14 +291,14 @@ Item {
                     StyledText {
                         objectName: "gameSession"
                         Layout.alignment: Qt.AlignRight
-                        font.pixelSize: Appearance.font.pixelSize.larger
+                        font.pixelSize: form.titleMediumSize
                         font.weight: Font.Medium
                         color: "white"
                         text: form.sessionText
                     }
                     StyledText {
                         Layout.alignment: Qt.AlignRight
-                        font.pixelSize: Appearance.font.pixelSize.smallest
+                        font.pixelSize: form.labelSmallSize
                         color: ColorUtils.transparentize("white", 0.35)
                         text: Translation.tr("in game")
                     }
@@ -238,7 +325,7 @@ Item {
                 width: parent.width * 0.6
                 height: parent.height * 0.55
                 alignment: Qt.AlignVCenter | Qt.AlignHCenter
-                nameSize: Appearance.font.pixelSize.title
+                nameSize: form.headlineSize
                 nameColor: parent.hasArt ? "white" : form.content
             }
             SessionPill {
@@ -254,11 +341,17 @@ Item {
     Component {
         id: cover
         Item {
+            readonly property bool tall: form.height >= form.roomyHeight
+            readonly property real chipMargin: form.card.shape === "rounded" ? 8 : form.inset
+
             GameArt {
                 urls: form.tallUrls
             }
-            Scrim {}
+            Scrim {
+                visible: !parent.tall
+            }
             ColumnLayout {
+                visible: !parent.tall
                 anchors {
                     left: parent.left
                     right: parent.right
@@ -269,19 +362,173 @@ Item {
                 StyledText {
                     objectName: "gameName"
                     Layout.fillWidth: true
+                    maximumLineCount: 1
                     elide: Text.ElideRight
                     textFormat: Text.PlainText
-                    font.pixelSize: Appearance.font.pixelSize.normal
+                    font.pixelSize: form.titleSmallSize
+                    font.weight: Font.Medium
                     color: "white"
                     text: form.game?.name ?? ""
                 }
-                StyledText {
-                    objectName: "gameSession"
+                SessionLine {
                     Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    font.pixelSize: Appearance.font.pixelSize.smallest
                     color: ColorUtils.transparentize("white", 0.35)
-                    text: Translation.tr("%1 in game").arg(form.sessionText)
+                }
+            }
+            Rectangle {
+                objectName: "gameChip"
+                visible: parent.tall
+                anchors {
+                    top: parent.top
+                    right: parent.right
+                    margins: parent.chipMargin
+                }
+                width: chipColumn.implicitWidth + 20
+                height: chipColumn.implicitHeight + 10
+                radius: 12
+                color: Qt.rgba(0, 0, 0, form.chipScrimAlpha)
+
+                ColumnLayout {
+                    id: chipColumn
+                    anchors.centerIn: parent
+                    spacing: 0
+                    StyledText {
+                        objectName: "gameSession"
+                        Layout.alignment: Qt.AlignRight
+                        font.pixelSize: form.titleMediumSize
+                        font.weight: Font.Medium
+                        color: "white"
+                        text: form.hourMinute(form.elapsedMs)
+                    }
+                    StyledText {
+                        Layout.alignment: Qt.AlignRight
+                        font.pixelSize: form.labelSmallSize
+                        color: ColorUtils.transparentize("white", 0.35)
+                        text: Translation.tr("since %1").arg(form.timeOfDay(form.startedMs))
+                    }
+                }
+            }
+        }
+    }
+
+    Component {
+        id: eveningHero
+        Item {
+            id: eveningForm
+            readonly property bool hasArt: form.wideUrls.length > 0
+            readonly property color ink: form.content
+            readonly property real timelineHeight: 10
+            readonly property real logoTop: 10
+            readonly property real logoWidth: 110
+            readonly property real logoHeight: 34
+            readonly property real pillMargin: 8
+            readonly property real panelVertical: 8
+
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 0
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    GameArt {
+                        visible: eveningForm.hasArt
+                        urls: form.wideUrls
+                    }
+                    Rectangle {
+                        visible: eveningForm.hasArt
+                        anchors.fill: parent
+                        color: ColorUtils.transparentize(art.shade, 0.7)
+                    }
+                    GameLogo {
+                        x: form.inset
+                        y: eveningForm.logoTop
+                        width: eveningForm.logoWidth
+                        height: eveningForm.logoHeight
+                        alignment: Qt.AlignVCenter | Qt.AlignLeft
+                        nameColor: eveningForm.hasArt ? "white" : form.content
+                    }
+                    SessionPill {
+                        anchors {
+                            right: parent.right
+                            bottom: parent.bottom
+                            margins: eveningForm.pillMargin
+                        }
+                        text: form.hourMinute(form.elapsedMs)
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: form.inset
+                    Layout.rightMargin: form.inset
+                    Layout.topMargin: eveningForm.panelVertical
+                    Layout.bottomMargin: eveningForm.panelVertical
+                    spacing: 4
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        StyledText {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.pixelSize: form.labelMediumSize
+                            font.weight: Font.Medium
+                            color: form.mutedContent
+                            text: Translation.tr("Played today")
+                        }
+                        StyledText {
+                            font.pixelSize: form.labelMediumSize
+                            font.weight: Font.Medium
+                            color: form.content
+                            text: form.shortDuration(form.evening?.total ?? 0)
+                        }
+                    }
+                    Item {
+                        id: timeline
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: eveningForm.timelineHeight
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: height / 2
+                            color: Qt.alpha(form.content, form.trackAlpha)
+                        }
+                        Repeater {
+                            model: form.evening?.segments ?? []
+
+                            Rectangle {
+                                required property var modelData
+                                x: modelData.from * timeline.width
+                                width: Math.max((modelData.to - modelData.from) * timeline.width, timeline.height)
+                                height: timeline.height
+                                radius: height / 2
+                                color: modelData.current ? art.accent : Qt.alpha(form.content, form.earlierSessionAlpha)
+                            }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        Repeater {
+                            model: form.evening?.labels ?? []
+
+                            Item {
+                                required property int index
+                                required property string modelData
+                                Layout.fillWidth: index < (form.evening?.labels.length ?? 0) - 1
+                                implicitWidth: hourText.implicitWidth
+                                implicitHeight: hourText.implicitHeight
+
+                                StyledText {
+                                    id: hourText
+                                    font.pixelSize: form.labelSmallSize
+                                    color: form.mutedContent
+                                    text: parent.modelData
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -337,18 +584,14 @@ Item {
                         maximumLineCount: 2
                         elide: Text.ElideRight
                         textFormat: Text.PlainText
-                        font.pixelSize: Appearance.font.pixelSize.normal
+                        font.pixelSize: form.titleSmallSize
                         font.weight: Font.Medium
                         color: form.content
                         text: form.game?.name ?? ""
                     }
-                    StyledText {
-                        objectName: "gameSession"
+                    SessionLine {
                         Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        font.pixelSize: Appearance.font.pixelSize.smallest
                         color: form.mutedContent
-                        text: Translation.tr("%1 in game").arg(form.sessionText)
                     }
                 }
             }
@@ -372,7 +615,7 @@ Item {
                     id: sessionLabel
                     objectName: "gameSession"
                     anchors.centerIn: parent
-                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    font.pixelSize: form.labelSmallSize
                     font.weight: Font.Medium
                     color: art.tinted ? art.content : "white"
                     text: form.sessionText
