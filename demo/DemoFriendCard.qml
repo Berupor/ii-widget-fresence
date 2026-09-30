@@ -57,7 +57,7 @@ Item {
             {
                 "name": "an alarm clock reads its moment in local HH:MM and drops the distance under a label on a short tile",
                 "got": [Items.shownText(nyxRow, "clockValue")[0] ?? "", Items.shownText(nyxRow, "clockDistance")[0] ?? ""],
-                "want": [Qt.formatTime(new Date(Date.now() + Demo.minutes(7 * 60 + 30)), "HH:mm"), ""]
+                "want": [Demo.clockText(Date.now() + Demo.minutes(7 * 60 + 30)), ""]
             },
             {
                 "name": "with the game on the card, the status line says what else she is up to",

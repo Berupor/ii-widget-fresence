@@ -328,7 +328,7 @@ Item {
             {
                 "name": "a clock shows the moment in local HH:MM and drops the distance under a label on a short tile",
                 "got": [Items.shownText(alarm, "clockValue"), Items.shownText(alarm, "clockDistance")],
-                "want": [[Qt.formatTime(new Date(Date.parse(alarm?.value?.time ?? "")), "HH:mm")], []]
+                "want": [[Demo.clockText(Date.parse(alarm?.value?.time ?? ""))], []]
             },
             {
                 "name": "a timer ticks from its moment",

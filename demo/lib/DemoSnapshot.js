@@ -14,6 +14,12 @@ function minutes(n) {
     return n * 60000;
 }
 
+function clockText(atMs) {
+    const at = new Date(atMs);
+    const time = Qt.formatTime(at, "HH:mm");
+    return at.toDateString() === new Date().toDateString() ? time : `${Qt.formatDate(at, "dd.MM")} ${time}`;
+}
+
 function widget(type, place, extra) {
     return Object.assign({
         "type": type,

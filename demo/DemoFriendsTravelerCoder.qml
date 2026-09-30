@@ -97,7 +97,7 @@ Item {
             },
             {
                 "name": "the photo tiles draw the agent's cached file and say how long it has left",
-                "got": [photos.length, photos.every(p => p.path === root.photoPath), Items.findAll(nomadRow, it => it.text !== undefined && /^\d+ min left$/.test(it.text) && it.visible).length > 0],
+                "got": [photos.length, photos.every(p => p.path === root.photoPath), Items.findAll(nomadRow, it => it.text !== undefined && /^\d+m$/.test(it.text) && it.visible).length > 0],
                 "want": [2, true, true]
             },
             {
