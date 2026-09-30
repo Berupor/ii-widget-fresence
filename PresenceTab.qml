@@ -12,6 +12,9 @@ import Quickshell
 Item {
     id: root
 
+    readonly property int headerTextSize: 14
+    readonly property int memberGap: 16
+
     property bool pickingRoom: false
 
     Connections {
@@ -127,10 +130,10 @@ Item {
         RowLayout {
             objectName: "roomHeader"
             Layout.leftMargin: 12 // On the axis the rows' content starts at
-            spacing: 2
+            spacing: 4
 
             StyledText {
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: root.headerTextSize
                 color: Appearance.colors.colSubtext
                 text: Fresence.headerText()
             }
@@ -255,7 +258,7 @@ Item {
             ColumnLayout {
                 id: column
                 width: flickable.width
-                spacing: 12
+                spacing: root.memberGap
 
                 Repeater {
                     model: Fresence.memberIds

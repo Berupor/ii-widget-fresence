@@ -138,7 +138,7 @@ Item {
             {
                 "name": "Turing's status line skips the window his row shows and says what he is playing",
                 "got": Items.shownText(turingRow, "memberStatus")[0] ?? "",
-                "want": "Listening to Midnight City - M83"
+                "want": "Midnight City - M83"
             }
         ];
     }

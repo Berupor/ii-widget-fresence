@@ -62,7 +62,7 @@ Item {
             {
                 "name": "with the game on the card, the status line says what else she is up to",
                 "got": Items.shownText(nyxRow, "memberStatus")[0] ?? "",
-                "want": "Playing Cyberpunk 2077 · 2h"
+                "want": "Playing Cyberpunk 2077"
             }
         ];
     }

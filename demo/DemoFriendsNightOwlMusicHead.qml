@@ -82,7 +82,7 @@ Item {
             {
                 "name": "Nyx's status line says the game her detail pictures, the window is already on her row",
                 "got": Items.shownText(nyxRow, "memberStatus")[0] ?? "",
-                "want": "Playing Cyberpunk 2077 · 2h"
+                "want": "Playing Cyberpunk 2077"
             },
             {
                 "name": "Echo's status line leaves the track to her vinyl and falls back to online",

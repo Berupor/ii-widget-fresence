@@ -69,7 +69,7 @@ AbstractBackgroundWidget {
 
             StyledText {
                 Layout.leftMargin: 6
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.pixelSize: 14
                 color: Appearance.colors.colSubtext
                 text: Fresence.headerText()
             }

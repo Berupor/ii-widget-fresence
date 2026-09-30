@@ -29,6 +29,14 @@ Singleton {
         return WidgetCatalog.option(root.widgetId, key);
     }
 
+    /// The one clip tile that plays with sound, null when all are muted
+    property var loudClip: null
+
+    function releaseLoudClip(owner: var): void {
+        if (root.loudClip === owner)
+            root.loudClip = null;
+    }
+
     // install.sh puts the agent in ~/.local/bin, which the shell's own PATH may lack
     function agentCommand(args): var {
         return ["bash", "-c", "PATH=\"$HOME/.local/bin:$PATH\" exec fresence \"$@\"", "fresence"].concat(args);
@@ -112,6 +120,7 @@ Singleton {
             "name": root.nameOf(devices),
             "devices": devices,
             "shownDevices": shown,
+            "sealed": shown.length === 0,
             "activeDevice": devices.find(d => d.online && !root.incognitoOf(d)) ?? null,
             "firstActiveIndex": Math.max(0, shown.findIndex(d => d.online && !root.incognitoOf(d))),
             "presence": root.presenceOf(devices)
@@ -246,7 +255,7 @@ Singleton {
 
     function leftText(atMs: real): string {
         const left = atMs - root.now;
-        return left < 3600000 ? Translation.tr("%1 min left").arg(Math.max(1, Math.floor(left / 60000))) : Translation.tr("%1 h left").arg(Math.floor(left / 3600000));
+        return left < 3600000 ? Translation.tr("%1m").arg(Math.max(1, Math.floor(left / 60000))) : Translation.tr("%1h").arg(Math.floor(left / 3600000));
     }
 
     function clockText(atMs: real): string {
@@ -280,40 +289,30 @@ Singleton {
         }
     }
 
-    // A hidden member still says something, picked by account id so it stays with the person
-    readonly property var hiddenLines: [Translation.tr("off the radar"), Translation.tr("somewhere else"), Translation.tr("heads down"), Translation.tr("out of frame"), Translation.tr("keeping it quiet"), Translation.tr("doing something")]
-
-    function hiddenLineFor(member): string {
-        const id = member?.id ?? "";
-        let sum = 0;
-        for (let i = 0; i < id.length; i++)
-            sum += id.charCodeAt(i);
-        return root.hiddenLines[sum % root.hiddenLines.length];
-    }
-
     // covered: what the row's visible tiles already show, so the line does not repeat it
     function statusFor(member, device, covered): string {
         const p = member?.presence;
         if (!p)
             return "";
+        if (p.kind === "offline" && member.sealed)
+            return Translation.tr("The name shows up once they come online");
         if (p.kind === "offline")
             return isNaN(p.seenAt) ? Translation.tr("Offline") : Translation.tr("Last seen %1").arg(root.agoText(p.seenAt));
         if (p.kind === "incognito") {
-            const head = !isNaN(p.until) ? Translation.tr("Hidden until %1").arg(root.clockText(p.until)) : root.hiddenLineFor(member);
+            const head = !isNaN(p.until) ? Translation.tr("Hidden until %1").arg(root.clockText(p.until)) : Translation.tr("Hidden");
             return p.note ? `${head} · ${p.note}` : head;
         }
         const speaks = device && device.online && !root.incognitoOf(device) ? device : member.activeDevice;
         const skip = speaks === device ? (covered ?? new Set()) : new Set();
         const state = speaks?.state ?? {};
         if (state.game && !skip.has("game")) {
-            const started = Date.parse(state.game.started_at);
-            return isNaN(started) ? Translation.tr("Playing %1").arg(state.game.name) : Translation.tr("Playing %1 · %2").arg(state.game.name).arg(root.sessionText(started));
+            return Translation.tr("Playing %1").arg(state.game.name);
         }
         const media = state.media;
         if (media?.playing && !skip.has("media")) {
             if (media.kind === "video")
-                return Translation.tr("Watching %1").arg(media.title);
-            return media.artist ? Translation.tr("Listening to %1 - %2").arg(media.title).arg(media.artist) : Translation.tr("Listening to %1").arg(media.title);
+                return media.title;
+            return media.artist ? `${media.title} - ${media.artist}` : media.title;
         }
         for (const id of speaks?.card?.status ?? []) {
             const text = state.values?.[id]?.text ?? "";

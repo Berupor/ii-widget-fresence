@@ -340,7 +340,7 @@ Item {
                 "want": [true, true, false, false]
             },
             {
-                "name": "an offline device of an online account shows dimmed under a last seen line",
+                "name": "an offline device of an online account shows dimmed, with no last seen line",
                 "got": [Fresence.membersById["acc-kai"]?.presence.kind, kai?.deviceAway, Items.tiles(kai).map(t => t.valueText)],
                 "want": ["online", true, ["vim notes.md"]]
             },
