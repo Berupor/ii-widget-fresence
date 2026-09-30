@@ -9,7 +9,6 @@ import QtQuick.Layouts
 import QtQuick.Window
 import Qt5Compat.GraphicalEffects
 import "CardLayouts.js" as CardLayouts
-import "CardRules.js" as Rules
 
 /** One widget of a card, by protocol.md: the form file draws it, this is what the form reads. */
 Item {
@@ -79,7 +78,7 @@ Item {
     readonly property real fill: Math.max(0, Math.min(1, root.value?.fill ?? 0))
     readonly property string subtext: root.value?.subtext ?? ""
     readonly property string shortValueText: root.hasData ? (CardLayouts.compactBytesText(root.value) || root.shownValueText) : "-"
-    readonly property string ringIcon: root.icon || (Rules.sourceSymbols[root.widget?.source] ?? "")
+    readonly property string ringIcon: root.icon || (CardLayouts.sourceSymbols[root.widget?.source] ?? "")
     readonly property string labelText: root.widget?.label ?? ""
     readonly property string icon: root.widget?.icon ?? ""
     readonly property string labelIcon: root.icon && ((root.widget?.place?.cols ?? 1) > 1 || !root.labelText) ? root.icon : ""

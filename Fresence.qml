@@ -12,7 +12,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "CardLayouts.js" as CardLayouts
-import "CardRules.js" as Rules
 
 Singleton {
     id: root
@@ -562,121 +561,6 @@ Singleton {
         return root.failureText(exitCode, said || fallback);
     }
 
-    readonly property int configChangedExitCode: 4
-    readonly property int configWriteAttempts: 5
-    readonly property int configRetryMs: 200
-
-    property string configLoadError: ""
-    property bool configWanted: false
-
-    // A demo scene answers a load by emitting configLoaded itself
-    signal configLoaded(var config)
-    signal configSaved(var config)
-    signal configSaveFailed(var config, string error)
-
-    // The config and its config_rev the agent was last known to hold, what a write is checked against
-    property var configBase: null
-    property int configBaseRev: -1
-
-    function loadConfig(): void {
-        if (root.underHarness)
-            return;
-        root.configLoadError = "";
-        if (root.snapshot) {
-            root.adoptConfig(root.snapshot);
-            root.configLoaded(root.configBase);
-            return;
-        }
-        if (root.agentState === "missing" || root.agentState === "not_running") {
-            root.configLoadError = root.failureText(root.agentState === "not_running" ? root.notRunningExitCode : 0, Translation.tr("Could not open the card settings"));
-            return;
-        }
-        root.configWanted = true;
-    }
-
-    function adoptConfig(snapshot): void {
-        root.configBase = snapshot.config ?? {};
-        root.configBaseRev = snapshot.config_rev ?? 0;
-    }
-
-    property bool configSaving: false
-    property var _queuedConfig: null
-
-    // A save while another is in flight waits for it, and only the latest one waiting is sent
-    function saveConfig(config): void {
-        if (root.underHarness) {
-            root.configSaved(config);
-            return;
-        }
-        if (root.configSaving) {
-            root._queuedConfig = config;
-            return;
-        }
-        root.configSaving = true;
-        configSaveProc.requested = config;
-        configSaveProc.outgoing = config;
-        configSaveProc.attempt = 0;
-        root.sendConfig();
-    }
-
-    // The agent moved on from configBase: changes made elsewhere stay, the editor's own are laid over them
-    function syncConfigBase(): void {
-        const snapshot = root.snapshot;
-        if (!snapshot || snapshot.config_rev === root.configBaseRev)
-            return;
-        const latest = snapshot.config ?? {};
-        if (!Rules.sameConfig(latest, root.configBase))
-            configSaveProc.outgoing = Rules.rebased(root.configBase ?? {}, configSaveProc.outgoing, latest);
-        root.adoptConfig(snapshot);
-    }
-
-    function sendConfig(): void {
-        root.syncConfigBase();
-        configSaveProc.attempt += 1;
-        configSaveProc.command = ["bash", "-c", "PATH=\"$HOME/.local/bin:$PATH\"; printf '%s' \"$1\" | fresence config write --rev \"$2\"", "fresence", JSON.stringify(configSaveProc.outgoing), `${root.configBaseRev}`];
-        configSaveProc.running = true;
-    }
-
-    function finishSave(error: string): void {
-        const requested = configSaveProc.requested;
-        root.configSaving = false;
-        if (error === "")
-            root.configSaved(requested);
-        else
-            root.configSaveFailed(requested, error);
-        const next = root._queuedConfig;
-        root._queuedConfig = null;
-        if (next !== null)
-            root.saveConfig(next);
-    }
-
-    Timer {
-        id: configRetryTimer
-        interval: root.configRetryMs
-        onTriggered: root.sendConfig()
-    }
-
-    Process {
-        id: configSaveProc
-        property var requested: null
-        property var outgoing: null
-        property int attempt: 0
-        stderr: StdioCollector {
-            id: configSaveErrors
-        }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                root.configBase = configSaveProc.outgoing;
-                root.configBaseRev = -1;
-                root.finishSave("");
-            } else if (exitCode === root.configChangedExitCode && configSaveProc.attempt < root.configWriteAttempts) {
-                configRetryTimer.restart();
-            } else {
-                root.finishSave(root.cliFailureText(exitCode, configSaveErrors.text, Translation.tr("Could not save the card")));
-            }
-        }
-    }
-
     function headerText(): string {
         if (root.agentState === "connecting")
             return Translation.tr("Connecting to the server…");
@@ -704,10 +588,6 @@ Singleton {
             root.retryDelay = root.retryMin;
             root.snapshot = CardLayouts.shared(root.snapshot, snapshot);
             root.now = root.clock();
-            if (root.configWanted) {
-                root.configWanted = false;
-                root.loadConfig();
-            }
         } catch (e) {
             // A torn line keeps the last good snapshot
         }
@@ -724,6 +604,18 @@ Singleton {
         running: true
         command: ["bash", "-c", "PATH=\"$HOME/.local/bin:$PATH\" command -v fresence >/dev/null"]
         onExited: exitCode => root.binaryFound = (exitCode === 0)
+    }
+
+    property bool desktopFound: false
+
+    Process {
+        running: true
+        command: ["bash", "-c", "PATH=\"$HOME/.local/bin:$PATH\" command -v fresence-desktop >/dev/null"]
+        onExited: exitCode => root.desktopFound = (exitCode === 0)
+    }
+
+    function editCard(): void {
+        Quickshell.execDetached(["bash", "-c", "PATH=\"$HOME/.local/bin:$PATH\" exec fresence-desktop --edit-card"]);
     }
 
     readonly property int retryMin: 2000

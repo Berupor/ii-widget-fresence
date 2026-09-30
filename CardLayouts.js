@@ -7,6 +7,22 @@ const gridRows = {
     "detail": 4
 };
 
+// builtinSymbol in app/shared ui/card/Resolve.kt
+const sourceSymbols = {
+    "cpu": "memory",
+    "memory": "memory_alt",
+    "disk": "hard_drive",
+    "load": "speed",
+    "battery": "battery_full",
+    "packages": "inventory_2",
+    "window": "web_asset",
+    "app": "apps",
+    "workspace": "desktop_windows",
+    "uptime": "schedule",
+    "alarm": "alarm",
+    "meeting": "event_busy"
+};
+
 // protocol.md: the first form of a type is its fallback
 const formFiles = {
     "value": {
