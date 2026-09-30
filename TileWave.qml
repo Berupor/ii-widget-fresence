@@ -42,7 +42,7 @@ Item {
                 color: form.card.contentColor
                 to: 1
                 value: form.hasPosition ? form.mediaProgress : (form.media?.playing ? 1 : 0)
-                wavy: form.media?.playing === true
+                wavy: form.card.animating && form.media?.playing === true
                 animateWave: form.card.animating && form.media?.playing === true
             }
         }

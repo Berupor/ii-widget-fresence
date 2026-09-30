@@ -44,6 +44,13 @@ Item {
         return grid.placed.reduce((sum, p) => sum + p.cols * p.rows, 0);
     }
 
+    function withClockRunning(read) {
+        Fresence.frozenAt = 0;
+        const got = read();
+        Fresence.frozenAt = Demo.now;
+        return got;
+    }
+
     function checks() {
         const rowGrids = [nyxRow, echoRow].map(r => root.grids(r).find(g => g.grid === "row"));
         const waveBars = Items.findAll(nyxRow, it => it.wavy !== undefined && it.waveFrequency !== undefined && it.visible);
@@ -65,8 +72,8 @@ Item {
                 "want": [4, 4]
             },
             {
-                "name": "the wave form draws one wavy progress line",
-                "got": [waveBars.length, waveBars[0]?.wavy],
+                "name": "the wave form draws one wavy progress line once the scene's clock runs",
+                "got": root.withClockRunning(() => [waveBars.length, waveBars[0]?.wavy]),
                 "want": [1, true]
             },
             {
@@ -77,12 +84,7 @@ Item {
             },
             {
                 "name": "a playing vinyl turns once the scene's clock runs",
-                "got": (() => {
-                    Fresence.frozenAt = 0;
-                    const turning = Items.findAll(vinyl, it => it.turning === true).length > 0;
-                    Fresence.frozenAt = Demo.now;
-                    return turning;
-                })(),
+                "got": root.withClockRunning(() => Items.findAll(vinyl, it => it.turning === true).length > 0),
                 "want": true
             },
             {
