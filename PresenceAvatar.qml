@@ -22,6 +22,10 @@ Item {
     signal tapped
 
     readonly property int holdDuration: 420
+    readonly property real ringStroke: 3
+    readonly property real ringGap: 4
+    readonly property bool sealed: root.member?.sealed ?? false
+    readonly property bool showsInitial: !root.hidden && !root.sealed
 
     implicitWidth: 40
     implicitHeight: 40
@@ -49,8 +53,8 @@ Item {
 
     CircularProgress { // Fills while you hold, then hands over to the picker
         anchors.centerIn: parent
-        implicitSize: root.width + 10
-        lineWidth: 3
+        implicitSize: root.width + 2 * root.ringGap + 3 * root.ringStroke
+        lineWidth: root.ringStroke
         enableAnimation: false
         value: root.holdProgress
         opacity: root.holdProgress > 0 ? 1 : 0
@@ -74,8 +78,9 @@ Item {
 
         StyledText {
             anchors.centerIn: parent
-            opacity: root.hidden ? 0 : 1
-            font.pixelSize: Appearance.font.pixelSize.large
+            opacity: root.showsInitial ? 1 : 0
+            font.pixelSize: 16
+            font.weight: Font.Medium
             color: root.offline ? Appearance.colors.colSubtext : Appearance.colors.colOnSecondaryContainer
             text: Fresence.initialFor(root.member)
 
@@ -86,11 +91,11 @@ Item {
 
         MaterialSymbol {
             anchors.centerIn: parent
-            opacity: root.hidden ? 1 : 0
+            opacity: root.showsInitial ? 0 : 1
             fill: 0
-            text: "visibility_off"
-            iconSize: Appearance.font.pixelSize.larger
-            color: Appearance.colors.colOnSecondaryContainer
+            text: root.hidden ? "visibility_off" : "lock"
+            iconSize: root.height * 0.5
+            color: root.hidden || !root.offline ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colSubtext
 
             Behavior on opacity {
                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)

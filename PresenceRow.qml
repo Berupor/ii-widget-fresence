@@ -30,6 +30,18 @@ Rectangle {
     property bool showDetails: false
     property bool showActions: false
 
+    readonly property real cardRadius: 28
+    readonly property real sectionGap: 16
+    readonly property real noCardTextSize: 14
+    readonly property real stackChipSize: 18
+    readonly property real stackIconSize: 11
+    readonly property real stackPeek: 7
+    readonly property real stackGapOpen: 4
+    readonly property real stackRing: 1.5
+    readonly property real stackLabelGap: 8
+    readonly property real stackLabelMaxWidth: 96
+    readonly property real offlineChipOpacity: 0.6
+
     function nextDevice(): void {
         const i = root.devices.indexOf(root.device);
         root.pickedDeviceId = root.devices[(i + 1) % root.devices.length]?.device_id ?? "";
@@ -42,7 +54,7 @@ Rectangle {
 
     Layout.fillWidth: true
     implicitHeight: content.implicitHeight + 24
-    radius: Appearance.rounding.normal
+    radius: root.cardRadius
     color: Appearance.colors.colLayer1
     opacity: root.offline ? 0.6 : 1
     clip: true // Content is full height immediately; without this the bg catches up visibly
@@ -74,7 +86,7 @@ Rectangle {
             top: parent.top
             margins: 12
         }
-        spacing: 8
+        spacing: 0
 
         RowLayout {
             Layout.fillWidth: true
@@ -150,71 +162,95 @@ Rectangle {
                 }
             }
 
-            Rectangle { // Which card of the account is shown, and the way to the next one
+            RowLayout { // Which card of the account is shown: a stack of chips that fans out on hover
+                id: deviceStack
                 objectName: "deviceChip"
                 visible: root.devices.length > 1 && !root.hidden
                 Layout.alignment: Qt.AlignVCenter
-                Layout.maximumWidth: 140
-                radius: Appearance.rounding.full
-                color: chipArea.containsMouse ? Appearance.colors.colLayer2Hover : Appearance.colors.colLayer2
-                implicitWidth: deviceChip.implicitWidth + 14
-                implicitHeight: deviceChip.implicitHeight + 6
+                spacing: root.stackLabelGap
 
-                Behavior on color {
-                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                readonly property bool open: stackHover.hovered
+                readonly property int current: root.devices.indexOf(root.device)
+                property real spread: open ? 1 : 0
+                property int pointed: -1
+
+                onOpenChanged: if (!deviceStack.open)
+                    deviceStack.pointed = -1
+
+                Behavior on spread {
+                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                 }
 
-                RowLayout {
-                    id: deviceChip
-                    anchors.centerIn: parent
-                    width: Math.min(implicitWidth, parent.width - 14)
-                    spacing: 3
+                HoverHandler {
+                    id: stackHover
+                }
 
-                    MaterialSymbol {
-                        text: Fresence.deviceIconFor(root.device)
-                        iconSize: Appearance.font.pixelSize.normal
-                        color: Appearance.colors.colSubtext
+                StyledText {
+                    visible: deviceStack.spread > 0
+                    opacity: deviceStack.spread
+                    Layout.maximumWidth: root.stackLabelMaxWidth
+                    elide: Text.ElideRight
+                    textFormat: Text.PlainText
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.weight: Font.Medium
+                    color: Appearance.colors.colSubtext
+                    text: Fresence.deviceNameFor(root.devices[deviceStack.pointed >= 0 ? deviceStack.pointed : deviceStack.current])
+                }
+
+                Item {
+                    id: chipStrip
+                    readonly property real gap: -(root.stackChipSize - root.stackPeek) + (root.stackGapOpen + root.stackChipSize - root.stackPeek) * deviceStack.spread
+
+                    implicitWidth: root.devices.length * root.stackChipSize + (root.devices.length - 1) * chipStrip.gap
+                    implicitHeight: root.stackChipSize
+
+                    Repeater {
+                        model: root.devices
+
+                        delegate: Rectangle {
+                            id: stackChip
+                            required property var modelData
+                            required property int index
+                            readonly property bool active: stackChip.index === deviceStack.current
+
+                            x: stackChip.index * (root.stackChipSize + chipStrip.gap)
+                            z: -Math.abs(stackChip.index - deviceStack.current)
+                            width: root.stackChipSize
+                            height: root.stackChipSize
+                            radius: width / 2
+                            opacity: stackChip.modelData.online ? 1 : root.offlineChipOpacity
+                            color: stackChip.active ? Appearance.colors.colSecondaryContainer : Appearance.colors.colSurfaceContainerHighest
+                            border.width: root.stackRing
+                            border.color: root.color
+
+                            MaterialSymbol {
+                                anchors.centerIn: parent
+                                opacity: stackChip.active ? 1 : deviceStack.spread
+                                iconSize: root.stackIconSize
+                                text: Fresence.deviceIconFor(stackChip.modelData)
+                                color: stackChip.active ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colSubtext
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: deviceStack.open
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onContainsMouseChanged: if (containsMouse)
+                                    deviceStack.pointed = stackChip.index
+                                onClicked: root.pickedDeviceId = stackChip.modelData.device_id
+                            }
+                        }
                     }
-
-                    StyledText {
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: Appearance.colors.colSubtext
-                        text: Fresence.deviceNameFor(root.device)
-                    }
-                }
-
-                MouseArea {
-                    id: chipArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.nextDevice()
-                }
-
-                StyledToolTip {
-                    extraVisibleCondition: false
-                    alternativeVisibleCondition: chipArea.containsMouse
-                    text: Translation.tr("%1 devices, click for the next one").arg(root.devices.length)
                 }
             }
         }
 
         StyledText {
-            visible: root.deviceAway && !isNaN(Date.parse(root.device?.seen_at ?? ""))
-            Layout.fillWidth: true
-            elide: Text.ElideRight
-            font.pixelSize: Appearance.font.pixelSize.smaller
-            color: Appearance.colors.colSubtext
-            text: Translation.tr("Last seen %1").arg(Fresence.agoText(Date.parse(root.device?.seen_at ?? "")))
-        }
-
-        StyledText {
             visible: root.devices.length === 0 && !root.offline && !root.hidden
             Layout.fillWidth: true
-            font.pixelSize: Appearance.font.pixelSize.smaller
+            Layout.topMargin: root.sectionGap
+            font.pixelSize: root.noCardTextSize
             color: Appearance.colors.colSubtext
             text: Translation.tr("The card has not arrived yet")
         }
@@ -222,6 +258,7 @@ Rectangle {
         CardGrid {
             id: rowGrid
             Layout.fillWidth: true
+            Layout.topMargin: root.sectionGap
             visible: root.bodyShown && rowGrid.rowsUsed > 0
             opacity: root.deviceAway ? 0.6 : 1
             device: root.device
@@ -231,7 +268,7 @@ Rectangle {
 
         CardGrid {
             Layout.fillWidth: true
-            Layout.topMargin: 4
+            Layout.topMargin: root.sectionGap
             visible: root.showDetails && root.expandable
             opacity: root.deviceAway ? 0.6 : 1
             device: root.device
@@ -241,7 +278,7 @@ Rectangle {
 
         PresenceActions { // Middle click, own card only
             Layout.fillWidth: true
-            Layout.topMargin: 4
+            Layout.topMargin: 12
             visible: root.showActions && root.canShare
         }
     }

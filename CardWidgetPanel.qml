@@ -42,12 +42,18 @@ ColumnLayout {
             root.changed(Rules.withFields(root.widget, fields));
     }
 
+    readonly property real panelRadius: 26
+    readonly property int fieldTitleSize: 14
+    readonly property real sectionPadding: 16
+    readonly property real headerEndPadding: 4
+    readonly property real panelPadding: 8
+
     spacing: 12
 
     Rectangle {
         Layout.fillWidth: true
-        implicitHeight: content.implicitHeight + 16
-        radius: Appearance.rounding.large
+        implicitHeight: content.implicitHeight + 2 * root.panelPadding
+        radius: root.panelRadius
         color: Appearance.colors.colLayer2
 
         ColumnLayout {
@@ -56,13 +62,15 @@ ColumnLayout {
                 left: parent.left
                 right: parent.right
                 top: parent.top
-                margins: 8
+                topMargin: root.panelPadding
             }
             spacing: 12
 
             RippleButton {
                 objectName: "widgetPanelHeader"
                 Layout.fillWidth: true
+                Layout.leftMargin: root.sectionPadding
+                Layout.rightMargin: root.headerEndPadding
                 implicitHeight: 40
                 buttonRadius: Appearance.rounding.full
                 colBackground: "transparent"
@@ -93,6 +101,8 @@ ColumnLayout {
 
             MaterialTextField {
                 Layout.fillWidth: true
+                Layout.leftMargin: root.sectionPadding
+                Layout.rightMargin: root.sectionPadding
                 visible: root.widget?.type === "image"
                 placeholderText: Translation.tr("Image address https://")
                 text: root.widget?.url ?? ""
@@ -107,6 +117,8 @@ ColumnLayout {
 
             ChessUserField {
                 Layout.fillWidth: true
+                Layout.leftMargin: root.sectionPadding
+                Layout.rightMargin: root.sectionPadding
                 visible: root.widget?.type === "chess"
                 user: root.config?.chess_user ?? ""
                 check: root.chessCheck
@@ -115,6 +127,8 @@ ColumnLayout {
 
             MaterialTextField {
                 Layout.fillWidth: true
+                Layout.leftMargin: root.sectionPadding
+                Layout.rightMargin: root.sectionPadding
                 visible: root.valueSource !== null
                 placeholderText: Translation.tr("Value name")
                 text: root.widget?.label ?? ""
@@ -128,6 +142,8 @@ ColumnLayout {
 
             ValueFields {
                 Layout.fillWidth: true
+                Layout.leftMargin: root.sectionPadding
+                Layout.rightMargin: root.sectionPadding
                 visible: root.valueSource !== null
                 source: root.valueSource ?? ({})
                 onChanged: v => root.valueChanged(v)
@@ -144,6 +160,9 @@ ColumnLayout {
 
             ColumnLayout {
                 Layout.fillWidth: true
+                Layout.leftMargin: root.sectionPadding
+                Layout.rightMargin: root.sectionPadding
+                Layout.bottomMargin: root.panelPadding
                 spacing: 14
 
                 MaterialTextField {
@@ -167,7 +186,7 @@ ColumnLayout {
                     StyledText {
                         text: Translation.tr("Icon")
                         color: Appearance.colors.colSubtext
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.pixelSize: root.fieldTitleSize
                     }
                     IconPicker {
                         Layout.fillWidth: true
@@ -186,7 +205,7 @@ ColumnLayout {
                     StyledText {
                         text: Translation.tr("Color")
                         color: Appearance.colors.colSubtext
-                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.pixelSize: root.fieldTitleSize
                     }
                     ColorPicker {
                         Layout.fillWidth: true
@@ -209,7 +228,7 @@ ColumnLayout {
                         StyledText {
                             text: Translation.tr("Shape")
                             color: Appearance.colors.colSubtext
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: root.fieldTitleSize
                         }
                         ShapePicker {
                             selected: root.widget?.shape ?? "rounded"
@@ -227,7 +246,7 @@ ColumnLayout {
                         StyledText {
                             text: Translation.tr("Time")
                             color: Appearance.colors.colSubtext
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: root.fieldTitleSize
                         }
                         ConfigSelectionArray {
                             Layout.fillWidth: true
@@ -260,7 +279,7 @@ ColumnLayout {
                         StyledText {
                             text: Translation.tr("Background")
                             color: Appearance.colors.colSubtext
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: root.fieldTitleSize
                         }
                         ConfigSelectionArray {
                             Layout.fillWidth: true
@@ -304,7 +323,7 @@ ColumnLayout {
                         StyledText {
                             text: Translation.tr("When there is no data")
                             color: Appearance.colors.colSubtext
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: root.fieldTitleSize
                         }
                         ConfigSelectionArray {
                             Layout.fillWidth: true
@@ -499,8 +518,9 @@ ColumnLayout {
         property var device: null
         signal picked(var variant)
 
-        readonly property real cell: 40
-        readonly property real cellGap: 4
+        readonly property real cell: 56
+        readonly property real cellGap: 8
+        readonly property real sidePadding: 16
         readonly property int tallestRows: gallery.variants.reduce((m, v) => Math.max(m, v.size.rows), 1)
 
         function span(cells): real {
@@ -511,12 +531,13 @@ ColumnLayout {
 
         StyledFlickable {
             anchors.fill: parent
-            contentWidth: row.implicitWidth
+            contentWidth: row.implicitWidth + 2 * gallery.sidePadding
             flickableDirection: Flickable.HorizontalFlick
             clip: true
 
             RowLayout {
                 id: row
+                x: gallery.sidePadding
                 height: parent.height
                 spacing: 12
 
@@ -540,6 +561,7 @@ ColumnLayout {
                             Layout.preferredHeight: gallery.span(gallery.tallestRows)
 
                             CardTile {
+                                id: variantTile
                                 width: gallery.span(variantCell.modelData.size.cols)
                                 height: gallery.span(variantCell.modelData.size.rows)
                                 anchors.bottom: parent.bottom
@@ -549,13 +571,11 @@ ColumnLayout {
                                     })
                                 device: gallery.device
 
-                                Rectangle {
+                                CardOutline {
                                     anchors.fill: parent
                                     visible: variantCell.isSelected
-                                    radius: Appearance.rounding.large
-                                    color: "transparent"
-                                    border.width: 2
-                                    border.color: Appearance.colors.colPrimary
+                                    shape: variantTile.shape
+                                    color: Appearance.colors.colPrimary
                                 }
 
                                 MouseArea {
@@ -568,9 +588,9 @@ ColumnLayout {
 
                         StyledText {
                             Layout.preferredWidth: gallery.span(variantCell.modelData.size.cols)
-                            horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
                             font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.weight: Font.Medium
                             color: variantCell.isSelected ? Appearance.colors.colPrimary : Appearance.colors.colSubtext
                             text: variantCell.modelData.form ? Translation.tr(Rules.formNames[variantCell.modelData.form] ?? variantCell.modelData.form) : `${variantCell.modelData.size.cols}x${variantCell.modelData.size.rows}`
                         }
@@ -698,16 +718,16 @@ ColumnLayout {
 
                 implicitWidth: 36
                 implicitHeight: 36
-                buttonRadius: shapeSwatch.modelData === "circle" ? width / 2 : Appearance.rounding.large
+                buttonRadius: shapeSwatch.modelData === "circle" ? width / 2 : CardLayouts.roundedRadius
                 colBackground: "transparent"
-                colBackgroundHover: Appearance.colors.colLayer2Hover
+                colBackgroundHover: "transparent"
                 onClicked: shapePicker.picked(shapeSwatch.modelData)
 
                 contentItem: Item {
                     Rectangle {
                         anchors.fill: parent
                         visible: !shapeSwatch.polygon
-                        radius: shapeSwatch.modelData === "circle" ? width / 2 : Appearance.rounding.large
+                        radius: shapeSwatch.modelData === "circle" ? width / 2 : CardLayouts.roundedRadius
                         color: shapeSwatch.on ? Appearance.colors.colPrimary : Appearance.colors.colSurfaceContainerHighest
                     }
                     MaterialShape {

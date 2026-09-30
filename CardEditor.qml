@@ -24,6 +24,7 @@ Item {
     property var chessCheck: null
     property string saveError: ""
 
+    readonly property int sectionTitleSize: 14
     property string grid: "row"
     property int selectedIndex: -1
     // null, or where the data sheet puts what it picks: { "at": [col, row] | null }, { "replace": index } or { "status": true }
@@ -319,12 +320,12 @@ Item {
                 StyledText {
                     text: Translation.tr("Instead of Online")
                     color: Appearance.colors.colSubtext
-                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.pixelSize: root.sectionTitleSize
                 }
 
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: 8
 
                     Repeater {
                         model: Rules.statusOf(root.draft)
@@ -342,10 +343,19 @@ Item {
 
                     RippleButtonWithIcon {
                         buttonRadius: Appearance.rounding.full
+                        colBackground: "transparent"
                         materialIcon: "add"
                         mainText: Translation.tr("Add source")
                         onClicked: root.picking = {
                             "status": true
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: parent.buttonRadius
+                            color: "transparent"
+                            border.width: 1
+                            border.color: Appearance.colors.colOutlineVariant
                         }
                     }
                 }
@@ -385,6 +395,8 @@ Item {
             CardGridEditor {
                 id: gridEditor
                 Layout.fillWidth: true
+                Layout.topMargin: gridEditor.handleOverhang
+                Layout.bottomMargin: gridEditor.handleOverhang
                 widgets: root.widgets
                 grid: root.grid
                 device: root.device
@@ -457,6 +469,11 @@ Item {
         visible: root.picking !== null
         config: root.draft ?? ({})
         state: root.device?.state ?? null
+        target: root.picking
+        widgets: root.widgets
+        grid: root.grid
+        photoFile: root.device?.photo_file ?? ""
+        clipFile: root.device?.clip_file ?? ""
         otherTypes: root.picking?.status ? [] : Rules.otherTypes
         onPicked: (type, source) => root.pick(root.draft, type, source, null)
         onValueCreated: (name, source) => root.createValue(name, source)

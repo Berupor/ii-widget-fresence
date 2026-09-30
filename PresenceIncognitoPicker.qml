@@ -13,8 +13,10 @@ Item {
     property bool open: false
     property int hovered: -1
 
-    readonly property int chipSize: 34
-    readonly property int chipSpacing: 6
+    readonly property real maxChipSize: 56
+    readonly property real restScale: 0.84
+    readonly property real glyphScale: 0.42
+    readonly property real chipSize: Math.min(root.width / root.choices.length, root.maxChipSize)
 
     // Durations wear their own number: clock glyphs all look alike at chip size.
     readonly property var choices: [
@@ -61,7 +63,7 @@ Item {
     function hoverAt(x: real, y: real): void {
         if (!root.open)
             return;
-        const index = Math.floor(x / (root.chipSize + root.chipSpacing));
+        const index = Math.floor(x / root.chipSize);
         const inside = y > -24 && y < root.height + 24 && index >= 0 && index < root.choices.length;
         root.hovered = inside ? index : -1;
     }
@@ -76,7 +78,6 @@ Item {
     Row {
         id: chips
         anchors.verticalCenter: parent.verticalCenter
-        spacing: root.chipSpacing
 
         Repeater {
             model: root.choices
@@ -89,7 +90,7 @@ Item {
                 required property int index
 
                 readonly property bool active: root.hovered === chip.index
-                readonly property real disc: root.open ? (chip.active ? root.chipSize : root.chipSize - 5) : 0
+                readonly property real disc: root.open ? (chip.active ? root.chipSize : root.chipSize * root.restScale) : 0
 
                 width: root.chipSize
                 height: root.chipSize
@@ -142,7 +143,7 @@ Item {
                     visible: chip.modelData.icon.length > 0
                     fill: 0 // Filled symbols turn to mush at chip size
                     text: chip.modelData.icon
-                    iconSize: Appearance.font.pixelSize.large
+                    iconSize: root.chipSize * root.glyphScale
                     color: chip.active ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colOnLayer2
                 }
 

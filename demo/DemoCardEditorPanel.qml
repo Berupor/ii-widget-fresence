@@ -55,7 +55,7 @@ Item {
     }
 
     function choices(): var {
-        return Items.findAll(editor, it => it.preview !== undefined && it.removable !== undefined);
+        return Items.findAll(editor, it => it.tile !== undefined && it.removable !== undefined);
     }
 
     function choice(title): var {
@@ -68,10 +68,6 @@ Item {
 
     function field(placeholder): var {
         return Items.findAll(editor, it => it.placeholderText === placeholder)[0];
-    }
-
-    function mainButton(text): var {
-        return Items.findAll(editor, it => it.mainText === text)[0];
     }
 
     function galleryCells(): var {
@@ -110,19 +106,17 @@ Item {
             root.seen.afterReplace = [replaced.place, replaced.icon, replaced.color, replaced.form, "label" in replaced];
 
             editor.startAdding();
-            root.choice("New value").clicked();
-            root.field("Name").text = "Mood";
-            root.mainButton("Add").clicked();
+            root.choice("Text").clicked();
             const created = editor.widgets[editor.widgets.length - 1];
-            root.seen.createdValue = [editor.draft.values.mood.value.text, created.source, created.label];
+            root.seen.createdValue = [editor.draft.values.text.value.text, created.source, created.label];
 
             editor.picking = {
                 "at": null
             };
-            root.choice("Mood").removeRequested();
-            root.seen.deletedValue = editor.draft.values.mood;
+            root.choices().find(c => c.title === "Text" && c.removable).removeRequested();
+            root.seen.deletedValue = editor.draft.values.text;
             editor.picking = null;
-            editor.editWidgets(editor.widgets.filter(w => w.source !== "mood"), -1);
+            editor.editWidgets(editor.widgets.filter(w => w.source !== "text"), -1);
 
             editor.selectedIndex = 0;
             root.seen.variantCount = root.galleryCells().length;
@@ -188,7 +182,7 @@ Item {
             {
                 "name": "creating a custom value adds the value and a widget bound to it with the label",
                 "got": root.seen.createdValue,
-                "want": ["Mood", "mood", "Mood"]
+                "want": ["Text", "text", "Text"]
             },
             {
                 "name": "deleting a value removes it from the config",

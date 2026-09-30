@@ -27,7 +27,12 @@ Item {
     readonly property real spacing: CardLayouts.gap
     readonly property real cellSize: Math.max(0, (root.width - (root.columns - 1) * root.spacing) / root.columns)
     readonly property real step: root.cellSize + root.spacing
-    readonly property real handleSize: 22
+    readonly property real handleSize: 32
+    readonly property real handleOverhang: root.handleSize * 0.25
+    readonly property real emptyCellDash: 8
+    readonly property real emptyCellDashGap: 6
+    readonly property real emptyCellStroke: 1.5
+    readonly property real selectionBorder: 2
     property var stretched: null
 
     function span(cells: int): real {
@@ -35,6 +40,12 @@ Item {
     }
 
     implicitHeight: root.span(root.rows)
+
+    function shapeAt(widget, place): string {
+        return CardLayouts.shownShape(Object.assign({}, widget, {
+            "place": place
+        }));
+    }
 
     Repeater {
         model: root.columns * root.rows
@@ -49,15 +60,8 @@ Item {
             y: emptyCell.row * root.step
             width: root.cellSize
             height: root.cellSize
-            hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.emptyCellClicked(emptyCell.col, emptyCell.row)
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Appearance.rounding.large
-                color: emptyCell.containsMouse ? Appearance.colors.colLayer2Hover : "transparent"
-            }
 
             Shape {
                 anchors.fill: parent
@@ -65,17 +69,17 @@ Item {
 
                 ShapePath {
                     strokeColor: Appearance.colors.colOutlineVariant
-                    strokeWidth: 1.5
+                    strokeWidth: root.emptyCellStroke
                     strokeStyle: ShapePath.DashLine
-                    dashPattern: [5, 4]
+                    dashPattern: [root.emptyCellDash / root.emptyCellStroke, root.emptyCellDashGap / root.emptyCellStroke]
                     fillColor: "transparent"
 
                     PathRectangle {
-                        x: 0.75
-                        y: 0.75
-                        width: emptyCell.width - 1.5
-                        height: emptyCell.height - 1.5
-                        radius: Appearance.rounding.large
+                        x: root.emptyCellStroke / 2
+                        y: root.emptyCellStroke / 2
+                        width: emptyCell.width - root.emptyCellStroke
+                        height: emptyCell.height - root.emptyCellStroke
+                        radius: CardLayouts.roundedRadius
                     }
                 }
             }
@@ -83,7 +87,7 @@ Item {
             MaterialSymbol {
                 anchors.centerIn: parent
                 text: "add"
-                iconSize: Appearance.font.pixelSize.larger
+                iconSize: 18
                 color: Appearance.colors.colOutlineVariant
             }
         }
@@ -143,13 +147,12 @@ Item {
                     device: root.previewDevice
                 }
 
-                Rectangle {
+                CardOutline {
                     anchors.fill: parent
                     visible: cell.isSelected
-                    radius: Appearance.rounding.large
-                    color: "transparent"
-                    border.width: 2
-                    border.color: Appearance.colors.colPrimary
+                    shape: root.shapeAt(cell.modelData, cell.place)
+                    borderWidth: root.selectionBorder
+                    color: Appearance.colors.colPrimary
                 }
 
                 MouseArea {
@@ -179,17 +182,16 @@ Item {
                 }
             }
 
-            Rectangle {
+            CardOutline {
                 visible: cell.drag === "move"
                 x: (cell.target?.col ?? 0) * root.step
                 y: (cell.target?.row ?? 0) * root.step
                 width: root.span(cell.target?.cols ?? 0)
                 height: root.span(cell.target?.rows ?? 0)
                 z: 3
-                radius: Appearance.rounding.large
-                color: "transparent"
-                border.width: 2
-                border.color: cell.targetValid ? Appearance.colors.colPrimary : Appearance.colors.colError
+                shape: cell.target ? root.shapeAt(cell.modelData, cell.target) : "rounded"
+                borderWidth: root.selectionBorder
+                color: cell.targetValid ? Appearance.colors.colPrimary : Appearance.colors.colError
             }
 
             CornerHandle {
@@ -253,7 +255,7 @@ Item {
         MaterialSymbol {
             anchors.centerIn: parent
             text: handle.symbol
-            iconSize: Appearance.font.pixelSize.smaller
+            iconSize: 18
             color: handle.content
         }
 
