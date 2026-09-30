@@ -67,6 +67,16 @@ Item {
             "city": "Amsterdam"
         },
         {
+            "key": "partly",
+            "condition": "partly",
+            "temp": 17,
+            "nightTemp": 10,
+            "precip": 0,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Prague"
+        },
+        {
             "key": "rain",
             "condition": "rain",
             "temp": 14,
@@ -234,6 +244,87 @@ Item {
             "wind": 20,
             "windDir": 270,
             "city": "Denver"
+        },
+        {
+            "key": "drizzle_light",
+            "condition": "drizzle",
+            "temp": 12,
+            "precip": 0.1,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Cork"
+        },
+        {
+            "key": "drizzle_steady",
+            "condition": "drizzle",
+            "temp": 12,
+            "precip": 1,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Galway"
+        },
+        {
+            "key": "rain_downpour",
+            "condition": "rain",
+            "temp": 12,
+            "precip": 10,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Singapore"
+        },
+        {
+            "key": "showers_heavy",
+            "condition": "showers",
+            "temp": 12,
+            "precip": 10,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Darwin"
+        },
+        {
+            "key": "snow_light",
+            "condition": "snow",
+            "temp": -3,
+            "precip": 0.3,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Tallinn"
+        },
+        {
+            "key": "snow_heavy",
+            "condition": "snow",
+            "temp": -3,
+            "precip": 5,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Sapporo"
+        },
+        {
+            "key": "snow_blizzard",
+            "condition": "snow",
+            "temp": -15,
+            "precip": 2,
+            "wind": 45,
+            "windDir": 270,
+            "city": "Reykjavik"
+        },
+        {
+            "key": "clear_freezing",
+            "condition": "clear",
+            "temp": -20,
+            "precip": 0,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Norilsk"
+        },
+        {
+            "key": "clear_scorching",
+            "condition": "clear",
+            "temp": 35,
+            "precip": 0,
+            "wind": 10,
+            "windDir": 270,
+            "city": "Cairo"
         },
         {
             "key": "clear_gale",

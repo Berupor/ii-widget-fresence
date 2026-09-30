@@ -9,6 +9,7 @@ TileNumber {
     // Keep this fraction matching WeatherSky's sceneStart: they split the same tile,
     // text on the left, sky scene on the right.
     readonly property real textFraction: 0.45
+    readonly property real valueMaxSize: 40
     readonly property bool wide: form.card.wide
     readonly property string cityText: form.weather?.place ?? ""
     readonly property string tempText: form.weather ? `${Math.round(form.weather.temp_c)}°` : "-"
@@ -34,15 +35,15 @@ TileNumber {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignLeft
                 largestSize: Math.max(Appearance.font.pixelSize.smallest, Math.round(form.height * 0.15))
-                wrapBelow: Appearance.font.pixelSize.smallest
                 text: form.cityText
                 color: form.card.mutedContentColor
             }
             ShrinkThenWrapText {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignLeft
-                largestSize: Math.max(Appearance.font.pixelSize.huge, Math.round(form.height * 0.4))
+                largestSize: form.valueMaxSize
                 maxLines: 1
+                value: true
                 animateChange: true
                 text: form.shownTempText
                 color: form.card.contentColor

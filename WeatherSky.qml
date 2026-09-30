@@ -64,21 +64,26 @@ Item {
     readonly property real hotC: 32
     readonly property real warmth: Math.max(0, Math.min(1, (sky.tempC - sky.coldC) / (sky.hotC - sky.coldC)))
     readonly property real toneSaturation: 0.85
-    // colPrimary runs pastel-light in this theme; clamped so the hue still reads as a
-    // color instead of washing out toward white.
-    readonly property real toneLightness: Math.min(Appearance.colors.colPrimary.hslLightness, 0.62)
+    readonly property bool darkTheme: sky.contentColor.hslLightness > 0.5
+    readonly property color pastelPrimary: sky.darkTheme ? Appearance.colors.colPrimary : Appearance.m3colors.m3inversePrimary
+    readonly property real maxToneLightness: 0.62
+    readonly property real toneLightness: Math.min(sky.pastelPrimary.hslLightness, sky.maxToneLightness)
     readonly property color coldTone: Qt.hsla(0.6, sky.toneSaturation, sky.toneLightness, 1)
     readonly property color hotTone: Qt.hsla(0.07, sky.toneSaturation, sky.toneLightness, 1)
     // Mixed in RGB: a hue rotation from blue to orange passes through green.
     readonly property color toneWash: ColorUtils.applyAlpha(ColorUtils.mix(sky.hotTone, sky.coldTone, sky.warmth), 0.48)
-    readonly property color nightWash: ColorUtils.transparentize(Appearance.colors.colScrim, 0.45)
+    readonly property real darkNightFade: 0.45
+    readonly property real lightNightFade: 0.75
+    readonly property color nightWash: ColorUtils.transparentize(Appearance.colors.colScrim, sky.darkTheme ? sky.darkNightFade : sky.lightNightFade)
 
+    readonly property color glowColor: ColorUtils.transparentize(sky.contentColor, 0.65)
+    readonly property color glowClearColor: ColorUtils.transparentize(sky.contentColor, 1)
     readonly property color sunColor: ColorUtils.transparentize(sky.contentColor, 0.05)
     readonly property color rayColor: ColorUtils.transparentize(sky.contentColor, 0.25)
     readonly property color moonColor: ColorUtils.transparentize(sky.contentColor, 0.1)
     readonly property color earthshineColor: ColorUtils.transparentize(sky.contentColor, 0.85)
     readonly property color starColor: ColorUtils.transparentize(sky.contentColor, 0.25)
-    readonly property color cloudColor: ColorUtils.transparentize(sky.contentColor, 0.55)
+    readonly property color cloudColor: ColorUtils.transparentize(sky.contentColor, 0.3)
     readonly property color rainColor: ColorUtils.transparentize(sky.contentColor, 0.3)
     readonly property color drizzleColor: ColorUtils.transparentize(sky.contentColor, 0.45)
     readonly property color hailColor: ColorUtils.transparentize(sky.contentColor, 0.05)
@@ -95,6 +100,11 @@ Item {
         return v - Math.floor(v);
     }
 
+    readonly property real cloudCrossingMs: 22000
+    readonly property real minCloudCrossingMs: 6000
+    readonly property real cloudCrossingMsPerKmph: 150
+    readonly property real splashShare: 0.22
+    readonly property real splashSize: 7
     readonly property int firstStrikeMs: 900
     readonly property int flashRiseMs: 70
     readonly property int flashFallMs: 220
@@ -104,14 +114,21 @@ Item {
         return 1800 + sky.hash(strike) * 3000;
     }
 
-    function pinnedFlashOpacity(phase) {
+    function pinnedStrike(phase) {
         let strikeAt = sky.firstStrikeMs;
         let strike = 1;
         while (strikeAt + sky.strikeGapMs(strike) <= phase) {
             strikeAt += sky.strikeGapMs(strike);
             strike += 1;
         }
-        const sinceStrike = phase - strikeAt;
+        return {
+            "strike": strike,
+            "strikeAt": strikeAt
+        };
+    }
+
+    function pinnedFlashOpacity(phase) {
+        const sinceStrike = phase - sky.pinnedStrike(phase).strikeAt;
         if (sinceStrike < 0)
             return 0;
         if (sinceStrike < sky.flashRiseMs)
@@ -161,6 +178,26 @@ Item {
             "min": heldCloud.x + heldCloud.width * 0.1,
             "max": heldCloud.x + heldCloud.width * 0.9
         } : sky.driftSpawnRange(travel, sky.width);
+    }
+
+    component Halo: RadialGradient {
+        id: halo
+        required property real reach
+        anchors.centerIn: parent
+        width: halo.reach * 2
+        height: halo.width
+        horizontalRadius: halo.reach
+        verticalRadius: halo.reach
+        gradient: Gradient {
+            GradientStop {
+                position: 0
+                color: sky.glowColor
+            }
+            GradientStop {
+                position: 1
+                color: sky.glowClearColor
+            }
+        }
     }
 
     component Cycle: QtObject {
@@ -223,6 +260,10 @@ Item {
             x: sun.pos.x
             y: sun.pos.y
 
+            Halo {
+                reach: sun.width * 1.5
+            }
+
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
@@ -234,14 +275,19 @@ Item {
                 delegate: Rectangle {
                     id: ray
                     required property int index
+                    readonly property real innerReach: sun.width * 0.62
+                    readonly property real outerReach: sun.width * 0.85
                     width: sun.width * 0.12
-                    height: sun.width * 0.75
+                    height: ray.outerReach - ray.innerReach
                     radius: width / 2
                     color: sky.rayColor
                     anchors.horizontalCenter: sun.horizontalCenter
-                    transformOrigin: Item.Bottom
-                    y: sun.height / 2 - ray.height
-                    rotation: ray.index * (360 / 8)
+                    y: sun.height / 2 - ray.outerReach
+                    transform: Rotation {
+                        origin.x: ray.width / 2
+                        origin.y: ray.outerReach
+                        angle: ray.index * (360 / 8)
+                    }
                 }
             }
         }
@@ -267,6 +313,10 @@ Item {
             // and back out to r at new/full - Northern-hemisphere framing, so waxing
             // lights the right limb.
             readonly property string litPath: `M ${moon.r},0 A ${moon.r},${moon.r} 0 0 ${moon.outerSweep} ${moon.r},${2 * moon.r} A ${moon.terminatorRx},${moon.r} 0 0 ${moon.innerSweep} ${moon.r},0 Z`
+
+            Halo {
+                reach: moon.width * (0.9 + 0.6 * moon.illum)
+            }
 
             Rectangle {
                 anchors.fill: parent
@@ -315,6 +365,58 @@ Item {
                         easing.type: Easing.InOutQuad
                     }
                 }
+            }
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        visible: sky.showsSun && !sky.isDay
+
+        Item {
+            id: shootingStar
+            readonly property real everyMs: 6500
+            readonly property real flightMs: 650
+            readonly property real tailShare: 0.35
+            readonly property real lineWidth: 1.5
+            property real liveMs: 0
+            readonly property real ms: sky.animPhase >= 0 ? sky.animPhase : shootingStar.liveMs
+            readonly property int index: Math.floor(shootingStar.ms / shootingStar.everyMs)
+            readonly property real progress: (shootingStar.ms % shootingStar.everyMs) / shootingStar.flightMs
+            readonly property real travelX: Math.min(sky.width, sky.height) * 0.9
+            readonly property real travelY: Math.min(sky.width, sky.height) * 0.35
+            readonly property real startX: sky.sceneStart + sky.hash(shootingStar.index + 40) * (sky.width - sky.sceneStart) * 0.6
+            readonly property real startY: sky.hash(shootingStar.index + 41) * sky.height * 0.3
+            readonly property real midShare: shootingStar.progress - shootingStar.tailShare / 2
+            visible: shootingStar.index > 0 && shootingStar.progress < 1
+
+            Rectangle {
+                width: Math.hypot(shootingStar.travelX, shootingStar.travelY) * shootingStar.tailShare
+                height: shootingStar.lineWidth
+                radius: height / 2
+                x: shootingStar.startX + shootingStar.travelX * shootingStar.midShare - width / 2
+                y: shootingStar.startY + shootingStar.travelY * shootingStar.midShare - height / 2
+                rotation: Math.atan2(shootingStar.travelY, shootingStar.travelX) * 180 / Math.PI
+                opacity: Math.max(0, Math.sin(shootingStar.progress * Math.PI))
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop {
+                        position: 0
+                        color: ColorUtils.transparentize(sky.starColor, 1)
+                    }
+                    GradientStop {
+                        position: 1
+                        color: sky.starColor
+                    }
+                }
+            }
+
+            NumberAnimation on liveMs {
+                running: sky.running && sky.showsSun && !sky.isDay && sky.animPhase < 0
+                from: 0
+                to: shootingStar.everyMs * 1000
+                duration: shootingStar.everyMs * 1000
+                loops: Animation.Infinite
             }
         }
     }
@@ -388,36 +490,44 @@ Item {
 
         Repeater {
             model: sky.showsRain ? Math.round(8 + sky.intensity * 16) : 0
-            delegate: Rectangle {
-                id: drop
+            delegate: Item {
+                id: raindrop
                 required property int index
-                readonly property real fallDuration: 650 - sky.intensity * 250 + sky.hash(drop.index + 9) * 300
-                readonly property real fallSpan: sky.height - sky.precipTop + 2 * drop.height
-                readonly property real travelX: drop.fallSpan * Math.tan(sky.windTilt * Math.PI / 180)
-                readonly property var spawnRange: sky.precipSpawnRange(drop.travelX)
-                readonly property real startX: drop.spawnRange.min + sky.hash(drop.index + 3) * (drop.spawnRange.max - drop.spawnRange.min)
-                readonly property real pinnedProgress: (sky.animPhase % drop.fallDuration) / drop.fallDuration
-                width: 2
-                height: sky.height * (0.16 + sky.hash(drop.index) * 0.14)
-                radius: width / 2
-                color: sky.rainColor
-                rotation: -sky.windTilt
-                x: sky.animPhase >= 0 ? drop.startX + drop.travelX * drop.pinnedProgress : drop.startX
-                y: sky.precipTop - drop.height + (sky.animPhase >= 0 ? drop.fallSpan * drop.pinnedProgress : 0)
-
-                NumberAnimation on y {
-                    running: sky.running && sky.showsRain && sky.animPhase < 0
-                    from: sky.precipTop - drop.height
-                    to: sky.height + drop.height
-                    duration: drop.fallDuration
-                    loops: Animation.Infinite
+                readonly property real fallDuration: 650 - sky.intensity * 250 + sky.hash(raindrop.index + 9) * 300
+                readonly property real dropHeight: sky.height * (0.16 + sky.hash(raindrop.index) * 0.14)
+                readonly property real fallSpan: sky.height - sky.precipTop + 2 * raindrop.dropHeight
+                readonly property real travelX: raindrop.fallSpan * Math.tan(sky.windTilt * Math.PI / 180)
+                readonly property var spawnRange: sky.precipSpawnRange(raindrop.travelX)
+                readonly property real startX: raindrop.spawnRange.min + sky.hash(raindrop.index + 3) * (raindrop.spawnRange.max - raindrop.spawnRange.min)
+                readonly property real landsAt: (sky.height - sky.precipTop) / raindrop.fallSpan
+                readonly property real splashProgress: (raindrop.cycle.progress - raindrop.landsAt) / sky.splashShare
+                readonly property real splashWidth: sky.splashSize * (0.4 + 0.6 * raindrop.splashProgress)
+                readonly property Cycle cycle: Cycle {
+                    durationMs: raindrop.fallDuration
+                    offset: 0
                 }
-                NumberAnimation on x {
-                    running: sky.running && sky.showsRain && sky.animPhase < 0
-                    from: drop.startX
-                    to: drop.startX + drop.travelX
-                    duration: drop.fallDuration
-                    loops: Animation.Infinite
+
+                Rectangle {
+                    width: 2
+                    height: raindrop.dropHeight
+                    radius: width / 2
+                    color: sky.rainColor
+                    rotation: -sky.windTilt
+                    x: raindrop.startX + raindrop.travelX * raindrop.cycle.progress
+                    y: sky.precipTop - height + raindrop.fallSpan * raindrop.cycle.progress
+                }
+
+                Rectangle {
+                    visible: raindrop.splashProgress >= 0 && raindrop.splashProgress <= 1
+                    width: raindrop.splashWidth
+                    height: width * 0.35
+                    radius: height / 2
+                    color: "transparent"
+                    border.width: 1
+                    border.color: sky.rainColor
+                    opacity: 1 - raindrop.splashProgress
+                    x: raindrop.startX + raindrop.travelX * raindrop.landsAt + 1 - width / 2
+                    y: sky.height - width * 0.3
                 }
             }
         }
@@ -617,14 +727,17 @@ Item {
                     required property int index
                     readonly property real depth: 0.55 + sky.hash(cloud.index) * 0.45
                     readonly property real puffSize: Math.min(sky.width, sky.height) * (0.2 + 0.1 * cloud.depth)
-                    readonly property real layerLeft: sky.sceneStart - cloud.width * 0.1
-                    readonly property real layerRight: sky.width - cloud.width * 0.7
-                    readonly property real baseX: cloud.layerLeft + sky.hash(cloud.index + 7) * Math.max(0, cloud.layerRight - cloud.layerLeft)
+                    readonly property real crossingMs: Math.max(sky.minCloudCrossingMs, sky.cloudCrossingMs - sky.windKmph * sky.cloudCrossingMsPerKmph) / cloud.depth
+                    readonly property real travelled: cloud.cycle.progress * (sky.width + cloud.width)
+                    readonly property Cycle cycle: Cycle {
+                        durationMs: cloud.crossingMs
+                        offset: sky.hash(cloud.index + 7)
+                    }
                     width: cloud.puffSize * 2.4
                     height: cloud.puffSize * 1.3
-                    x: cloud.baseX
+                    x: sky.windTilt < 0 ? sky.width - cloud.travelled : cloud.travelled - cloud.width
                     y: sky.overcast ? sky.height * 0.18 * sky.hash(cloud.index + 2) - cloud.height * 0.2 : sky.height * 0.04 * sky.hash(cloud.index + 2) - cloud.height * 0.35
-                    opacity: 0.22 + 0.18 * cloud.depth
+                    opacity: 0.3 + 0.3 * cloud.depth
                     scale: 0.85 + 0.3 * cloud.depth
 
                     // Blurred here, on the static puffs, so drifting only moves the cached
@@ -658,21 +771,6 @@ Item {
                         color: sky.cloudColor
                         x: cloud.width - width - cloud.puffSize * 0.15
                         y: cloud.puffSize * 0.18
-                    }
-
-                    SequentialAnimation on x {
-                        running: sky.running && sky.showsClouds && sky.animPhase < 0
-                        loops: Animation.Infinite
-                        NumberAnimation {
-                            to: cloud.baseX + sky.width * (0.1 + sky.windKmph * 0.003)
-                            duration: (7800 - sky.windKmph * 40) / cloud.depth
-                            easing.type: Easing.InOutSine
-                        }
-                        NumberAnimation {
-                            to: cloud.baseX - sky.width * (0.1 + sky.windKmph * 0.003)
-                            duration: (7800 - sky.windKmph * 40) / cloud.depth
-                            easing.type: Easing.InOutSine
-                        }
                     }
                 }
             }
@@ -722,6 +820,33 @@ Item {
             GradientStop {
                 position: Math.min(1, sky.sceneStart / Math.max(1, sky.width) + 0.12)
                 color: "white"
+            }
+        }
+    }
+
+    Shape {
+        id: bolt
+        readonly property int strike: sky.animPhase >= 0 ? sky.pinnedStrike(sky.animPhase).strike : flashTimer.strikes
+        readonly property real length: sky.height * (sky.wide ? 0.75 : 0.32)
+        readonly property real step: Math.min(sky.width, sky.height) * 0.08
+        readonly property int segments: 5
+        readonly property real topX: sky.sceneStart + (0.2 + 0.6 * sky.hash(bolt.strike + 60)) * (sky.width - sky.sceneStart)
+        readonly property var points: [Qt.point(bolt.topX, 0)].concat(Array.from({
+            "length": bolt.segments
+        }, (_, i) => Qt.point(bolt.topX + (i % 2 === 0 ? 1 : -1) * bolt.step * (0.5 + sky.hash(bolt.strike * 7 + i)), bolt.length * (i + 1) / bolt.segments)))
+        anchors.fill: parent
+        visible: sky.showsFlash && flash.opacity > 0
+        opacity: Math.min(1, 2 * flash.opacity)
+        preferredRendererType: Shape.CurveRenderer
+
+        ShapePath {
+            strokeColor: sky.flashColor
+            strokeWidth: 2.5
+            fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            joinStyle: ShapePath.RoundJoin
+            PathPolyline {
+                path: bolt.points
             }
         }
     }

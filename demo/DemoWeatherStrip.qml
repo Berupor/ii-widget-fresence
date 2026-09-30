@@ -2,7 +2,8 @@
 /**
  * The README's live weather strip: a curated handful of sky conditions - clear
  * day and night side by side, rain, thunder, snow, fog and a sunset - instead
- * of DemoWeather's full debug wall.
+ * of DemoWeather's full debug wall. `-p cycle=0` swaps the wall for one tile
+ * stepping through every condition every cycleStepMs.
  */
 import ".."
 import "lib/DemoSnapshot.js" as Demo
@@ -72,12 +73,45 @@ Item {
         root.wallTile("clouds", 1, "primary_container")
     ]
 
+    property int cycle: -1
+    readonly property int cycleStepMs: 3000
+    readonly property var cycleConditions: ["clear", "mostly_clear", "partly", "clouds", "fog", "drizzle", "rain", "showers", "thunder", "hail", "snow", "snow_grains", "snow_showers"]
+    readonly property var shownTiles: root.cycle >= 0 ? [root.conditionTile(root.cycleConditions[root.cycle % root.cycleConditions.length])] : root.wallTiles
+
+    function conditionTile(condition) {
+        return {
+            "widget": Demo.widget("weather", [0, 0, 2, 1], {
+                "form": "sky",
+                "color": "primary_container"
+            }),
+            "device": {
+                "device_id": `dev-${condition}`,
+                "online": true,
+                "state": {
+                    "weather": Demo.weather("London", 12, condition, {
+                        "wind_kmh": 10,
+                        "wind_dir_deg": 270,
+                        "sunrise": Demo.iso(-Demo.minutes(330)),
+                        "sunset": Demo.iso(Demo.minutes(root.dayLengthMin - 330))
+                    })
+                }
+            }
+        };
+    }
+
+    Timer {
+        interval: root.cycleStepMs
+        running: root.cycle >= 0
+        repeat: true
+        onTriggered: root.cycle += 1
+    }
+
     function checks() {
         return [
             {
                 "name": "every curated tile renders one CardTile with a sky",
                 "got": Items.tiles(wall).map(t => Items.byName(t, "tileWeatherSky")[0]?.status === 1),
-                "want": root.wallTiles.map(() => true)
+                "want": root.shownTiles.map(() => true)
             },
             {
                 "name": "every tile's form loads",
@@ -101,7 +135,7 @@ Item {
         spacing: root.gap
 
         Repeater {
-            model: root.wallTiles
+            model: root.shownTiles
             delegate: CardTile {
                 id: tileItem
                 required property var modelData
