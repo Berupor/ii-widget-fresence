@@ -13,9 +13,11 @@ Rectangle {
     id: root
     required property string source
     property list<string> fallbacks: []
-    property string fallbackIcon: "music_note"
+    property string fallbackIcon: root.mediaSymbol
     property color fallbackColor: Appearance.colors.colSubtext
     property real fallbackLift: 0
+    property var media: null
+    property real glyphSize: Math.round(root.height * 0.4)
     property int fillMode: Image.PreserveAspectCrop
     property string fit: "cover"
     property int horizontalAlignment: Image.AlignHCenter
@@ -23,8 +25,19 @@ Rectangle {
 
     readonly property int effectiveFillMode: root.fit === "stretch" ? Image.Stretch : root.fit === "blur" ? Image.PreserveAspectFit : root.fillMode
 
-    radius: Appearance.rounding.small
-    color: Appearance.colors.colLayer1
+    radius: 10
+    color: Qt.alpha(Appearance.colors.colOnLayer2, root.backingAlpha)
+
+    readonly property real backingAlpha: 0.08
+    readonly property real idleAlpha: 0.7
+    readonly property real idleSaturation: 0.15
+    readonly property real idleGlyphAlpha: 0.55
+    readonly property bool idle: root.media !== null && root.media.playing !== true
+    readonly property string mediaSymbol: {
+        if (/youtube/i.test(root.media?.player ?? ""))
+            return root.media.playing ? "play_arrow" : "pause";
+        return root.media?.kind === "video" ? "smart_display" : "music_note";
+    }
 
     property bool playing: true
     property bool settleGif: false
@@ -90,50 +103,61 @@ head -c4 "$target" 2>/dev/null
     }
 
     Item {
-        id: blurBackdrop
-        objectName: "pictureFitBackdrop"
-        // layer.enabled hides its own source item to show the blurred copy in its place -
-        // binding that item's own visible would fight that, so the fit switch lives here.
-        visible: root.fit === "blur"
+        id: picture
         anchors.fill: parent
 
-        Image {
-            objectName: "pictureFitBackdrop"
-            anchors.fill: parent
-            asynchronous: true
-            cache: false
-            source: root.fit === "blur" ? root.resolvedSource : ""
-            fillMode: Image.PreserveAspectCrop
-            sourceSize.width: 64
-            sourceSize.height: 64
+        opacity: root.idle ? root.idleAlpha : 1
+        layer.enabled: root.idle
+        layer.effect: HueSaturation {
+            saturation: root.idleSaturation - 1
+        }
 
-            layer.enabled: true
-            layer.effect: FastBlur {
-                radius: 48
+        Item {
+            id: blurBackdrop
+            objectName: "pictureFitBackdrop"
+            // layer.enabled hides its own source item to show the blurred copy in its place -
+            // binding that item's own visible would fight that, so the fit switch lives here.
+            visible: root.fit === "blur"
+            anchors.fill: parent
+
+            Image {
+                objectName: "pictureFitBackdrop"
+                anchors.fill: parent
+                asynchronous: true
+                cache: false
+                source: root.fit === "blur" ? root.resolvedSource : ""
+                fillMode: Image.PreserveAspectCrop
+                sourceSize.width: 64
+                sourceSize.height: 64
+
+                layer.enabled: true
+                layer.effect: FastBlur {
+                    radius: 48
+                }
             }
         }
-    }
 
-    Loader {
-        id: image
-        anchors.fill: parent
-        sourceComponent: root.isGif ? animatedArt : staticArt
+        Loader {
+            id: image
+            anchors.fill: parent
+            sourceComponent: root.isGif ? animatedArt : staticArt
 
-        layer.enabled: root.radius > 0 || root.fit === "blur"
-        layer.effect: OpacityMask {
-            maskSource: Rectangle {
-                width: image.width
-                height: image.height
-                radius: root.radius
+            layer.enabled: root.radius > 0 || root.fit === "blur"
+            layer.effect: OpacityMask {
+                maskSource: Rectangle {
+                    width: image.width
+                    height: image.height
+                    radius: root.radius
 
-                layer.enabled: root.fit === "blur"
-                layer.effect: OpacityMask {
-                    maskSource: PictureFitFeatherMask {
-                        objectName: "pictureFitFeather"
-                        width: image.width
-                        height: image.height
-                        paintedWidth: image.item?.paintedWidth ?? image.width
-                        paintedHeight: image.item?.paintedHeight ?? image.height
+                    layer.enabled: root.fit === "blur"
+                    layer.effect: OpacityMask {
+                        maskSource: PictureFitFeatherMask {
+                            objectName: "pictureFitFeather"
+                            width: image.width
+                            height: image.height
+                            paintedWidth: image.item?.paintedWidth ?? image.width
+                            paintedHeight: image.item?.paintedHeight ?? image.height
+                        }
                     }
                 }
             }
@@ -207,8 +231,8 @@ head -c4 "$target" 2>/dev/null
         visible: root.status !== Image.Ready && root.fallbackIcon.length > 0
         anchors.centerIn: parent
         anchors.verticalCenterOffset: -root.fallbackLift
-        iconSize: Math.round(root.height * 0.4)
-        color: root.fallbackColor
+        iconSize: root.glyphSize
+        color: Qt.alpha(root.fallbackColor, root.idle ? root.idleGlyphAlpha : 1)
         text: root.fallbackIcon
     }
 }

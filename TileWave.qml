@@ -35,7 +35,6 @@ Item {
             MediaTitle {
                 Layout.fillWidth: true
                 card: form.card
-                lines: 1
             }
             WaveBar {
                 objectName: "waveProgress"

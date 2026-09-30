@@ -16,7 +16,7 @@ Item {
     property bool settled: false
     property bool settleDue: false
     readonly property bool shouldLoop: root.autoLoop && root.onScreen && !root.settled && root.path.length > 0
-    property bool withSound: false
+    readonly property bool withSound: Fresence.loudClip === root
     property real lastPosition: 0
 
     function seekToStart(): void {
@@ -25,10 +25,17 @@ Item {
     }
 
     function replay(): void {
-        root.withSound = true;
+        Fresence.loudClip = root;
         sound.muted = false;
         root.seekToStart();
         player.play();
+    }
+
+    function toggleSound(): void {
+        if (root.withSound)
+            Fresence.releaseLoudClip(root);
+        else
+            root.replay();
     }
 
     function rest(): void {
@@ -44,17 +51,23 @@ Item {
     // A StoppedState leaves the output blank, so every pass ends on this wrap to the first frame instead of on a stop
     function passEnded(): void {
         if (root.withSound) {
-            root.withSound = false;
             root.settled = root.settles;
-            root.rest();
+            Fresence.releaseLoudClip(root);
         } else if (root.settleDue) {
             root.settled = true;
         }
     }
 
     onShouldLoopChanged: root.rest()
-    onOnScreenChanged: if (root.onScreen)
-        root.settled = false
+    onWithSoundChanged: if (!root.withSound)
+        root.rest()
+    onOnScreenChanged: {
+        if (root.onScreen)
+            root.settled = false;
+        else
+            Fresence.releaseLoudClip(root);
+    }
+    Component.onDestruction: Fresence.releaseLoudClip(root)
 
     Timer {
         running: root.settles && root.shouldLoop && !root.withSound
