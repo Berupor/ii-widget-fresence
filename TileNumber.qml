@@ -7,6 +7,7 @@ Item {
     required property var card
     property string caption: form.card.labelText
     property string value: form.card.valueText
+    readonly property real valueMaxSize: 40
 
     ColumnLayout {
         anchors.centerIn: parent
@@ -16,16 +17,16 @@ Item {
         ShrinkThenWrapText {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            largestSize: Math.max(Appearance.font.pixelSize.smallest, Math.round(form.height * 0.15))
-            wrapBelow: Appearance.font.pixelSize.smallest
+            largestSize: Math.min(Appearance.font.pixelSize.smaller, Math.max(Appearance.font.pixelSize.smallest, Math.round(form.height * 0.15)))
             text: form.caption
             color: form.card.mutedContentColor
         }
         ShrinkThenWrapText {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            largestSize: Math.max(Appearance.font.pixelSize.huge, Math.round(form.height * 0.4))
+            largestSize: form.valueMaxSize
             maxLines: 1
+            value: true
             animateChange: true
             text: form.card.hasData ? form.value : "-"
             color: form.card.contentColor

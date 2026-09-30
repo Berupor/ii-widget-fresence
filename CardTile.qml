@@ -114,9 +114,9 @@ Item {
         key: root.paletteFromMedia ? (root.media.artist || root.media.title || "") : ""
         neutral: !root.paletteFromMedia
     }
-    readonly property color mutedContentColor: ColorUtils.transparentize(root.contentColor, 0.35)
+    readonly property color mutedContentColor: ColorUtils.transparentize(root.contentColor, 0.28)
 
-    readonly property real dimmedOpacity: 0.45
+    readonly property real dimmedOpacity: 0.4
     opacity: root.dimmed ? root.dimmedOpacity : 1
 
     Behavior on opacity {
@@ -129,7 +129,7 @@ Item {
 
     readonly property string shape: CardLayouts.shownShape(root.widget)
     readonly property bool polygonMasked: root.shape === "cookie" || root.shape === "clover"
-    readonly property real radius: root.shape === "circle" ? Math.min(root.width, root.height) / 2 : Appearance.rounding.large
+    readonly property real radius: root.shape === "circle" ? Math.min(root.width, root.height) / 2 : CardLayouts.roundedRadius
     readonly property bool showsSky: root.type === "weather" && root.form === "sky"
 
     // CardLayouts.shownShape only ever resolves to cookie/clover on a square place, so
@@ -235,7 +235,7 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         enabled: clipVideo.status === Loader.Ready
-                        onClicked: clipVideo.item.replay()
+                        onClicked: clipVideo.item.toggleSound()
                     }
                 }
             }

@@ -6,6 +6,7 @@ ColumnLayout {
     id: form
     required property var card
     spacing: 2
+    readonly property real valueMaxSize: 40
 
     TileLabel {
         Layout.fillWidth: true
@@ -18,8 +19,9 @@ ColumnLayout {
         Layout.fillHeight: true
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
-        largestSize: Math.max(Appearance.font.pixelSize.huge, Math.round(Math.min(form.width, form.height) * 0.4))
-        maxLines: 3
+        largestSize: form.valueMaxSize
+        maxLines: 1
+        value: true
         animateChange: true
         text: form.card.shownValueText
         color: form.card.contentColor

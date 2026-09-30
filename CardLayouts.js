@@ -58,7 +58,8 @@ const formlessFiles = {
     "clock": "TileAnalogClock.qml"
 };
 
-const fullBleedTypes = ["game", "photo", "image"];
+const fullBleedTypes = ["game", "photo", "image", "clip"];
+const edgeToEdgeMediaForms = ["cover", "player", "vinyl", "sleeve"].map(form => formFiles.media[form]);
 
 function formsOf(type) {
     return Object.keys(formFiles[type] ?? {});
@@ -152,6 +153,8 @@ const insetMin = 10;
 const insetMax = 16;
 const insetMarginFraction = 0.2;
 const roundedRadius = 16;
+const fillAnimationMs = 600;
+const fillEasing = [0.4, 0, 0.2, 1, 1, 1];
 // Half-size of the largest centered square inside the cookie/clover polygons, from
 // app/shared ui/card/Tiles.kt RoundedPolygon.contentHalfSide.
 const cookieEdgeFraction = 0.1787;
@@ -186,7 +189,7 @@ function tileInset(width, height, shape) {
 
 // The chess board and rating pad themselves, edge to edge like ChessTiles.kt
 function edgeToEdge(widget) {
-    return widget?.type === "chess";
+    return widget?.type === "chess" || edgeToEdgeMediaForms.includes(formFile(widget));
 }
 
 function fullBleed(widget) {

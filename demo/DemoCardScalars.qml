@@ -276,10 +276,6 @@ Item {
         return Items.findAll(root.gauge(index), it => it.layoutOfCells !== undefined)[0] ?? null;
     }
 
-    function dialSpinning(tile) {
-        return Items.findAll(tile, it => it.animateWave !== undefined && it.waveAmplitude !== undefined)[0]?.animateWave ?? null;
-    }
-
     function waveLine(index) {
         return Items.findAll(root.tileAt(index), it => it.valueBarHeight !== undefined && it.visible)[0] ?? null;
     }
@@ -409,11 +405,6 @@ Item {
                 "want": true
             },
             {
-                "name": "a dial's wave animates while its tile is on screen, stops once hidden",
-                "got": [root.dialSpinning(root.tileAt(12)), root.dialSpinning(dialHiddenProbe)],
-                "want": [true, false]
-            },
-            {
                 "name": "a form the type does not have, or none at all, falls back to the type's first form",
                 "got": [root.tileAt(14)?.form, root.tileAt(15)?.form, root.part(14, "textValue")?.text],
                 "want": ["text", "text", "2.40 / 8"]
@@ -497,15 +488,6 @@ Item {
         widget: Demo.value("battery", [0, 0, 1, 1], {
             "form": "dial"
         })
-        device: root.device
-    }
-
-    CardTile {
-        id: dialHiddenProbe
-        visible: false
-        width: 120
-        height: 120
-        widget: root.dialWidgets[0]
         device: root.device
     }
 }

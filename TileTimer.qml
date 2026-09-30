@@ -25,6 +25,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             largestSize: Math.max(Appearance.font.pixelSize.huge, Math.round(form.height * 0.4))
             maxLines: 1
+            value: true
             text: {
                 if (!form.hasTime)
                     return form.card.value?.text || "-";

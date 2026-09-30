@@ -9,7 +9,8 @@ RowLayout {
     id: form
     required property var card
     readonly property real badgeSize: Math.min(form.height, 32)
-    spacing: 10
+    readonly property real sentenceMaxSize: 20
+    spacing: 8
 
     Rectangle {
         visible: form.card.icon.length > 0
@@ -29,7 +30,7 @@ RowLayout {
     ColumnLayout {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignVCenter
-        spacing: 2
+        spacing: 1
 
         ShrinkThenWrapText {
             Layout.fillWidth: true
@@ -42,7 +43,7 @@ RowLayout {
         ShrinkThenWrapText {
             objectName: "bannerValue"
             Layout.fillWidth: true
-            largestSize: Math.max(Appearance.font.pixelSize.normal, Math.round(form.height * 0.28))
+            largestSize: form.sentenceMaxSize
             maxLines: 2
             animateChange: true
             text: form.card.shownValueText

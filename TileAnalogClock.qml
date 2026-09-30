@@ -4,17 +4,19 @@ import qs.modules.common.functions
 import QtQuick
 import "CardLayouts.js" as CardLayouts
 
-/** An analog clock in the card owner's time zone, from state.utc_offset_s. */
+/** An analog clock in the card owner's time zone, from state.utc_offset_s, a dash while it is unknown. */
 Item {
     id: form
     required property var card
 
     readonly property var time: CardLayouts.clockAt(form.card.state?.utc_offset_s ?? 0, Fresence.now)
+    readonly property bool known: form.card.state?.utc_offset_s !== undefined && form.card.state?.utc_offset_s !== null
     readonly property real side: Math.min(form.width, form.height)
     readonly property real dialAlpha: 0.14
     readonly property real numeralAlpha: 0.16
     readonly property real hourBadgeAlpha: 0.22
     readonly property real minuteBadgeAlpha: 0.12
+    readonly property real badgeLetterSpacing: -0.02
     readonly property real badgeSize: form.side * 0.28
     readonly property real handWidthHour: form.side * 0.08
     readonly property real handWidthMinute: form.side * 0.05
@@ -25,9 +27,18 @@ Item {
         return ColorUtils.applyAlpha(form.card.contentColor, alpha);
     }
 
+    StyledText {
+        objectName: "analogUnknown"
+        visible: !form.known
+        anchors.centerIn: parent
+        text: "-"
+        color: form.card.mutedContentColor
+    }
+
     Item {
         id: face
         objectName: "analogFace"
+        visible: form.known
         anchors.centerIn: parent
         width: form.side
         height: form.side
@@ -97,6 +108,10 @@ Item {
                 anchors.centerIn: parent
                 font.pixelSize: form.side * 0.13
                 font.weight: Font.Medium
+                font.letterSpacing: form.badgeLetterSpacing * font.pixelSize
+                font.features: ({
+                        "tnum": 1
+                    })
                 color: form.card.contentColor
                 text: form.time.hour
             }
@@ -115,6 +130,10 @@ Item {
                 anchors.centerIn: parent
                 font.pixelSize: form.side * 0.13
                 font.weight: Font.Medium
+                font.letterSpacing: form.badgeLetterSpacing * font.pixelSize
+                font.features: ({
+                        "tnum": 1
+                    })
                 color: form.card.contentColor
                 text: String(form.time.minute).padStart(2, "0")
             }

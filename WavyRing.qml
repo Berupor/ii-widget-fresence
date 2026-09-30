@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import qs.modules.common
+import "CardLayouts.js" as CardLayouts
 
 Item {
     id: root
@@ -10,14 +11,12 @@ Item {
     property real value: 0
     property color colPrimary: Appearance.m3colors.m3onSecondaryContainer
     property color colSecondary: Appearance.colors.colSecondaryContainer
-    property real gapAngle: 360 / 18
+    readonly property real gapAngle: root.degree > 0.001 * 360 && root.degree < 0.999 * 360 ? 2 * root.lineWidth / root.arcRadius * 180 / Math.PI : 0
     property bool enableAnimation: true
-    property int animationDuration: 800
-    property var easingType: Easing.OutCubic
+    property int animationDuration: CardLayouts.fillAnimationMs
 
     property real waveAmplitude: 1.6
     property real waveLength: 40
-    property bool animateWave: true
 
     implicitWidth: implicitSize
     implicitHeight: implicitSize
@@ -25,24 +24,16 @@ Item {
     property real degree: value * 360
     property real centerX: root.width / 2
     property real centerY: root.height / 2
-    property real arcRadius: root.implicitSize / 2 - root.lineWidth - root.waveAmplitude
+    property real arcRadius: root.implicitSize / 2 - root.lineWidth / 2 - root.waveAmplitude
     property real startAngle: -90
     property real waveFrequency: (2 * Math.PI * root.arcRadius) / root.waveLength
-    property real wavePhase: 0
-
-    NumberAnimation on wavePhase {
-        running: root.animateWave
-        from: 0
-        to: 360
-        duration: 2000
-        loops: Animation.Infinite
-    }
 
     Behavior on degree {
         enabled: root.enableAnimation
         NumberAnimation {
             duration: root.animationDuration
-            easing.type: root.easingType
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: CardLayouts.fillEasing
         }
     }
 
@@ -63,7 +54,7 @@ Item {
                 radiusX: root.arcRadius
                 radiusY: root.arcRadius
                 startAngle: root.startAngle - root.gapAngle
-                sweepAngle: -(360 - root.degree - 2 * root.gapAngle)
+                sweepAngle: -Math.max(0, 360 - root.degree - 2 * root.gapAngle)
             }
         }
 
@@ -84,12 +75,7 @@ Item {
                     for (let i = 0; i <= steps; i++) {
                         const currentDeg = root.startAngle + root.degree * i / steps;
                         const currentRad = currentDeg * Math.PI / 180;
-                        let edgeFactor = 1;
-                        if (i < 4)
-                            edgeFactor = i / 4;
-                        if (steps - i < 4)
-                            edgeFactor = (steps - i) / 4;
-                        const waveOffset = root.waveAmplitude * Math.sin((currentDeg * root.waveFrequency + root.wavePhase) * Math.PI / 180) * edgeFactor;
+                        const waveOffset = root.waveAmplitude * Math.sin((currentDeg - root.startAngle) * root.waveFrequency * Math.PI / 180);
                         const r = root.arcRadius + waveOffset;
                         pts.push(Qt.point(root.centerX + r * Math.cos(currentRad), root.centerY + r * Math.sin(currentRad)));
                     }

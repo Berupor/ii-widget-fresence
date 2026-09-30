@@ -8,9 +8,12 @@ RowLayout {
     id: tileLabel
     required property var card
     property real largestSize: Appearance.font.pixelSize.smaller
+    readonly property real labelSize: Math.min(tileLabel.largestSize, Appearance.font.pixelSize.smaller)
+    readonly property real minLabelSize: 8
+    readonly property real iconSize: 14
     property bool centered: false
     property bool shown: true
-    readonly property real iconSpace: tileLabel.card.labelIcon.length > 0 ? tileLabel.largestSize + tileLabel.spacing : 0
+    readonly property real iconSpace: tileLabel.card.labelIcon.length > 0 ? tileLabel.iconSize + tileLabel.spacing : 0
     readonly property bool iconOnly: tileLabel.card.icon.length > 0 && tileLabel.card.labelText.length > 0 && labelMetrics.advanceWidth > tileLabel.width - tileLabel.iconSpace
     readonly property string shownIcon: tileLabel.iconOnly ? tileLabel.card.icon : tileLabel.card.labelIcon
 
@@ -23,7 +26,7 @@ RowLayout {
         Layout.fillWidth: tileLabel.centered && !labelText.visible
         horizontalAlignment: Text.AlignHCenter
         text: tileLabel.shownIcon
-        iconSize: tileLabel.largestSize
+        iconSize: tileLabel.iconSize
         color: tileLabel.card.mutedContentColor
     }
     ShrinkThenWrapText {
@@ -31,7 +34,8 @@ RowLayout {
         visible: tileLabel.card.labelText.length > 0 && !tileLabel.iconOnly
         Layout.fillWidth: true
         horizontalAlignment: tileLabel.centered ? Text.AlignHCenter : Text.AlignLeft
-        largestSize: tileLabel.largestSize
+        largestSize: tileLabel.labelSize
+        minSize: tileLabel.minLabelSize
         maxLines: 1
         text: tileLabel.card.labelText
         color: tileLabel.card.mutedContentColor

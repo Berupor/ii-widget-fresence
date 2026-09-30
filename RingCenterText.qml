@@ -10,7 +10,7 @@ Column {
     property bool showText: true
     readonly property real minCaptionBox: 52
     readonly property bool iconOnly: root.icon.length > 0 && root.innerBox < root.minCaptionBox
-    readonly property bool captionFits: root.showText && !root.iconOnly && root.card.labelText.length > 0 && ringValue.implicitHeight + ringIcon.height + ringCaption.implicitHeight <= root.innerBox && ringCaption.fitsOneLine
+    readonly property bool captionFits: root.showText && !root.iconOnly && root.card.labelText.length > 0 && ringValue.implicitHeight + ringIcon.height + ringCaption.implicitHeight <= root.innerBox && ringCaption.fits
 
     width: root.innerBox
     spacing: 0
@@ -34,6 +34,11 @@ Column {
         fontSizeMode: Text.HorizontalFit
         minimumPixelSize: Appearance.font.pixelSize.smallest
         animateChange: true
+        font.weight: Font.Medium
+        font.letterSpacing: -0.02 * font.pixelSize
+        font.features: ({
+                "tnum": 1
+            })
         text: root.card.shownValueText
         color: root.card.contentColor
         font.pixelSize: Math.max(Appearance.font.pixelSize.smallest, root.innerBox * 0.4)
@@ -44,7 +49,7 @@ Column {
         visible: root.captionFits
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
-        largestSize: Math.max(Appearance.font.pixelSize.smallest, root.innerBox * 0.2)
+        largestSize: Appearance.font.pixelSize.smaller
         maxLines: 1
         text: root.card.labelText
         color: root.card.mutedContentColor

@@ -18,7 +18,16 @@ ColumnLayout {
         readonly property real lit: form.phase.illumination
         readonly property real litSide: form.phase.waxing ? 1 : -1
         readonly property color ink: form.card.contentColor
-        onLitChanged: disc.requestPaint()
+        property real drawnLit: disc.lit
+
+        Behavior on drawnLit {
+            NumberAnimation {
+                duration: CardLayouts.fillAnimationMs
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: CardLayouts.fillEasing
+            }
+        }
+        onDrawnLitChanged: disc.requestPaint()
         onLitSideChanged: disc.requestPaint()
         onInkChanged: disc.requestPaint()
         onCanvasSizeChanged: disc.requestPaint()
@@ -29,7 +38,7 @@ ColumnLayout {
             const r = Math.min(disc.width, disc.height) * 0.4;
             const cx = disc.width / 2;
             const cy = disc.height / 2;
-            ctx.fillStyle = Qt.rgba(disc.ink.r, disc.ink.g, disc.ink.b, 0.25);
+            ctx.fillStyle = Qt.rgba(disc.ink.r, disc.ink.g, disc.ink.b, 0.22);
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, 2 * Math.PI);
             ctx.fill();
@@ -47,7 +56,7 @@ ColumnLayout {
             }
             for (let i = steps; i >= 0; i--) {
                 const a = -Math.PI / 2 + Math.PI * i / steps;
-                ctx.lineTo(cx + disc.litSide * r * (1 - 2 * disc.lit) * Math.cos(a), cy + r * Math.sin(a));
+                ctx.lineTo(cx + disc.litSide * r * (1 - 2 * disc.drawnLit) * Math.cos(a), cy + r * Math.sin(a));
             }
             ctx.closePath();
             ctx.fill();

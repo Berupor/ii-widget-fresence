@@ -13,7 +13,7 @@ Item {
     property alias to: waveBarLine.to
     property alias animateWave: waveBarLine.animateWave
     property alias wavy: waveBarLine.wavy
-    readonly property real waveLength: 40
+    readonly property real waveLength: 24
     readonly property real lineWidth: 4
     implicitHeight: waveBarLine.valueBarHeight * (1 + 2 * waveBarLine.waveAmplitudeMultiplier)
 
@@ -25,6 +25,6 @@ Item {
         valueBarHeight: waveBar.lineWidth
         waveFrequency: width / waveBar.waveLength
         highlightColor: waveBar.color
-        trackColor: ColorUtils.transparentize(waveBar.color, 0.75)
+        trackColor: ColorUtils.transparentize(waveBar.color, 0.78)
     }
 }

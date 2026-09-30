@@ -3,25 +3,26 @@ import qs.modules.common.widgets
 import qs.modules.common.functions
 import QtQuick
 import QtQuick.Layouts
+import "CardLayouts.js" as CardLayouts
 
 Item {
     id: form
     required property var card
     readonly property real progress: form.card.hasData ? form.card.fill : 0
-    readonly property real smallestAnimatedStep: 0.05
+    property real shown: form.progress
 
-    function showProgress(): void {
-        ring.enableAnimation = Math.abs(form.progress - ring.value) >= form.smallestAnimatedStep;
-        ring.value = form.progress;
-    }
-    onProgressChanged: form.showProgress()
-    Component.onCompleted: {
-        ring.enableAnimation = false;
-        ring.value = form.progress;
+    Behavior on shown {
+        NumberAnimation {
+            duration: CardLayouts.fillAnimationMs
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: CardLayouts.fillEasing
+        }
     }
 
     readonly property real diameter: Math.round(form.wide ? form.height : Math.min(form.width, form.height))
     readonly property bool wide: form.width > form.height * 1.5
+    readonly property real innerFraction: 0.72
+    readonly property real wideValueMaxSize: 22
 
     RowLayout {
         anchors.fill: parent
@@ -37,11 +38,13 @@ Item {
                 id: ring
                 anchors.centerIn: parent
                 implicitSize: form.diameter
+                value: form.shown
+                enableAnimation: false
                 lineWidth: Math.max(3, implicitSize * 0.08)
                 colPrimary: form.card.contentColor
-                colSecondary: ColorUtils.transparentize(form.card.contentColor, 0.75)
+                colSecondary: ColorUtils.transparentize(form.card.contentColor, 0.78)
 
-                readonly property real innerBox: (ring.implicitSize - 2 * ring.lineWidth) * Math.SQRT1_2
+                readonly property real innerBox: (ring.implicitSize - 2 * ring.lineWidth) * form.innerFraction
 
                 RingCenterText {
                     anchors.centerIn: parent
@@ -69,8 +72,9 @@ Item {
             ShrinkThenWrapText {
                 objectName: "wideRingValue"
                 Layout.fillWidth: true
-                largestSize: Math.max(Appearance.font.pixelSize.large, Math.round(form.height * 0.3))
+                largestSize: form.wideValueMaxSize
                 maxLines: 1
+                value: true
                 animateChange: true
                 text: form.card.shownValueText
                 color: form.card.contentColor

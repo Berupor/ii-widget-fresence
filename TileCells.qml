@@ -11,6 +11,7 @@ ColumnLayout {
     readonly property var parts: form.card.hasData && form.card.value?.parts?.length > 0 ? form.card.value.parts : null
     readonly property int count: form.parts ? form.parts.length : (form.wide ? 32 : 16)
     readonly property real gap: 3
+    readonly property real valueMaxSize: 14
     readonly property real trackAlpha: 0.22
     readonly property var layoutOfCells: form.cellGrid(form.count, cells.width, cells.height)
     readonly property int cols: form.layoutOfCells.cols
@@ -64,9 +65,11 @@ ColumnLayout {
             Layout.fillWidth: true
             card: form.card
         }
-        StyledText {
+        ShrinkThenWrapText {
             objectName: "cellsValue"
-            font.pixelSize: Appearance.font.pixelSize.small
+            largestSize: form.valueMaxSize
+            maxLines: 1
+            value: true
             text: form.wide ? form.card.shownValueText : form.card.shortValueText
             color: form.card.contentColor
         }

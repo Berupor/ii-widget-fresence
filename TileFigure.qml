@@ -19,14 +19,17 @@ Item {
         })
     readonly property real aspect: form.aspects[form.figure] ?? 1
     readonly property real wideFigureHeight: form.height * 0.8
+    readonly property real wideValueMaxSize: 22
+    readonly property real compactValueMaxSize: 14
     readonly property real trackAlpha: 0.22
     readonly property real pinAlpha: 0.5
     property real shown: form.progress
 
     Behavior on shown {
         NumberAnimation {
-            duration: 600
-            easing.type: Easing.OutCubic
+            duration: CardLayouts.fillAnimationMs
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: CardLayouts.fillEasing
         }
     }
 
@@ -170,7 +173,7 @@ Item {
             ShrinkThenWrapText {
                 objectName: "figureValue"
                 Layout.fillWidth: true
-                largestSize: Math.max(Appearance.font.pixelSize.large, Math.round(form.height * 0.3))
+                largestSize: form.wideValueMaxSize
                 maxLines: 1
                 animateChange: true
                 text: form.card.shownValueText
@@ -204,8 +207,10 @@ Item {
             objectName: "figureCompact"
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            largestSize: Appearance.font.pixelSize.normal
+            largestSize: form.compactValueMaxSize
+            minSize: 10
             maxLines: 1
+            value: true
             text: form.card.shortValueText
             color: form.card.contentColor
         }

@@ -8,7 +8,8 @@ ColumnLayout {
     id: form
     required property var card
     readonly property var daylight: CardLayouts.daylight(form.card.weather, Fresence.now)
-    readonly property bool titled: form.height >= 100
+    readonly property real roomyTile: 120
+    readonly property bool titled: form.card.height >= form.roomyTile
     spacing: 4
 
     ShrinkThenWrapText {
@@ -30,7 +31,16 @@ ColumnLayout {
         readonly property bool shown: form.daylight !== null
         readonly property bool isDay: form.daylight?.isDay ?? false
         readonly property color ink: form.card.contentColor
-        onProgressChanged: arc.requestPaint()
+        property real drawnProgress: arc.progress
+
+        Behavior on drawnProgress {
+            NumberAnimation {
+                duration: CardLayouts.fillAnimationMs
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: CardLayouts.fillEasing
+            }
+        }
+        onDrawnProgressChanged: arc.requestPaint()
         onShownChanged: arc.requestPaint()
         onIsDayChanged: arc.requestPaint()
         onInkChanged: arc.requestPaint()
@@ -42,7 +52,7 @@ ColumnLayout {
             const r = Math.min(arc.width / 2, arc.height) * 0.9;
             const cx = arc.width / 2;
             const base = arc.height;
-            const track = Qt.rgba(arc.ink.r, arc.ink.g, arc.ink.b, 0.25);
+            const track = Qt.rgba(arc.ink.r, arc.ink.g, arc.ink.b, 0.22);
             ctx.strokeStyle = track;
             ctx.lineWidth = Math.max(1, r * 0.05);
             ctx.setLineDash([r * 0.08 / ctx.lineWidth, r * 0.08 / ctx.lineWidth]);
@@ -57,7 +67,7 @@ ColumnLayout {
             ctx.stroke();
             if (!arc.shown)
                 return;
-            const angle = Math.PI * (1 - arc.progress);
+            const angle = Math.PI * (1 - arc.drawnProgress);
             const sx = cx + r * Math.cos(angle);
             const sy = base - r * Math.sin(angle);
             ctx.fillStyle = track;
