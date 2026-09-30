@@ -93,12 +93,13 @@ function shownForm(widget) {
 }
 
 // app/shared ui/card/Resolve.kt Widget.shownShape: cookie/clover only draw their
-// polygon on a square place, elsewhere they fall back to a circle.
+// polygon on a square place, elsewhere they fall back to a circle. The chess board
+// takes no shape.
 function shownShape(widget) {
-    const shape = widget?.shape ?? "rounded";
-    if (shape !== "cookie" && shape !== "clover")
-        return shape;
-    return widget.place?.cols === widget.place?.rows ? shape : "circle";
+    const shape = widget?.type === "chess" && shownForm(widget) === "board" ? "rounded" : (widget?.shape ?? "rounded");
+    if (shape === "cookie" || shape === "clover")
+        return widget.place?.cols === widget.place?.rows ? shape : "circle";
+    return shape === "circle" ? shape : "rounded";
 }
 
 // app/shared ui/card/Gauges.kt BuiltinFigures: figure draws only these sources
@@ -352,16 +353,19 @@ function fits(place, grid) {
 }
 
 // Widgets slide up and left into holes left by hidden ones, the same way app/shared
-// card/Grid.kt collapses them.
+// card/Grid.kt collapses them: only into cells some widget of the card covered.
 function placed(widgets, grid, device, nowMs) {
     const shown = [];
-    for (const widget of (widgets ?? [])) {
+    const room = [];
+    for (const [index, widget] of (widgets ?? []).entries()) {
         if (!fits(widget?.place, grid))
             continue;
+        room.push(widget.place);
         const absent = missing(widget, device, nowMs);
         if (absent && widget.on_missing !== "dim")
             continue;
         shown.push({
+            "index": index,
             "widget": widget,
             "dimmed": absent,
             "col": widget.place.col,
@@ -375,9 +379,9 @@ function placed(widgets, grid, device, nowMs) {
         moved = false;
         for (const p of shown.slice().sort((a, b) => a.row - b.row || a.col - b.col)) {
             while (true) {
-                if (freeFor(shown, p, p.col, p.row - 1))
+                if (freeFor(shown, room, p, p.col, p.row - 1))
                     p.row--;
-                else if (freeFor(shown, p, p.col - 1, p.row))
+                else if (freeFor(shown, room, p, p.col - 1, p.row))
                     p.col--;
                 else
                     break;
@@ -388,8 +392,19 @@ function placed(widgets, grid, device, nowMs) {
     return shown;
 }
 
-function freeFor(shown, p, col, row) {
-    return col >= 0 && row >= 0 && shown.every(o => o === p || col >= o.col + o.cols || o.col >= col + p.cols || row >= o.row + o.rows || o.row >= row + p.rows);
+// coversAll() in app/shared ui/card/Grid.kt
+function covered(room, col, row, cols, rows) {
+    for (let c = col; c < col + cols; c++) {
+        for (let r = row; r < row + rows; r++) {
+            if (!room.some(o => c >= o.col && c < o.col + o.cols && r >= o.row && r < o.row + o.rows))
+                return false;
+        }
+    }
+    return true;
+}
+
+function freeFor(shown, room, p, col, row) {
+    return col >= 0 && row >= 0 && covered(room, col, row, p.cols, p.rows) && shown.every(o => o === p || col >= o.col + o.cols || o.col >= col + p.cols || row >= o.row + o.rows || o.row >= row + p.rows);
 }
 
 function rowsUsed(items) {
