@@ -41,7 +41,7 @@ Item {
             "on_missing": "hide"
         }),
         Demo.value("disk", [0, 1, 1, 1], {
-            "form": "big",
+            "form": "text",
             "color": "primary_container",
             "label": "Disk",
             "on_missing": "hide"
@@ -167,7 +167,7 @@ Item {
             "on_missing": "hide"
         }),
         Demo.value("session", [2, 3, 2, 1], {
-            "form": "banner",
+            "form": "number",
             "icon": "code",
             "color": "tertiary_container",
             "on_missing": "hide"

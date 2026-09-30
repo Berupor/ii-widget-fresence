@@ -58,7 +58,7 @@ Item {
                     "label": "Memory",
                     "color": "tertiary_container"
                 }), Demo.value("note", [2, 3, 2, 1], {
-                    "form": "banner",
+                    "form": "text",
                     "label": "Note",
                     "icon": "edit_note"
                 })],
@@ -184,7 +184,7 @@ Item {
             "id": "dev-backdrop",
             "account": "Bea",
             "row": [Demo.value("vibe", [0, 0, 2, 1], {
-                    "form": "banner",
+                    "form": "text",
                     "label": "Now",
                     "background": {
                         "kind": "music"
@@ -314,7 +314,7 @@ Item {
             {
                 "name": "every type draws with its data, none dimmed",
                 "got": ["row", "detail"].map(g => root.tilesOf("acc-ada", g).map(t => [t.type, t.form, t.dimmed])),
-                "want": [[["value", "ring", false], ["media", "vinyl", false], ["game", "cover", false], ["photo", "", false]], [["image", "", false], ["media", "player", false], ["game", "banner", false], ["value", "clock", false], ["value", "timer", false], ["value", "bar", false], ["value", "banner", false]]]
+                "want": [[["value", "ring", false], ["media", "vinyl", false], ["game", "cover", false], ["photo", "", false]], [["image", "", false], ["media", "player", false], ["game", "banner", false], ["value", "clock", false], ["value", "timer", false], ["value", "bar", false], ["value", "text", false]]]
             },
             {
                 "name": "the photo tile shows the agent's cached file with the time it has left",

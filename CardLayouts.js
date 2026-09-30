@@ -28,13 +28,11 @@ const formFiles = {
     "value": {
         "text": "TileText.qml",
         "number": "TileNumber.qml",
-        "big": "TileBig.qml",
         "bar": "TileBar.qml",
         "ring": "TileRing.qml",
         "dial": "TileDial.qml",
         "figure": "TileFigure.qml",
         "cells": "TileCells.qml",
-        "banner": "TileBanner.qml",
         "clock": "TileClock.qml",
         "timer": "TileTimer.qml"
     },

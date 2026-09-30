@@ -32,7 +32,7 @@ const rows = {
             "on_missing": "hide"
         }),
         Demo.value("into_lately", [1, 0, 2, 1], {
-            "form": "big",
+            "form": "text",
             "color": "secondary_container",
             "label": "Into lately",
             "on_missing": "dim"
@@ -80,7 +80,7 @@ const rows = {
     ],
     "minimal": [
         Demo.value("quote", [0, 0, 4, 1], {
-            "form": "big",
+            "form": "text",
             "color": "secondary_container",
             "on_missing": "dim"
         })
@@ -144,7 +144,7 @@ const details = {
             "on_missing": "hide"
         }),
         Demo.value("into_lately", [0, 1, 2, 2], {
-            "form": "big",
+            "form": "text",
             "color": "tertiary_container",
             "label": "Into lately",
             "on_missing": "dim"
@@ -187,7 +187,7 @@ const details = {
             "on_missing": "dim"
         }),
         Demo.value("where_i_am", [2, 2, 2, 1], {
-            "form": "big",
+            "form": "text",
             "color": "secondary_container",
             "label": "Where I am",
             "on_missing": "dim"
@@ -195,7 +195,7 @@ const details = {
     ],
     "coder": [
         Demo.value("app", [0, 0, 2, 2], {
-            "form": "big",
+            "form": "text",
             "color": "primary_container",
             "label": "App",
             "on_missing": "dim"
@@ -225,7 +225,7 @@ const details = {
     ],
     "minimal": [
         Demo.value("mood", [0, 0, 2, 2], {
-            "form": "big",
+            "form": "text",
             "color": "secondary_container",
             "label": "Mood",
             "on_missing": "dim"

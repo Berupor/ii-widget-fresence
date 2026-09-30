@@ -57,7 +57,7 @@ Item {
                             "row": [Demo.widget("media", [0, 0, 1, 1], {
                                     "form": "vinyl"
                                 }), Demo.value("lately", [1, 0, 3, 1], {
-                                    "form": "banner",
+                                    "form": "text",
                                     "label": "Into lately",
                                     "icon": "album",
                                     "color": "secondary_container"
