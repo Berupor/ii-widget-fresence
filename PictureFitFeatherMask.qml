@@ -1,8 +1,7 @@
 import QtQuick
-import Qt5Compat.GraphicalEffects
 
-/** Fades a fitted image out along the axis with margins, so it has no hard seam against the blurred backdrop. */
-Item {
+/** Rounded mask that fades a fitted image out along the axis with margins, so it has no hard seam against the blurred backdrop. */
+Rectangle {
     id: root
     required property real paintedWidth
     required property real paintedHeight
@@ -10,68 +9,40 @@ Item {
 
     readonly property bool hasMarginX: root.paintedWidth > 1 && root.width - root.paintedWidth > 1
     readonly property bool hasMarginY: root.paintedHeight > 1 && root.height - root.paintedHeight > 1
-    readonly property real featherX: root.paintedWidth * root.featherFraction
-    readonly property real featherY: root.paintedHeight * root.featherFraction
+    readonly property bool hasMargin: root.hasMarginX || root.hasMarginY
+    readonly property bool vertical: root.hasMarginY && !root.hasMarginX
+    readonly property real extent: Math.max(1, root.vertical ? root.height : root.width)
+    readonly property real painted: root.hasMargin ? (root.vertical ? root.paintedHeight : root.paintedWidth) : root.extent
+    readonly property real start: (root.extent - root.painted) / 2
+    readonly property real feather: root.painted * root.featherFraction
+    readonly property color edge: root.hasMargin ? "transparent" : "white"
 
-    Rectangle {
-        anchors.fill: parent
-        color: "white"
-        visible: !root.hasMarginX && !root.hasMarginY
-    }
+    gradient: Gradient {
+        orientation: root.vertical ? Gradient.Vertical : Gradient.Horizontal
 
-    LinearGradient {
-        visible: root.hasMarginX
-        x: (root.width - root.paintedWidth) / 2
-        y: 0
-        width: root.paintedWidth
-        height: root.height
-        start: Qt.point(0, 0)
-        end: Qt.point(width, 0)
-        gradient: Gradient {
-            GradientStop {
-                position: 0
-                color: "transparent"
-            }
-            GradientStop {
-                position: root.featherX / root.paintedWidth
-                color: "white"
-            }
-            GradientStop {
-                position: 1 - root.featherX / root.paintedWidth
-                color: "white"
-            }
-            GradientStop {
-                position: 1
-                color: "transparent"
-            }
+        GradientStop {
+            position: 0
+            color: root.edge
         }
-    }
-
-    LinearGradient {
-        visible: root.hasMarginY
-        x: 0
-        y: (root.height - root.paintedHeight) / 2
-        width: root.width
-        height: root.paintedHeight
-        start: Qt.point(0, 0)
-        end: Qt.point(0, height)
-        gradient: Gradient {
-            GradientStop {
-                position: 0
-                color: "transparent"
-            }
-            GradientStop {
-                position: root.featherY / root.paintedHeight
-                color: "white"
-            }
-            GradientStop {
-                position: 1 - root.featherY / root.paintedHeight
-                color: "white"
-            }
-            GradientStop {
-                position: 1
-                color: "transparent"
-            }
+        GradientStop {
+            position: root.start / root.extent
+            color: root.edge
+        }
+        GradientStop {
+            position: (root.start + root.feather) / root.extent
+            color: "white"
+        }
+        GradientStop {
+            position: (root.start + root.painted - root.feather) / root.extent
+            color: "white"
+        }
+        GradientStop {
+            position: (root.start + root.painted) / root.extent
+            color: root.edge
+        }
+        GradientStop {
+            position: 1
+            color: root.edge
         }
     }
 }

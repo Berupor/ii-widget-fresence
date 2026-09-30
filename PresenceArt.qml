@@ -5,8 +5,6 @@ import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Window
 import Qt5Compat.GraphicalEffects
-import Quickshell.Io
-import "CardLayouts.js" as CardLayouts
 
 /** Rounded album art with a music note fallback; an animated cover plays as a GIF. */
 Rectangle {
@@ -45,61 +43,22 @@ Rectangle {
     readonly property int status: image.item?.status ?? Image.Null
     readonly property real heightPerWidth: (image.item?.implicitWidth ?? 0) > 0 ? image.item.implicitHeight / image.item.implicitWidth : -1
 
-    property string cacheFilePath: root.source.length > 0 ? `${Directories.coverArt}/${Qt.md5(root.source)}` : ""
-    property bool downloaded: false
-    property bool isGif: false
+    readonly property bool downloaded: download.downloaded
+    readonly property bool isGif: download.isGif
 
-    readonly property string resolvedSource: root.downloaded ? Qt.resolvedUrl(root.cacheFilePath) : ""
-    readonly property int pixelWidth: Math.ceil(root.width * Screen.devicePixelRatio)
-    readonly property int pixelHeight: Math.ceil(root.height * Screen.devicePixelRatio)
+    readonly property string resolvedSource: root.downloaded ? Qt.resolvedUrl(download.cacheFilePath) : ""
+    readonly property int sizeStep: 64
+    readonly property int pixelWidth: root.quantized(root.width)
+    readonly property int pixelHeight: root.quantized(root.height)
 
-    function fetch(): void {
-        if (artDownloader.running || root.cacheFilePath.length === 0)
-            return;
-        artDownloader.filePath = root.cacheFilePath;
-        artDownloader.urls = [root.source, ...root.fallbacks].filter(CardLayouts.isHttpsUrl);
-        artDownloader.running = true;
+    function quantized(size: real): int {
+        return Math.ceil(size * Screen.devicePixelRatio / root.sizeStep) * root.sizeStep;
     }
 
-    onCacheFilePathChanged: {
-        root.downloaded = false;
-        root.isGif = false;
-        root.fetch();
-    }
-
-    onFallbacksChanged: root.fetch()
-
-    Process {
-        id: artDownloader
-        property string filePath
-        property list<string> urls
-        readonly property string script: `
-target="$1"; shift
-if [ ! -f "$target" ]; then
-    for url in "$@"; do
-        tmp="$target.$$"
-        if curl -4 -fsSL --proto =https --proto-redir =https -m 15 --max-filesize 20M -o "$tmp" -- "$url"; then
-            mv "$tmp" "$target"
-            break
-        fi
-        rm -f "$tmp"
-    done
-fi
-head -c4 "$target" 2>/dev/null
-`
-        command: ["bash", "-c", artDownloader.script, "_", artDownloader.filePath, ...artDownloader.urls]
-        stdout: StdioCollector {
-            onStreamFinished: if (artDownloader.filePath === root.cacheFilePath)
-                root.isGif = text === "GIF8"
-        }
-        onRunningChanged: {
-            if (artDownloader.running)
-                return;
-            if (artDownloader.filePath === root.cacheFilePath)
-                root.downloaded = true;
-            else
-                root.fetch();
-        }
+    ArtDownload {
+        id: download
+        source: root.source
+        fallbacks: root.fallbacks
     }
 
     Item {
@@ -144,21 +103,13 @@ head -c4 "$target" 2>/dev/null
 
             layer.enabled: root.radius > 0 || root.fit === "blur"
             layer.effect: OpacityMask {
-                maskSource: Rectangle {
+                maskSource: PictureFitFeatherMask {
+                    objectName: "pictureFitFeather"
                     width: image.width
                     height: image.height
                     radius: root.radius
-
-                    layer.enabled: root.fit === "blur"
-                    layer.effect: OpacityMask {
-                        maskSource: PictureFitFeatherMask {
-                            objectName: "pictureFitFeather"
-                            width: image.width
-                            height: image.height
-                            paintedWidth: image.item?.paintedWidth ?? image.width
-                            paintedHeight: image.item?.paintedHeight ?? image.height
-                        }
-                    }
+                    paintedWidth: root.fit === "blur" ? image.item?.paintedWidth ?? image.width : image.width
+                    paintedHeight: root.fit === "blur" ? image.item?.paintedHeight ?? image.height : image.height
                 }
             }
         }

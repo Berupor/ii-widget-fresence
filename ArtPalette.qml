@@ -1,9 +1,11 @@
 pragma ComponentBehavior: Bound
 
 import qs.modules.common
+import qs.modules.common.functions
 import QtQuick
+import Quickshell
 import Quickshell.Io
-import "ArtPalette.js" as Palette
+import "ArtPalette.mjs" as Palette
 
 /**
  * Colors taken from a picture, as app/shared ui/card/ArtPalette.kt does for music and
@@ -30,24 +32,58 @@ Item {
 
     onUrlChanged: root.sampled = Palette.remembered(root.url) ?? ""
 
-    PresenceArt {
-        id: source
-        visible: false
-        width: 1
-        height: 1
-        source: root.url
+    readonly property bool wanted: !root.neutral && root.url.length > 0 && root.sampled.length === 0
+    readonly property string seedPath: FileUtils.trimFileProtocol(`${Directories.cache}/media/coverseed/${Qt.md5(root.url)}`)
+    readonly property string cacheFilePath: fetcher.item?.cacheFilePath ?? ""
+    readonly property bool downloaded: fetcher.item?.downloaded ?? false
+
+    function adopt(seed: string): void {
+        const color = seed || Palette.artlessSeed(root.key);
+        Palette.remember(root.url, color);
+        root.sampled = color;
     }
 
-    Process {
-        id: sampler
-        readonly property string file: source.cacheFilePath
-        running: !root.neutral && root.url.length > 0 && root.sampled.length === 0 && source.downloaded
-        command: ["magick", `${sampler.file}[0]`, "-resize", "64x64>", "-alpha", "off", "-depth", "8", "-compress", "none", "ppm:-"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const seed = Palette.seedOf(Palette.pixelsOfPpm(text)) || Palette.artlessSeed(root.key);
-                Palette.remember(root.url, seed);
-                root.sampled = seed;
+    function store(seed: string): void {
+        if (seed.length > 0)
+            Quickshell.execDetached(["bash", "-c", 'mkdir -p "$(dirname "$1")" && printf %s "$2" > "$1"', "_", root.seedPath, seed]);
+    }
+
+    FileView {
+        id: seedFile
+        property bool missing: false
+        path: root.wanted ? root.seedPath : ""
+        printErrors: false
+        onPathChanged: seedFile.missing = false
+        onLoaded: root.adopt(seedFile.text().trim())
+        onLoadFailed: seedFile.missing = true
+    }
+
+    Loader {
+        id: fetcher
+        active: root.wanted && seedFile.missing
+        sourceComponent: ArtDownload {
+            source: root.url
+        }
+    }
+
+    Loader {
+        active: root.downloaded && root.wanted
+        sourceComponent: Item {
+            Process {
+                running: true
+                command: ["magick", `${root.cacheFilePath}[0]`, "-resize", "64x64>", "-alpha", "off", "-depth", "8", "-compress", "none", "ppm:-"]
+                stdout: StdioCollector {
+                    onStreamFinished: worker.sendMessage(text)
+                }
+            }
+
+            WorkerScript {
+                id: worker
+                source: "ArtPaletteWorker.mjs"
+                onMessage: seed => {
+                    root.store(seed);
+                    root.adopt(seed);
+                }
             }
         }
     }
