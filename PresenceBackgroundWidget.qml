@@ -8,6 +8,7 @@ import qs.modules.common
 import qs.modules.widgets
 import qs.modules.common.widgets
 import qs.modules.ii.background.widgets
+import "CardLayouts.js" as CardLayouts
 
 // Same room presence rows as the left sidebar, as a card on the wallpaper.
 AbstractBackgroundWidget {
@@ -28,13 +29,19 @@ AbstractBackgroundWidget {
     }
 
     readonly property bool shown: Fresence.opt("wallpaperCard") && Fresence.available
-    readonly property var shownAccountIds: {
+    readonly property var freshAccountIds: {
         if (!root.shown)
             return [];
         const maxRows = Fresence.opt("wallpaperMaxRows");
         const ids = Fresence.memberIds.filter(id => !Fresence.opt("wallpaperHideOffline") || Fresence.membersById[id].presence.kind !== "offline");
         return maxRows > 0 ? ids.slice(0, maxRows) : ids;
     }
+    property var shownAccountIds: []
+    onFreshAccountIdsChanged: {
+        if (!CardLayouts.sameArray(root.shownAccountIds, root.freshAccountIds))
+            root.shownAccountIds = root.freshAccountIds;
+    }
+    Component.onCompleted: root.shownAccountIds = root.freshAccountIds
 
     // The host keeps the card loaded, so switching it off is opacity, not unloading
     opacity: (root.shown && !(GlobalStates.screenLocked && !root.visibleWhenLocked)) ? 1 : 0
