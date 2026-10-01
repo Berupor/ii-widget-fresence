@@ -52,7 +52,8 @@ Item {
     readonly property bool hasBackdropSource: root.backdropIsPhoto || root.backdropIsClip || CardLayouts.isHttpsUrl(root.backdropUrl)
     readonly property bool backdropShown: root.hasBackdropSource && backdropLoader.item?.status !== Image.Error
 
-    readonly property bool ticks: root.animating && root.hasData && ((root.type === "value" && root.form === "timer") || root.type === "game" || (root.type === "media" && root.media?.playing === true))
+    readonly property bool unitCells: root.type === "value" && (root.form === "timer" || root.form === "clock") && root.hasData && root.timeDirection !== ""
+    readonly property bool ticks: root.animating && root.hasData && (root.unitCells || (root.type === "value" && root.form === "timer") || root.type === "game" || (root.type === "media" && root.media?.playing === true))
     property real tickNow: 0
     readonly property real now: Math.max(Fresence.now, root.tickNow)
 
@@ -261,7 +262,7 @@ Item {
                     id: formLoader
                     objectName: "tileForm"
                     anchors.fill: parent
-                    readonly property string file: root.placeholder ? "" : root.loadRing ? "TileLoad.qml" : CardLayouts.formFile(root.widget)
+                    readonly property string file: root.placeholder ? "" : root.loadRing ? "TileLoad.qml" : root.unitCells ? "TileUnitCells.qml" : CardLayouts.formFile(root.widget)
 
                     function load(): void {
                         formLoader.setSource(formLoader.file ? Qt.resolvedUrl(formLoader.file) : "", {

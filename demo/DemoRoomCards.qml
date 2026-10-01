@@ -9,6 +9,7 @@
  * picture yet, still in its own color.
  */
 import ".."
+import "../CardLayouts.js" as CardLayouts
 import qs.modules.common
 import qs.modules.common.functions
 import QtQuick
@@ -327,14 +328,24 @@ Item {
                 "want": [[DemoCovers.url("sm2-hero.jpg"), Image.Ready]]
             },
             {
-                "name": "a clock shows the moment in local HH:MM and drops the distance under a label on a short tile",
-                "got": [Items.shownText(alarm, "clockValue"), Items.shownText(alarm, "clockDistance")],
-                "want": [[Demo.clockText(Date.parse(alarm?.value?.time ?? ""))], []]
+                "name": "a countdown on a 2x1 tile shows its two largest units as cells",
+                "got": Items.shownText(alarm, "unitCell"),
+                "want": ["1", "30"]
             },
             {
-                "name": "a timer ticks from its moment",
-                "got": Items.shownText(focus, "timerValue").map(t => /^25:\d\d$/.test(t)),
-                "want": [true]
+                "name": "unit cells drop the leading zero units but keep the seconds, and one cell shows only the largest",
+                "got": [90061000, 3600000, 0, 45000].map(ms => CardLayouts.unitValues(ms).map(c => `${c.value}${c.unit[0]}`).join(" ")).concat([[1, 1], [2, 1], [2, 2], [3, 1], [4, 2]].map(([c, r]) => CardLayouts.unitCellCapacity(c, r))),
+                "want": ["1d 1h 1m 1s", "1h 0m 0s", "0s", "45s", 1, 2, 4, 4, 4]
+            },
+            {
+                "name": "a moment shows no day mark today, a weekday within a week and a date beyond it",
+                "got": [0, 86400000, 3 * 86400000, 30 * 86400000, -400 * 86400000].map(d => CardLayouts.dayMark(Demo.now + d, Demo.now)).map(m => m === null ? "" : (m.date ?? m.weekday)).map(String).map((t, i) => i < 3 ? t.length : /^\d\d\.\d\d(\.\d{4})?$/.test(t)),
+                "want": [0, 1, 1, true, true]
+            },
+            {
+                "name": "a timer counts up from its moment in minute and second cells",
+                "got": Items.shownText(focus, "unitCell").map(t => /^\d+$/.test(t)).concat(Items.shownText(focus, "unitCell")[0]),
+                "want": [true, true, "25"]
             },
             {
                 "name": "a hidden widget leaves no gap in the row, the rest slide left",

@@ -56,9 +56,9 @@ Item {
                 "want": []
             },
             {
-                "name": "an alarm clock reads its moment in local HH:MM and drops the distance under a label on a short tile",
-                "got": [Items.shownText(nyxRow, "clockValue")[0] ?? "", Items.shownText(nyxRow, "clockDistance")[0] ?? ""],
-                "want": [Demo.clockText(Demo.now + Demo.minutes(7 * 60 + 30)), ""]
+                "name": "an alarm clock on one cell counts the hours left to its moment",
+                "got": Items.shownText(nyxRow, "unitCell"),
+                "want": ["7"]
             },
             {
                 "name": "with the game on the card, the status line says what else she is up to",

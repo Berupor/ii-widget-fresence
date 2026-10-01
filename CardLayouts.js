@@ -309,6 +309,58 @@ function timeDirection(mode, atMs, nowMs) {
     return atMs > nowMs ? "until" : "since";
 }
 
+// app/shared ui/time/Time.kt unitValues: days, hours, minutes and seconds of a span, leading zeros dropped but the seconds
+function unitValues(spanMs) {
+    const total = Math.floor(Math.abs(spanMs) / 1000);
+    const all = [
+        {
+            "unit": "days",
+            "value": Math.floor(total / 86400)
+        },
+        {
+            "unit": "hours",
+            "value": Math.floor(total / 3600) % 24
+        },
+        {
+            "unit": "minutes",
+            "value": Math.floor(total / 60) % 60
+        },
+        {
+            "unit": "seconds",
+            "value": total % 60
+        }
+    ];
+    const lead = all.slice(0, -1).findIndex(c => c.value > 0);
+    return all.slice(lead < 0 ? all.length - 1 : lead);
+}
+
+// app/shared ui/card/UnitCells.kt cellCapacity
+function unitCellCapacity(cols, rows) {
+    if (cols === 1)
+        return 1;
+    return cols === 2 && rows === 1 ? 2 : 4;
+}
+
+const weekdayReachDays = 6;
+
+// app/shared ui/time/Local.kt dayMark: null for today, a weekday (0 is Sunday) within a week, else a date
+function dayMark(atMs, nowMs) {
+    const at = new Date(atMs);
+    const now = new Date(nowMs);
+    const days = Math.round((new Date(at.getFullYear(), at.getMonth(), at.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+    if (days === 0)
+        return null;
+    if (Math.abs(days) <= weekdayReachDays)
+        return {
+            "weekday": at.getDay()
+        };
+    const two = n => String(n).padStart(2, "0");
+    const date = `${two(at.getDate())}.${two(at.getMonth() + 1)}`;
+    return {
+        "date": at.getFullYear() === now.getFullYear() ? date : `${date}.${at.getFullYear()}`
+    };
+}
+
 function valueOf(widget, state) {
     return widget?.source ? (state?.values?.[widget.source] ?? null) : null;
 }
