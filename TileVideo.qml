@@ -30,14 +30,12 @@ Item {
     readonly property real cellLogoShare: 0.28
     readonly property real frameLogoShare: 0.18
     readonly property real textVertical: 6
-    readonly property real frameGlyphLift: 14
 
     component Frame: Item {
         id: frame
         required property var card
         property real radius: 0
         property real logoHeight: 20
-        property real logoLift: 0
         property bool edgeBar: false
         property real edgeMargin: 0
         property bool badge: true
@@ -83,7 +81,7 @@ Item {
             objectName: "videoLogo"
             visible: art.status !== Image.Ready
             anchors.centerIn: parent
-            anchors.verticalCenterOffset: -frame.logoLift / 2
+            anchors.verticalCenterOffset: badge.visible ? -Math.max(0, height / 2 + frame.badgeMargin + parent.height / 2 - badge.y) : 0
             width: frame.logoHeight * frame.logoAspect
             height: frame.logoHeight
             radius: frame.logoHeight * frame.logoCorner
@@ -99,6 +97,7 @@ Item {
         }
 
         Rectangle {
+            id: badge
             visible: frame.badge && frame.badgeText.length > 0
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -238,7 +237,6 @@ Item {
             height: width / form.videoAspect
             card: form.card
             logoHeight: width * form.frameLogoShare
-            logoLift: form.frameGlyphLift
             edgeBar: true
         }
         VideoText {
@@ -290,7 +288,6 @@ Item {
             card: form.card
             radius: form.frameRadius
             logoHeight: width * form.frameLogoShare
-            logoLift: form.frameGlyphLift
             edgeBar: true
         }
         VideoText {
@@ -319,7 +316,6 @@ Item {
                 card: form.card
                 radius: form.frameRadius
                 logoHeight: width * form.frameLogoShare
-                logoLift: form.frameGlyphLift
                 remainingBadge: false
             }
             VideoText {
