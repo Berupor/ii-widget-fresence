@@ -6,6 +6,7 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Layouts
+import "CardLayouts.js" as CardLayouts
 
 /** A member: face, name, status line, then the row grid of one device's card and its detail grid on click. */
 Rectangle {
@@ -26,12 +27,16 @@ Rectangle {
     readonly property bool bodyShown: root.device !== null && !root.hidden && !Fresence.incognitoOf(root.device)
     readonly property bool deviceAway: root.bodyShown && !root.device.online && !root.offline
     readonly property var detailWidgets: root.device?.card?.detail ?? []
-    readonly property bool expandable: root.bodyShown && root.detailWidgets.length > 0
+    readonly property bool expandable: root.bodyShown && CardLayouts.placed(root.detailWidgets, "detail", root.device, Fresence.now).length > 0
+    readonly property bool deviceHidden: root.device !== null && root.device.online && Fresence.incognitoOf(root.device) !== null
     property bool showDetails: false
     property bool showActions: false
 
     readonly property real cardRadius: 28
     readonly property real sectionGap: 16
+    readonly property real handleWidth: 32
+    readonly property real handleHeight: 4
+    readonly property real handleGap: 10
     readonly property real noCardTextSize: 14
     readonly property real stackChipSize: 18
     readonly property real stackIconSize: 11
@@ -53,7 +58,7 @@ Rectangle {
         root.showActions = false
 
     Layout.fillWidth: true
-    implicitHeight: content.implicitHeight + 24
+    implicitHeight: content.implicitHeight + 24 + (root.expandable ? root.handleGap + root.handleHeight : 0)
     radius: root.cardRadius
     color: Appearance.colors.colLayer1
     opacity: root.offline ? 0.6 : 1
@@ -78,6 +83,22 @@ Rectangle {
         }
     }
 
+    Rectangle {
+        objectName: "expandHandle"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 12
+        width: root.handleWidth
+        height: root.handleHeight
+        radius: root.handleHeight / 2
+        color: Appearance.colors.colOutlineVariant
+        opacity: root.expandable ? 1 : 0
+
+        Behavior on opacity {
+            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        }
+    }
+
     ColumnLayout {
         id: content
         anchors {
@@ -97,7 +118,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 member: root.member
                 offline: root.offline
-                hidden: root.hidden
+                hidden: root.hidden || root.deviceHidden
                 interactive: root.canPick
                 onHoldStarted: picker.open = true
                 onHoldMoved: (x, y) => {

@@ -21,7 +21,7 @@ Item {
     signal holdEnded
     signal tapped
 
-    readonly property int holdDuration: 420
+    readonly property int holdDuration: 800
     readonly property real ringStroke: 3
     readonly property real ringGap: 4
     readonly property bool sealed: root.member?.sealed ?? false

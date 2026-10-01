@@ -66,6 +66,17 @@ Item {
         Items.findAll(row, it => it.holdStarted !== undefined)[0].tapped();
     }
 
+    function hiddenDevice(online: bool): var {
+        return {
+            "online": online,
+            "state": {
+                "incognito": {
+                    "note": "at lunch"
+                }
+            }
+        };
+    }
+
     function note(): void {
         root.seen = root.seen.concat([[ivy.expandable, root.detailShown(ivy), ray.expandable, root.detailShown(ray)]]);
     }
@@ -116,6 +127,21 @@ Item {
                 "name": "a card with an empty detail is not expandable and stays closed",
                 "got": root.seen.map(s => s.slice(2)),
                 "want": [[false, false], [false, false], [false, false]]
+            },
+            {
+                "name": "only a card that expands wears the handle, and it leaves room under the grid",
+                "got": [Items.byName(ivy, "expandHandle")[0].opacity, Items.byName(ray, "expandHandle")[0].opacity, ivy.implicitHeight - ray.implicitHeight > 0],
+                "want": [1, 0, true]
+            },
+            {
+                "name": "a device that is online and hidden speaks for itself on its card page, an offline one does not",
+                "got": [Fresence.presenceOn(Fresence.membersById["acc-ivy"], root.hiddenDevice(true)).kind, Fresence.presenceOn(Fresence.membersById["acc-ivy"], root.hiddenDevice(false)).kind, Fresence.statusFor(Fresence.membersById["acc-ivy"], root.hiddenDevice(true), null)],
+                "want": ["incognito", "online", "Hidden · at lunch"]
+            },
+            {
+                "name": "the incognito picker opens after holding the face for 800 ms",
+                "got": Items.findAll(ivy, it => it.holdDuration !== undefined)[0].holdDuration,
+                "want": 800
             }
         ];
     }

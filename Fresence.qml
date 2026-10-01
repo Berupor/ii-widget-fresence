@@ -297,8 +297,20 @@ Singleton {
     }
 
     // covered: what the row's visible tiles already show, so the line does not repeat it
+    // A device that is online and hidden speaks for itself on its own card page
+    function presenceOn(member, device): var {
+        const hidden = device?.online ? root.incognitoOf(device) : null;
+        if (!hidden)
+            return member?.presence;
+        return {
+            "kind": "incognito",
+            "note": hidden.note ?? "",
+            "until": Date.parse(hidden.until ?? "")
+        };
+    }
+
     function statusFor(member, device, covered): string {
-        const p = member?.presence;
+        const p = root.presenceOn(member, device);
         if (!p)
             return "";
         if (p.kind === "offline" && member.sealed)
