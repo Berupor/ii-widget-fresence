@@ -8,9 +8,12 @@ StyledText {
     property real minSize: 10
     property int maxLines: 2
     property bool value: false
+    property real fitHeight: -1
     property real fittedSize: fitText.largestSize
     property bool fits: true
     readonly property real valueLetterSpacing: -0.02
+
+    signal fitted
 
     font.pixelSize: fitText.fittedSize
     font.weight: fitText.value ? Font.Medium : Font.Normal
@@ -26,7 +29,7 @@ StyledText {
     function fitsAt(size: real): bool {
         probe.font.pixelSize = size;
         probe.font.letterSpacing = fitText.value ? fitText.valueLetterSpacing * size : 0;
-        return probe.lineCount <= fitText.maxLines && probe.contentWidth <= fitText.width;
+        return probe.lineCount <= fitText.maxLines && probe.contentWidth <= fitText.width && (fitText.fitHeight < 0 || probe.contentHeight <= fitText.fitHeight);
     }
 
     function fit(): void {
@@ -35,10 +38,13 @@ StyledText {
         if (fitText.width <= 0 || fitText.text.length === 0) {
             fitText.fits = true;
             fitText.fittedSize = upper;
+            fitText.fitted();
             return;
         }
         probe.font = fitText.font;
         probe.width = fitText.width;
+        probe.lineHeight = fitText.lineHeight;
+        probe.lineHeightMode = fitText.lineHeightMode;
         probe.text = fitText.text;
         const steps = Math.floor(upper - lower);
         let low = 0;
@@ -52,6 +58,7 @@ StyledText {
         }
         fitText.fits = low <= steps;
         fitText.fittedSize = fitText.fits ? upper - low : lower;
+        fitText.fitted();
     }
 
     onTextChanged: fitText.fit()
@@ -59,6 +66,7 @@ StyledText {
     onLargestSizeChanged: fitText.fit()
     onMinSizeChanged: fitText.fit()
     onMaxLinesChanged: fitText.fit()
+    onFitHeightChanged: fitText.fit()
     onValueChanged: fitText.fit()
     onFontChanged: fitText.fit()
     Component.onCompleted: fitText.fit()

@@ -59,13 +59,15 @@ const formFiles = {
     "photo": {},
     "clip": {},
     "image": {},
-    "clock": {}
+    "clock": {
+        "clock": "TileZoneClock.qml",
+        "day": "TileZoneClock.qml"
+    }
 };
 const formlessFiles = {
     "photo": "TilePhoto.qml",
     "clip": "TileClip.qml",
-    "image": "TileImage.qml",
-    "clock": "TileAnalogClock.qml"
+    "image": "TileImage.qml"
 };
 
 const fullBleedTypes = ["game", "photo", "image", "clip"];
@@ -97,10 +99,17 @@ const retiredMediaForms = {
     "sleeve": "vinyl"
 };
 
+// app/shared ui/card/Resolve.kt Widget.defaultForm: a tall clock keeps the day bar
+const tallClockRows = 3;
+
+function defaultForm(widget, forms) {
+    return widget?.type === "clock" && widget.place?.rows >= tallClockRows ? "day" : (forms[0] ?? "");
+}
+
 function shownForm(widget) {
     const forms = formsOf(widget?.type);
     const form = widget?.type === "media" ? (retiredMediaForms[widget?.form] ?? widget?.form) : widget?.form;
-    return forms.includes(form) ? form : (forms[0] ?? "");
+    return forms.includes(form) ? form : defaultForm(widget, forms);
 }
 
 // app/shared ui/card/Resolve.kt Widget.shownShape: cookie/clover only draw their
@@ -228,9 +237,9 @@ function tileInset(width, height, shape) {
     return Math.max(base, edge);
 }
 
-// The chess board and rating pad themselves, edge to edge like ChessTiles.kt
+// The chess board, rating and clock pad themselves, edge to edge like ChessTiles.kt and Clock.kt
 function edgeToEdge(widget) {
-    return widget?.type === "chess" || edgeToEdgeMediaFiles.includes(formFile(widget));
+    return widget?.type === "chess" || widget?.type === "clock" || edgeToEdgeMediaFiles.includes(formFile(widget));
 }
 
 function fullBleed(widget) {
@@ -537,16 +546,107 @@ function daylight(weather, nowMs) {
     };
 }
 
-function clockAt(utcOffsetS, nowMs) {
-    const minuteOfDay = wrapDay(Math.floor((nowMs + utcOffsetS * 1000) / 60000));
-    const hour = Math.floor(minuteOfDay / 60);
-    const minute = minuteOfDay % 60;
+// app/shared ui/time/Local.kt
+const nightFromMin = 23 * 60;
+const nightToMin = 7 * 60;
+const minutesPerDay = 1440;
+const lightInkLuminance = 0.5;
+
+function minuteOfDayAt(utcOffsetS, nowMs) {
+    return wrapDay(Math.floor((nowMs + utcOffsetS * 1000) / 60000));
+}
+
+function isNight(minute) {
+    return minute >= nightFromMin || minute < nightToMin;
+}
+
+function nextPhaseChange(minute) {
+    const night = isNight(minute);
+    const left = (night ? nightToMin : nightFromMin) - minute;
     return {
-        "hour": hour,
-        "minute": minute,
-        "hourTurns": ((hour % 12) + minute / 60) / 12,
-        "minuteTurns": minute / 60
+        "morning": night,
+        "afterMin": left <= 0 ? left + minutesPerDay : left
     };
+}
+
+function dayPartsAhead(minute) {
+    const parts = [];
+    for (let from = 0; from < minutesPerDay;) {
+        const at = wrapDay(minute + from);
+        const length = nextPhaseChange(at).afterMin;
+        parts.push({
+            "from": from,
+            "to": Math.min(from + length, minutesPerDay),
+            "night": isNight(at)
+        });
+        from += length;
+    }
+    return parts;
+}
+
+function hhmm(minute) {
+    const m = wrapDay(minute);
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+function offsetGapMinutes(memberOffsetS, viewerOffsetS) {
+    return Math.trunc((memberOffsetS - viewerOffsetS) / 60);
+}
+
+function signedHours(gapMinutes) {
+    const sign = gapMinutes < 0 ? "-" : "+";
+    const abs = Math.abs(gapMinutes);
+    return abs % 60 === 0 ? `${sign}${abs / 60}` : `${sign}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, "0")}`;
+}
+
+function dayIndexAt(utcOffsetS, nowMs) {
+    return Math.floor((nowMs + utcOffsetS * 1000) / 86400000);
+}
+
+// -1, 0 or 1: the member's date is behind, the same as, or ahead of the viewer's
+function dayShift(nowMs, memberOffsetS, viewerOffsetS) {
+    return Math.sign(dayIndexAt(memberOffsetS, nowMs) - dayIndexAt(viewerOffsetS, nowMs));
+}
+
+// 0 is Sunday, as Locale.dayName counts; 1970-01-01 was a Thursday
+function weekdayAt(utcOffsetS, nowMs) {
+    return (dayIndexAt(utcOffsetS, nowMs) + 4) % 7;
+}
+
+function shortSpanMinutes(minutes) {
+    return minutes < 60 ? {
+        "unit": "minutes",
+        "n": Math.max(1, minutes)
+    } : {
+        "unit": "hours",
+        "n": Math.floor(minutes / 60)
+    };
+}
+
+function relativeLuminance(color) {
+    const linear = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    return 0.2126 * linear(color.r) + 0.7152 * linear(color.g) + 0.0722 * linear(color.b);
+}
+
+// A part of the day bar is drawn in the tile fill when it is dark on a light ink or light on a dark one
+function dayPartStrong(part, ink) {
+    return part.night !== (relativeLuminance(ink) > lightInkLuminance);
+}
+
+// app/shared ui/card/Clock.kt clockLayout: the form and the place pick the layout
+function clockLayout(form, cols, rows) {
+    if (cols <= 1)
+        return "stacked";
+    if (form === "day") {
+        if (rows >= 3)
+            return "tall";
+        if (rows === 2)
+            return cols >= 3 ? "sideBySide" : "dayCorner";
+        return cols >= 4 ? "dayRowLong" : "dayRowShort";
+    }
+    if (rows >= 2)
+        return cols >= 3 ? "big" : "corner";
+    return cols >= 4 ? "rowLong" : "rowShort";
 }
 
 const boardSide = 8;

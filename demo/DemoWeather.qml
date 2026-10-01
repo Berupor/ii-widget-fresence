@@ -6,7 +6,7 @@
  * moon around their arcs: sunrise, morning, noon, late afternoon and sunset by day,
  * dusk, midnight and pre-dawn by night, all against the same schematic sunrise/sunset
  * so skyClock's mapping can be checked directly. The moon and sun forms of the weather
- * widget and the analog clock close it out.
+ * widget and the clock close it out.
  */
 import ".."
 import "../CardLayouts.js" as CardLayouts
@@ -482,7 +482,6 @@ Item {
         const noonClock = CardLayouts.skyClock(root.scenes.arc_noon, Fresence.now);
         const moon = root.bodyOf("moon_night", 1, "moonDisc");
         const phase = CardLayouts.moonPhase(Fresence.now);
-        const clockNow = CardLayouts.clockAt(root.clockOffsetS, Fresence.now);
         return [
             {
                 "name": "every wall tile renders one CardTile",
@@ -591,17 +590,6 @@ Item {
                 "name": "only the sky lets go of the background",
                 "got": ["sky", "temp", "moon", "sun"].map(f => CardLayouts.takesBackground(root.weatherWidget(f))).concat([CardLayouts.takesBackground(root.clockTile.widget)]),
                 "want": [false, true, true, true, false]
-            },
-            {
-                "name": "the analog clock reads the hour and minute in the owner's zone",
-                "got": [CardLayouts.clockAt(0, Date.parse("2026-01-01T15:20:00Z")), CardLayouts.clockAt(-5 * 3600, Date.parse("2026-01-01T03:45:00Z"))].map(t => [t.hour, t.minute, t.hourTurns, t.minuteTurns]),
-                "want": [[15, 20, (3 + 20 / 60) / 12, 20 / 60], [22, 45, (10 + 45 / 60) / 12, 45 / 60]],
-                "tol": 0.001
-            },
-            {
-                "name": "the analog clock badges show the hour and the padded minute",
-                "got": root.textPartsOf("clock", 1).slice(-2),
-                "want": [String(clockNow.hour), String(clockNow.minute).padStart(2, "0")]
             }
         ];
     }
