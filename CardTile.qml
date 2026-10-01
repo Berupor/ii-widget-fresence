@@ -26,6 +26,7 @@ Item {
     readonly property bool placeholder: root.unrecognized || (root.dimmed && root.type !== "value" && root.type !== "weather")
     readonly property bool fullBleed: CardLayouts.fullBleed(root.widget) && !root.placeholder
     readonly property bool wide: root.width > root.height
+    readonly property bool loadRing: root.type === "value" && root.form === "ring" && ["cpu", "memory", "disk"].includes(root.widget?.source)
     readonly property bool edgeToEdge: CardLayouts.edgeToEdge(root.widget) && !root.placeholder
     readonly property real tileInset: CardLayouts.tileInset(root.width, root.height, root.shape)
     readonly property string chessModeText: ({
@@ -260,7 +261,7 @@ Item {
                     id: formLoader
                     objectName: "tileForm"
                     anchors.fill: parent
-                    readonly property string file: root.placeholder ? "" : CardLayouts.formFile(root.widget)
+                    readonly property string file: root.placeholder ? "" : root.loadRing ? "TileLoad.qml" : CardLayouts.formFile(root.widget)
 
                     function load(): void {
                         formLoader.setSource(formLoader.file ? Qt.resolvedUrl(formLoader.file) : "", {

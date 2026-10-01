@@ -28,8 +28,9 @@ Item {
             "label": "CPU",
             "on_missing": "hide"
         }),
-        Demo.value("memory", [2, 0, 1, 1], {
+        Demo.value("swap", [2, 0, 1, 1], {
             "form": "ring",
+            "icon": "memory_alt",
             "color": "secondary_container",
             "label": "Memory",
             "on_missing": "hide"
@@ -60,7 +61,7 @@ Item {
             "color": "primary_container",
             "on_missing": "hide"
         }),
-        Demo.value("disk", [2, 2, 1, 1], {
+        Demo.value("swap", [2, 2, 1, 1], {
             "form": "ring",
             "color": "tertiary_container",
             "label": "Disk",
@@ -138,8 +139,9 @@ Item {
             "color": "secondary_container",
             "on_missing": "hide"
         }),
-        Demo.value("memory", [2, 1, 2, 1], {
+        Demo.value("swap", [2, 1, 2, 1], {
             "form": "ring",
+            "icon": "memory_alt",
             "label": "Memory",
             "color": "primary_container",
             "on_missing": "hide"
@@ -190,6 +192,12 @@ Item {
                                         "parts": [0.9, 0.2, 0.75, 1, 0.4, 0.05, 0.6, 0.95]
                                     },
                                     "memory": {
+                                        "text": "12.0/16.0G",
+                                        "fill": 0.75,
+                                        "used_bytes": 12884901888,
+                                        "total_bytes": 17179869184
+                                    },
+                                    "swap": {
                                         "text": "12.0/16.0G",
                                         "fill": 0.75,
                                         "used_bytes": 12884901888,
