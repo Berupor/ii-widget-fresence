@@ -354,7 +354,7 @@ Item {
             {
                 "name": "a form missing or foreign to its type falls back to the type's first",
                 "got": root.tilesOf("acc-mia", "row").map(t => t.form),
-                "want": ["text", "cover", "banner"]
+                "want": ["text", "player", "banner"]
             },
             {
                 "name": "until after the moment and since before it are no data, auto picks the side",
@@ -377,9 +377,9 @@ Item {
                 "want": [[true, "#ffffff"], [true, "#ffffff"]]
             },
             {
-                "name": "poster and sleeve draw on a tall place and fall back to cover and vinyl on a small one",
+                "name": "retired poster and sleeve show as the player and the vinyl, the place picks cover or poster, disc or sleeve",
                 "got": [discRow, discDetail].map(ts => ts.map(t => [t.form, Items.byName(t, "tileForm")[0]?.file])),
-                "want": [[["poster", "TileCover.qml"], ["sleeve", "TileVinyl.qml"]], [["poster", "TilePoster.qml"], ["sleeve", "TileSleeve.qml"], ["poster", "TilePoster.qml"]]]
+                "want": [[["player", "TileCover.qml"], ["vinyl", "TileVinyl.qml"]], [["player", "TilePoster.qml"], ["vinyl", "TileSleeve.qml"], ["player", "TilePoster.qml"]]]
             },
             {
                 "name": "a poster covers its whole tile, a music tile takes the cover's tint unless it has its own color",

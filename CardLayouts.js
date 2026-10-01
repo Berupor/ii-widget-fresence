@@ -37,12 +37,8 @@ const formFiles = {
         "timer": "TileTimer.qml"
     },
     "media": {
-        "cover": "TileCover.qml",
-        "poster": "TilePoster.qml",
         "player": "TilePlayer.qml",
-        "vinyl": "TileVinyl.qml",
-        "sleeve": "TileSleeve.qml",
-        "wave": "TileWave.qml"
+        "vinyl": "TileVinyl.qml"
     },
     "game": {
         "banner": "TileGame.qml",
@@ -73,7 +69,15 @@ const formlessFiles = {
 };
 
 const fullBleedTypes = ["game", "photo", "image", "clip"];
-const edgeToEdgeMediaForms = ["cover", "player", "vinyl", "sleeve"].map(form => formFiles.media[form]);
+const mediaFiles = {
+    "cover": "TileCover.qml",
+    "poster": "TilePoster.qml",
+    "player": "TilePlayer.qml",
+    "strip": "TileWave.qml",
+    "vinyl": "TileVinyl.qml",
+    "sleeve": "TileSleeve.qml"
+};
+const edgeToEdgeMediaFiles = [mediaFiles.cover, mediaFiles.player, mediaFiles.vinyl, mediaFiles.sleeve];
 
 function formsOf(type) {
     return Object.keys(formFiles[type] ?? {});
@@ -85,16 +89,34 @@ function knownType(type) {
     return type in formFiles;
 }
 
+// app/shared ui/card/Resolve.kt RetiredMediaForms
+const retiredMediaForms = {
+    "cover": "player",
+    "poster": "player",
+    "wave": "player",
+    "sleeve": "vinyl"
+};
+
 function shownForm(widget) {
     const forms = formsOf(widget?.type);
-    return forms.includes(widget?.form) ? widget.form : (forms[0] ?? "");
+    const form = widget?.type === "media" ? (retiredMediaForms[widget?.form] ?? widget?.form) : widget?.form;
+    return forms.includes(form) ? form : (forms[0] ?? "");
 }
 
 // app/shared ui/card/Resolve.kt Widget.shownShape: cookie/clover only draw their
 // polygon on a square place, elsewhere they fall back to a circle. The chess board
-// takes no shape.
+// and a square player past 1x1 take no shape.
+function takesShape(widget) {
+    const form = shownForm(widget);
+    if (widget?.type === "chess")
+        return form !== "board";
+    if (widget?.type === "media")
+        return !(form === "player" && widget.place?.cols === widget.place?.rows && widget.place?.cols > 1);
+    return true;
+}
+
 function shownShape(widget) {
-    const shape = widget?.type === "chess" && shownForm(widget) === "board" ? "rounded" : (widget?.shape ?? "rounded");
+    const shape = takesShape(widget) ? (widget?.shape ?? "rounded") : "rounded";
     if (shape === "cookie" || shape === "clover")
         return widget.place?.cols === widget.place?.rows ? shape : "circle";
     return shape === "circle" ? shape : "rounded";
@@ -112,24 +134,28 @@ function figureOf(source) {
     return figures[source] ?? "";
 }
 
-// app/shared ui/card/MediaTiles.kt PosterForm and SleeveForm: below a tall place they
-// draw as the cover and the vinyl.
-const tallMediaFallbacks = {
-    "poster": "cover",
-    "sleeve": "vinyl"
-};
-
-function tallEnough(widget) {
-    return widget?.place?.rows >= 2 && widget.place.rows >= widget.place.cols;
+// app/shared ui/card/MediaTiles.kt MusicForm and VinylForm: the place picks the layout
+function mediaFile(widget) {
+    const place = widget?.place ?? {};
+    const square = place.rows >= place.cols;
+    const tall = square && place.rows >= 2;
+    if (shownForm(widget) === "vinyl")
+        return tall ? mediaFiles.sleeve : mediaFiles.vinyl;
+    if (square)
+        return tall ? mediaFiles.poster : mediaFiles.cover;
+    return place.cols <= stripMaxCols ? mediaFiles.strip : mediaFiles.player;
 }
+
+const stripMaxCols = 2;
 
 // app/shared ui/card/Tiles.kt ValueTile: a figure without a picture is drawn as a ring
 function formFile(widget) {
     const form = shownForm(widget);
     if (widget?.type === "value" && form === "figure" && !figureOf(widget.source))
         return formFiles.value.ring;
-    const drawn = widget?.type === "media" && form in tallMediaFallbacks && !tallEnough(widget) ? tallMediaFallbacks[form] : form;
-    return formFiles[widget?.type]?.[drawn] ?? formlessFiles[widget?.type] ?? "";
+    if (widget?.type === "media")
+        return mediaFile(widget);
+    return formFiles[widget?.type]?.[form] ?? formlessFiles[widget?.type] ?? "";
 }
 
 const bytesPerGiB = Math.pow(2, 30);
@@ -204,18 +230,18 @@ function tileInset(width, height, shape) {
 
 // The chess board and rating pad themselves, edge to edge like ChessTiles.kt
 function edgeToEdge(widget) {
-    return widget?.type === "chess" || edgeToEdgeMediaForms.includes(formFile(widget));
+    return widget?.type === "chess" || edgeToEdgeMediaFiles.includes(formFile(widget));
 }
 
 function fullBleed(widget) {
-    return fullBleedTypes.includes(widget?.type) || formFile(widget) === formFiles.media.poster;
+    return fullBleedTypes.includes(widget?.type) || formFile(widget) === mediaFiles.poster;
 }
 
 // protocol.md: background is ignored by a widget that paints its own art or scene
 function takesBackground(widget) {
     switch (widget?.type) {
     case "media":
-        return !["cover", "poster"].includes(shownForm(widget));
+        return shownForm(widget) === "vinyl" || widget.place?.cols !== widget.place?.rows;
     case "weather":
         return shownForm(widget) !== "sky";
     case "chess":
@@ -278,12 +304,10 @@ function valueOf(widget, state) {
     return widget?.source ? (state?.values?.[widget.source] ?? null) : null;
 }
 
-const musicOnlyForms = ["vinyl", "sleeve"];
-
 // app/shared ui/card/Resolve.kt Widget.media
 function mediaOf(widget, state) {
     const media = state?.media ?? null;
-    return media?.kind === "video" && musicOnlyForms.includes(shownForm(widget)) ? null : media;
+    return media?.kind === "video" && shownForm(widget) === "vinyl" ? null : media;
 }
 
 function valueMissing(widget, value, nowMs) {
