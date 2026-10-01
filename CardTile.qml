@@ -79,6 +79,10 @@ Item {
     }
     readonly property real fill: Math.max(0, Math.min(1, root.value?.fill ?? 0))
     readonly property string subtext: root.value?.subtext ?? ""
+    readonly property bool isBattery: root.type === "value" && root.widget?.source === "battery"
+    readonly property bool charging: root.isBattery && root.subtext === "charging"
+    readonly property bool lowBattery: root.isBattery && root.hasData && root.value !== null && CardLayouts.isLowBattery(root.fill, root.charging)
+    readonly property string batteryStatus: root.charging ? (root.fill >= 1 ? Translation.tr("charged") : Translation.tr("charging")) : (root.lowBattery ? Translation.tr("running low") : Translation.tr("on battery"))
     readonly property string shortValueText: root.hasData ? (CardLayouts.compactBytesText(root.value) || root.shownValueText) : "-"
     readonly property string ringIcon: root.icon || (CardLayouts.sourceSymbols[root.widget?.source] ?? "")
     readonly property string labelText: root.widget?.label ?? ""
@@ -115,6 +119,7 @@ Item {
         key: root.paletteFromMedia ? (root.media.artist || root.media.title || "") : ""
         neutral: !root.paletteFromMedia
     }
+    readonly property color levelColor: root.lowBattery ? Appearance.colors.colError : root.contentColor
     readonly property color mutedContentColor: ColorUtils.transparentize(root.contentColor, 0.28)
 
     readonly property real dimmedOpacity: 0.4

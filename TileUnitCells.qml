@@ -15,7 +15,9 @@ Item {
     readonly property int rows: form.card.widget?.place?.rows ?? 1
     readonly property bool wide: form.cols >= 4
     readonly property bool halved: form.cols === 2 && form.rows > 1
-    readonly property var cells: CardLayouts.unitValues(form.card.now - form.card.valueTimeMs).slice(0, CardLayouts.unitCellCapacity(form.cols, form.rows))
+    readonly property var cells: CardLayouts.unitValues(form.card.now - form.card.valueTimeMs).slice(0, CardLayouts.unitCellCapacity(form.cols, form.rows)).map(c => Object.assign({
+            "size": form.numberSize
+        }, c))
     readonly property var lines: form.halved ? [form.cells.slice(0, 2), form.cells.slice(2)].filter(l => l.length > 0) : [form.cells]
     readonly property real numberSize: form.cols === 1 ? 28 : form.wide && form.rows > 1 ? 40 : 24
     readonly property real gap: 6
@@ -73,28 +75,26 @@ Item {
                         color: ColorUtils.applyAlpha(form.card.contentColor, form.cellAlpha)
 
                         ColumnLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 4
-                            anchors.rightMargin: 4
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: 4
+                            width: parent.width - 8
                             spacing: 0
 
                             ShrinkThenWrapText {
                                 objectName: "unitCell"
                                 Layout.fillWidth: true
-                                Layout.fillHeight: true
                                 horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
                                 minSize: 12
-                                largestSize: form.numberSize
-                                fitHeight: height
+                                largestSize: cell.modelData.size
+                                fitHeight: cell.height - unitName.implicitHeight
                                 maxLines: 1
                                 value: true
                                 text: String(cell.modelData.value)
                                 color: form.card.contentColor
                             }
                             Caption {
+                                id: unitName
                                 Layout.fillWidth: true
-                                Layout.bottomMargin: 4
                                 horizontalAlignment: Text.AlignHCenter
                                 largestSize: 11
                                 maxLines: 1

@@ -80,6 +80,18 @@ const mediaFiles = {
     "sleeve": "TileSleeve.qml"
 };
 const edgeToEdgeMediaFiles = [mediaFiles.cover, mediaFiles.player, mediaFiles.vinyl, mediaFiles.sleeve];
+const batteryTankFile = "TileBattery.qml";
+const batteryTankPlaces = ["1x1", "2x1", "2x2", "4x1"];
+const lowBatteryPercent = 20;
+
+function takesBatteryTank(widget) {
+    const place = widget?.place;
+    return widget?.type === "value" && widget.source === "battery" && shownForm(widget) === "ring" && batteryTankPlaces.includes(`${place?.cols}x${place?.rows}`);
+}
+
+function isLowBattery(fill, charging) {
+    return !charging && Math.round(fill * 100) <= lowBatteryPercent;
+}
 
 function formsOf(type) {
     return Object.keys(formFiles[type] ?? {});
@@ -197,6 +209,8 @@ function formFile(widget, value) {
         return formFiles.value.ring;
     if (widget?.type === "media")
         return mediaFile(widget);
+    if (takesBatteryTank(widget) && form === "ring")
+        return batteryTankFile;
     return formFiles[widget?.type]?.[form] ?? formlessFiles[widget?.type] ?? "";
 }
 
@@ -272,7 +286,7 @@ function tileInset(width, height, shape) {
 
 // The chess board, rating and clock pad themselves, edge to edge like ChessTiles.kt and Clock.kt
 function edgeToEdge(widget) {
-    return widget?.type === "chess" || widget?.type === "clock" || edgeToEdgeMediaFiles.includes(formFile(widget));
+    return widget?.type === "chess" || widget?.type === "clock" || edgeToEdgeMediaFiles.includes(formFile(widget)) || formFile(widget) === batteryTankFile;
 }
 
 function fullBleed(widget) {

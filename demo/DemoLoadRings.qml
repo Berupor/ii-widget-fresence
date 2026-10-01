@@ -131,8 +131,8 @@ Item {
                 "want": [true, false, true]
             },
             {
-                "name": "a battery ring keeps the old ring",
-                "got": [root.part(3, "ringValue")?.text, root.part(3, "loadArc")],
+                "name": "a battery ring is the tank, not a load ring",
+                "got": [root.part(3, "batteryValue")?.text, root.part(3, "loadArc")],
                 "want": ["82%", null]
             },
             {

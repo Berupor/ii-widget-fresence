@@ -489,7 +489,7 @@ Item {
         opacity: 0
         width: 120
         height: 120
-        widget: Demo.value("battery", [0, 0, 1, 1], {
+        widget: Demo.value("swap", [0, 0, 1, 1], {
             "form": "ring"
         })
         device: root.device
