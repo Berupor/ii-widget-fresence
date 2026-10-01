@@ -59,7 +59,7 @@ Item {
     }
 
     PresencePhoto.ExpiryBadge {
-        visible: (form.card.widget.place.cols > 1 || form.card.widget.place.rows > 1) && !isNaN(form.expiresAt)
+        visible: !isNaN(form.expiresAt)
         expiresAt: form.expiresAt
         shape: form.card.shape
         tileInset: form.card.tileInset

@@ -9,15 +9,16 @@ Column {
     property string icon: ""
     property bool showText: true
     readonly property real minCaptionBox: 52
-    readonly property bool iconOnly: root.icon.length > 0 && root.innerBox < root.minCaptionBox
-    readonly property bool captionFits: root.showText && !root.iconOnly && root.card.labelText.length > 0 && ringValue.implicitHeight + ringIcon.height + ringCaption.implicitHeight <= root.innerBox && ringCaption.fits
+    readonly property bool iconOnly: root.icon.length > 0 && !root.showText
+    readonly property bool iconShown: root.icon.length > 0 && (root.iconOnly || root.innerBox >= root.minCaptionBox)
+    readonly property bool captionFits: root.showText && root.card.labelText.length > 0 && ringValue.implicitHeight + ringIcon.height + ringCaption.implicitHeight <= root.innerBox && ringCaption.fits
 
     width: root.innerBox
     spacing: 0
 
     MaterialSymbol {
         id: ringIcon
-        visible: root.icon.length > 0
+        visible: root.iconShown
         width: parent.width
         height: visible ? implicitHeight : 0
         horizontalAlignment: Text.AlignHCenter
@@ -28,7 +29,7 @@ Column {
     StyledText {
         id: ringValue
         objectName: "ringValue"
-        visible: root.showText && !root.iconOnly
+        visible: root.showText
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
         fontSizeMode: Text.HorizontalFit

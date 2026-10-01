@@ -7,6 +7,7 @@
  * have, which falls back to the type's first one.
  */
 import ".."
+import "../CardLayouts.js" as CardLayouts
 import "lib"
 import "lib/DemoCovers.js" as DemoCovers
 import "lib/DemoSnapshot.js" as Demo
@@ -342,9 +343,14 @@ Item {
                 "want": ["12 of 16 GB", "Disk"]
             },
             {
-                "name": "a ring small enough to lose its caption box shows the source icon alone",
-                "got": [Items.byName(smallRingProbe, "ringValue")[0]?.visible, Items.byName(smallRingProbe, "ringCaption")[0]?.visible, root.part(1, "ringValue")?.visible],
-                "want": [false, false, true]
+                "name": "a ring small enough to lose its caption box keeps the value and drops the icon and the caption",
+                "got": [Items.byName(smallRingProbe, "ringValue")[0]?.visible, Items.byName(smallRingProbe, "ringCaption")[0]?.visible, Items.findAll(smallRingProbe, it => it.iconSize !== undefined && it.visible).length, root.part(1, "ringValue")?.visible],
+                "want": [true, false, 0, true]
+            },
+            {
+                "name": "a form the value cannot fill gives way to the first one it can, a text form stays",
+                "got": [["ring", {"text": "hi"}], ["bar", {"time": "2026-01-01T00:00:00Z"}], ["timer", {"fill": 0.5}], ["clock", {"time": "2026-01-01T00:00:00Z"}], ["text", {"fill": 0.5}], ["ring", null]].map(([form, value]) => CardLayouts.shownValueForm(Demo.value("cpu", [0, 0, 1, 1], {"form": form}), value)),
+                "want": ["text", "clock", "ring", "clock", "text", "ring"]
             },
             {
                 "name": "a ring or dial without a label keeps its text in the middle",

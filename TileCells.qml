@@ -63,6 +63,7 @@ ColumnLayout {
 
         TileLabel {
             Layout.fillWidth: true
+            shown: form.wide
             card: form.card
         }
         ShrinkThenWrapText {
