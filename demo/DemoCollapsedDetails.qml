@@ -8,6 +8,7 @@ import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
 import "lib"
+import "../CardLayouts.js" as CardLayouts
 import "lib/DemoSnapshot.js" as Demo
 import "lib/DemoItems.js" as Items
 
@@ -111,6 +112,24 @@ Item {
         onTriggered: root.advance()
     }
 
+    function statusIcon(state, status) {
+        const device = {
+            "online": true,
+            "state": state,
+            "card": {
+                "status": status,
+                "row": [],
+                "detail": []
+            }
+        };
+        return Fresence.statusIconFor({
+            "presence": {
+                "kind": "online"
+            },
+            "activeDevice": device
+        }, device, null);
+    }
+
     function checks() {
         return [
             {
@@ -137,6 +156,31 @@ Item {
                 "name": "a device that is online and hidden speaks for itself on its card page, an offline one does not",
                 "got": [Fresence.presenceOn(Fresence.membersById["acc-ivy"], root.hiddenDevice(true)).kind, Fresence.presenceOn(Fresence.membersById["acc-ivy"], root.hiddenDevice(false)).kind, Fresence.statusFor(Fresence.membersById["acc-ivy"], root.hiddenDevice(true), null)],
                 "want": ["incognito", "online", "Hidden · at lunch"]
+            },
+            {
+                "name": "a status value wears the icon of its tile, else the built-in one, else one by value shape; media and the plain online line wear none",
+                "got": [["cpu", "fill"], ["komanda", "text"], ["komanda", "time"]].map(([id, shape]) => CardLayouts.statusSymbol([], id, shape)).concat(CardLayouts.statusSymbol([{
+                            "source": "komanda",
+                            "icon": "group"
+                        }], "komanda", "text"), root.statusIcon({
+                        "values": {
+                            "cpu": {
+                                "text": "42%",
+                                "fill": 0.42
+                            }
+                        }
+                    }, ["cpu"]), root.statusIcon({
+                        "media": {
+                            "playing": true,
+                            "title": "Song"
+                        },
+                        "values": {
+                            "cpu": {
+                                "text": "42%"
+                            }
+                        }
+                    }, ["cpu"]), root.statusIcon({}, [])),
+                "want": ["memory", "text_fields", "timer", "group", "memory", "", ""]
             },
             {
                 "name": "the incognito picker opens after holding the face for 800 ms",

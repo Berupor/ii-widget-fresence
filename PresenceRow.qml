@@ -161,15 +161,29 @@ Rectangle {
                         text: Fresence.nameFor(root.member)
                     }
 
-                    StyledText {
-                        objectName: "memberStatus"
+                    RowLayout {
+                        id: statusLine
                         Layout.fillWidth: true
-                        visible: text.length > 0
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: Appearance.colors.colSubtext
-                        text: Fresence.statusFor(root.member, root.device, rowGrid.visible ? rowGrid.coverage : null)
+                        spacing: 4
+                        readonly property var covered: rowGrid.visible ? rowGrid.coverage : null
+                        readonly property string icon: Fresence.statusIconFor(root.member, root.device, statusLine.covered)
+
+                        MaterialSymbol {
+                            visible: statusLine.icon.length > 0
+                            text: statusLine.icon
+                            iconSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.colors.colSubtext
+                        }
+                        StyledText {
+                            objectName: "memberStatus"
+                            Layout.fillWidth: true
+                            visible: text.length > 0
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.colors.colSubtext
+                            text: Fresence.statusFor(root.member, root.device, statusLine.covered)
+                        }
                     }
                 }
 

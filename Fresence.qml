@@ -309,6 +309,38 @@ Singleton {
         };
     }
 
+    // The online line a device speaks: a game, media or the first status value not already on the row
+    function onlineLine(member, device, covered): var {
+        const speaks = device && device.online && !root.incognitoOf(device) ? device : member.activeDevice;
+        const skip = speaks === device ? (covered ?? new Set()) : new Set();
+        const state = speaks?.state ?? {};
+        if (state.game && !skip.has("game"))
+            return {
+                "text": Translation.tr("Playing %1").arg(state.game.name)
+            };
+        const media = state.media;
+        if (media?.playing && !skip.has("media")) {
+            if (media.kind === "video")
+                return {
+                    "text": media.title
+                };
+            return {
+                "text": media.artist ? `${media.title} - ${media.artist}` : media.title
+            };
+        }
+        for (const id of speaks?.card?.status ?? []) {
+            const value = state.values?.[id];
+            if (value?.text && !skip.has(`value:${id}`))
+                return {
+                    "text": value.text,
+                    "icon": CardLayouts.statusSymbol((speaks.card.row ?? []).concat(speaks.card.detail ?? []), id, CardLayouts.valueShape(value))
+                };
+        }
+        return {
+            "text": Translation.tr("Online")
+        };
+    }
+
     function statusFor(member, device, covered): string {
         const p = root.presenceOn(member, device);
         if (!p)
@@ -321,24 +353,12 @@ Singleton {
             const head = !isNaN(p.until) ? Translation.tr("Hidden until %1").arg(root.clockText(p.until)) : Translation.tr("Hidden");
             return p.note ? `${head} · ${p.note}` : head;
         }
-        const speaks = device && device.online && !root.incognitoOf(device) ? device : member.activeDevice;
-        const skip = speaks === device ? (covered ?? new Set()) : new Set();
-        const state = speaks?.state ?? {};
-        if (state.game && !skip.has("game")) {
-            return Translation.tr("Playing %1").arg(state.game.name);
-        }
-        const media = state.media;
-        if (media?.playing && !skip.has("media")) {
-            if (media.kind === "video")
-                return media.title;
-            return media.artist ? `${media.title} - ${media.artist}` : media.title;
-        }
-        for (const id of speaks?.card?.status ?? []) {
-            const text = state.values?.[id]?.text ?? "";
-            if (text && !skip.has(`value:${id}`))
-                return text;
-        }
-        return Translation.tr("Online");
+        return root.onlineLine(member, device, covered).text;
+    }
+
+    // app/shared ui/room/MemberCard.kt statusIcon: only a status value says which source it came from
+    function statusIconFor(member, device, covered): string {
+        return root.presenceOn(member, device)?.kind === "online" ? (root.onlineLine(member, device, covered).icon ?? "") : "";
     }
 
     readonly property var selfIncognito: root.incognitoOf(root.selfDevice)

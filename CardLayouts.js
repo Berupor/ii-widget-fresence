@@ -119,6 +119,17 @@ function valueShape(value) {
     return value?.fill !== undefined && value?.fill !== null ? "fill" : "text";
 }
 
+// app/shared ui/editor/Labels.kt statusSymbol: the icon of a tile with that source, else the built-in one, else one by value shape
+const shapeSymbols = {
+    "text": "text_fields",
+    "fill": "data_usage",
+    "time": "timer"
+};
+
+function statusSymbol(widgets, id, shape) {
+    return widgets.find(w => w.source === id && w.icon)?.icon ?? sourceSymbols[id] ?? shapeSymbols[shape];
+}
+
 // app/shared ui/card/Resolve.kt Widget.shownForm(value): a form the value cannot fill gives way to one it can
 function shownValueForm(widget, value) {
     const form = shownForm(widget);
