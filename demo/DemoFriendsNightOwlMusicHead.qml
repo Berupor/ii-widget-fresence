@@ -98,8 +98,8 @@ Item {
                 "want": "Online"
             },
             {
-                "name": "a clock fed plain text shows that text, with no distance under it",
-                "got": [Items.shownText(echoRow, "clockValue").includes("09:00"), Items.shownText(echoRow, "clockDistance").length],
+                "name": "a clock fed plain text falls back to the text form and shows that text",
+                "got": [Items.shownText(echoRow, "textValue").includes("09:00"), Items.shownText(echoRow, "clockValue").length],
                 "want": [true, 0]
             },
             {

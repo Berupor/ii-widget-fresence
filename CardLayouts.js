@@ -106,6 +106,28 @@ function defaultForm(widget, forms) {
     return widget?.type === "clock" && widget.place?.rows >= tallClockRows ? "day" : (forms[0] ?? "");
 }
 
+// app/shared ui/card/Resolve.kt ValueShape: the forms a value can fill
+const valueShapeForms = {
+    "text": ["text", "number"],
+    "fill": ["ring", "figure", "cells", "dial", "bar", "number"],
+    "time": ["clock", "timer"]
+};
+
+function valueShape(value) {
+    if (value?.time !== undefined && value?.time !== null)
+        return "time";
+    return value?.fill !== undefined && value?.fill !== null ? "fill" : "text";
+}
+
+// app/shared ui/card/Resolve.kt Widget.shownForm(value): a form the value cannot fill gives way to one it can
+function shownValueForm(widget, value) {
+    const form = shownForm(widget);
+    if (widget?.type !== "value" || !value)
+        return form;
+    const forms = valueShapeForms[valueShape(value)];
+    return form === "text" || forms.includes(form) ? form : forms[0];
+}
+
 function shownForm(widget) {
     const forms = formsOf(widget?.type);
     const form = widget?.type === "media" ? (retiredMediaForms[widget?.form] ?? widget?.form) : widget?.form;
@@ -158,8 +180,8 @@ function mediaFile(widget) {
 const stripMaxCols = 2;
 
 // app/shared ui/card/Tiles.kt ValueTile: a figure without a picture is drawn as a ring
-function formFile(widget) {
-    const form = shownForm(widget);
+function formFile(widget, value) {
+    const form = shownValueForm(widget, value);
     if (widget?.type === "value" && form === "figure" && !figureOf(widget.source))
         return formFiles.value.ring;
     if (widget?.type === "media")

@@ -19,7 +19,7 @@ Item {
     property real skyAnimPhase: -1
 
     readonly property string type: root.widget?.type ?? ""
-    readonly property string form: CardLayouts.shownForm(root.widget)
+    readonly property string form: CardLayouts.shownValueForm(root.widget, root.value)
     readonly property bool animating: root.visible && root.Window.visibility !== Window.Hidden && Fresence.frozenAt === 0
     readonly property bool hasData: !root.dimmed
     readonly property bool unrecognized: root.type !== "" && !CardLayouts.knownType(root.type)
@@ -262,7 +262,7 @@ Item {
                     id: formLoader
                     objectName: "tileForm"
                     anchors.fill: parent
-                    readonly property string file: root.placeholder ? "" : root.loadRing ? "TileLoad.qml" : root.unitCells ? "TileUnitCells.qml" : CardLayouts.formFile(root.widget)
+                    readonly property string file: root.placeholder ? "" : root.loadRing ? "TileLoad.qml" : root.unitCells ? "TileUnitCells.qml" : CardLayouts.formFile(root.widget, root.value)
 
                     function load(): void {
                         formLoader.setSource(formLoader.file ? Qt.resolvedUrl(formLoader.file) : "", {
