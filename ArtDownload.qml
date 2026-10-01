@@ -12,7 +12,7 @@ Scope {
     required property string source
     property list<string> fallbacks: []
 
-    property string cacheFilePath: root.source.length > 0 ? `${Directories.coverArt}/${Qt.md5(root.source)}` : ""
+    property string cacheFilePath: root.source.length > 0 ? `${Directories.coverArt}/${Qt.md5(CardLayouts.artKey(root.source))}` : ""
     property bool downloaded: false
     property bool isGif: false
 
@@ -25,9 +25,11 @@ Scope {
     }
 
     onCacheFilePathChanged: {
-        root.downloaded = false;
-        root.isGif = false;
-        root.fetch();
+        const fetched = CardLayouts.sniffedGifs.has(root.cacheFilePath);
+        root.downloaded = fetched;
+        root.isGif = fetched && CardLayouts.sniffedGifs.get(root.cacheFilePath);
+        if (!fetched)
+            root.fetch();
     }
 
     onFallbacksChanged: root.fetch()
@@ -52,8 +54,12 @@ head -c4 "$target" 2>/dev/null
 `
         command: ["bash", "-c", artDownloader.script, "_", artDownloader.filePath, ...artDownloader.urls]
         stdout: StdioCollector {
-            onStreamFinished: if (artDownloader.filePath === root.cacheFilePath)
-                root.isGif = text === "GIF8"
+            onStreamFinished: {
+                if (text.length > 0)
+                    CardLayouts.sniffedGifs.set(artDownloader.filePath, text === "GIF8");
+                if (artDownloader.filePath === root.cacheFilePath)
+                    root.isGif = text === "GIF8";
+            }
         }
         onRunningChanged: {
             if (artDownloader.running)

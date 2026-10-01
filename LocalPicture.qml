@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Window
 import Qt5Compat.GraphicalEffects
 import Quickshell.Io
+import "CardLayouts.js" as CardLayouts
 
 /** A local file, thumbnailed like any picture; a GIF bypasses the static thumbnail and plays. */
 Item {
@@ -35,8 +36,10 @@ Item {
     }
 
     onSourcePathChanged: {
-        root.isGif = false;
-        root.sniff();
+        const sniffed = CardLayouts.sniffedGifs.has(root.sourcePath);
+        root.isGif = sniffed && CardLayouts.sniffedGifs.get(root.sourcePath);
+        if (!sniffed)
+            root.sniff();
     }
 
     Process {
@@ -44,8 +47,12 @@ Item {
         property string sniffedPath
         command: ["head", "-c4", FileUtils.trimFileProtocol(gifSniffer.sniffedPath)]
         stdout: StdioCollector {
-            onStreamFinished: if (gifSniffer.sniffedPath === root.sourcePath)
-                root.isGif = text === "GIF8"
+            onStreamFinished: {
+                if (text.length > 0)
+                    CardLayouts.sniffedGifs.set(gifSniffer.sniffedPath, text === "GIF8");
+                if (gifSniffer.sniffedPath === root.sourcePath)
+                    root.isGif = text === "GIF8";
+            }
         }
         onRunningChanged: if (!gifSniffer.running && gifSniffer.sniffedPath !== root.sourcePath)
             root.sniff()
@@ -63,7 +70,7 @@ Item {
             objectName: "pictureFitBackdrop"
             anchors.fill: parent
             asynchronous: true
-            cache: false
+            cache: true
             source: root.fit === "blur" && root.sourcePath.length > 0 ? Qt.resolvedUrl(root.sourcePath) : ""
             fillMode: Image.PreserveAspectCrop
             sourceSize.width: 64

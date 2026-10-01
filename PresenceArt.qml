@@ -79,7 +79,7 @@ Rectangle {
                 objectName: "pictureFitBackdrop"
                 anchors.fill: parent
                 asynchronous: true
-                cache: false
+                cache: true
                 source: root.fit === "blur" ? root.resolvedSource : ""
                 fillMode: Image.PreserveAspectCrop
                 sourceSize.width: 64
@@ -95,6 +95,9 @@ Rectangle {
         Loader {
             id: image
             anchors.fill: parent
+            // Created at its final size, a cached picture is Ready before the fade-in Behavior
+            // arms; created at 0x0, it first misses the cache at native size and fades in
+            active: root.pixelWidth > 0 && root.pixelHeight > 0
             sourceComponent: root.isGif ? animatedArt : staticArt
 
             layer.enabled: root.radius > 0 || root.fit === "blur"

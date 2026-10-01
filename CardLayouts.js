@@ -569,6 +569,17 @@ function shared(prev, next) {
     return identical ? prev : merged;
 }
 
+// picture path on disk -> isGif. A path keeps its content: the host empties the cover cache only
+// at shell start, and its thumbnails are keyed by path the same way
+const sniffedGifs = new Map();
+
+// Spotify serves one cover from both hosts, and clients differ in which one they report
+const spotifyArtHosts = /^https:\/\/(i\.scdn\.co|image-cdn\.spotifycdn\.com)\/image\//;
+
+function artKey(url) {
+    return url.replace(spotifyArtHosts, "https://i.scdn.co/image/");
+}
+
 function isHttpsUrl(url) {
     return typeof url === "string" && /^https:\/\/\S+$/.test(url);
 }
