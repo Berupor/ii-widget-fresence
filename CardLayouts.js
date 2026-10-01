@@ -77,9 +77,10 @@ const mediaFiles = {
     "player": "TilePlayer.qml",
     "strip": "TileWave.qml",
     "vinyl": "TileVinyl.qml",
-    "sleeve": "TileSleeve.qml"
+    "sleeve": "TileSleeve.qml",
+    "video": "TileVideo.qml"
 };
-const edgeToEdgeMediaFiles = [mediaFiles.cover, mediaFiles.player, mediaFiles.vinyl, mediaFiles.sleeve];
+const edgeToEdgeMediaFiles = [mediaFiles.cover, mediaFiles.player, mediaFiles.vinyl, mediaFiles.sleeve, mediaFiles.video];
 const batteryTankFile = "TileBattery.qml";
 const batteryTankPlaces = ["1x1", "2x1", "2x2", "4x1"];
 const lowBatteryPercent = 20;
@@ -188,27 +189,34 @@ function figureOf(source) {
     return figures[source] ?? "";
 }
 
+const stripMaxCols = 2;
+
+// app/shared ui/card/YoutubeTile.kt: a video counts as YouTube by its player or its url
+function isYoutube(media) {
+    return media?.kind === "video" && [media.player, media.url].some(source => /youtube|youtu\.be\//i.test(source ?? ""));
+}
+
 // app/shared ui/card/MediaTiles.kt MusicForm and VinylForm: the place picks the layout
-function mediaFile(widget) {
+function mediaFile(widget, media) {
     const place = widget?.place ?? {};
     const square = place.rows >= place.cols;
     const tall = square && place.rows >= 2;
     if (shownForm(widget) === "vinyl")
         return tall ? mediaFiles.sleeve : mediaFiles.vinyl;
+    if (isYoutube(media))
+        return mediaFiles.video;
     if (square)
         return tall ? mediaFiles.poster : mediaFiles.cover;
     return place.cols <= stripMaxCols ? mediaFiles.strip : mediaFiles.player;
 }
 
-const stripMaxCols = 2;
-
 // app/shared ui/card/Tiles.kt ValueTile: a figure without a picture is drawn as a ring
-function formFile(widget, value) {
+function formFile(widget, value, media) {
     const form = shownValueForm(widget, value);
     if (widget?.type === "value" && form === "figure" && !figureOf(widget.source))
         return formFiles.value.ring;
     if (widget?.type === "media")
-        return mediaFile(widget);
+        return mediaFile(widget, media);
     if (takesBatteryTank(widget) && form === "ring")
         return batteryTankFile;
     return formFiles[widget?.type]?.[form] ?? formlessFiles[widget?.type] ?? "";
@@ -285,12 +293,13 @@ function tileInset(width, height, shape) {
 }
 
 // The chess board, rating and clock pad themselves, edge to edge like ChessTiles.kt and Clock.kt
-function edgeToEdge(widget) {
-    return widget?.type === "chess" || widget?.type === "clock" || edgeToEdgeMediaFiles.includes(formFile(widget)) || formFile(widget) === batteryTankFile;
+function edgeToEdge(widget, media) {
+    const file = formFile(widget, undefined, media);
+    return widget?.type === "chess" || widget?.type === "clock" || edgeToEdgeMediaFiles.includes(file) || file === batteryTankFile;
 }
 
-function fullBleed(widget) {
-    return fullBleedTypes.includes(widget?.type) || formFile(widget) === mediaFiles.poster;
+function fullBleed(widget, media) {
+    return fullBleedTypes.includes(widget?.type) || formFile(widget, undefined, media) === mediaFiles.poster;
 }
 
 // protocol.md: background is ignored by a widget that paints its own art or scene

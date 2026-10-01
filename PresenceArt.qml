@@ -31,11 +31,7 @@ Rectangle {
     readonly property real idleSaturation: 0.15
     readonly property real idleGlyphAlpha: 0.55
     readonly property bool idle: root.media !== null && root.media.playing !== true
-    readonly property string mediaSymbol: {
-        if (/youtube/i.test(root.media?.player ?? ""))
-            return root.media.playing ? "play_arrow" : "pause";
-        return root.media?.kind === "video" ? "smart_display" : "music_note";
-    }
+    readonly property string mediaSymbol: root.media?.kind === "video" ? "smart_display" : "music_note"
 
     property bool playing: true
     property bool settleGif: false

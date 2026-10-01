@@ -398,9 +398,9 @@ Item {
                 "want": [true, false, true, false]
             },
             {
-                "name": "a YouTube tile keeps its own color and draws a red play button in place of the missing art",
-                "got": [tube?.mediaTinted, String(tube?.artPlaceholder), String(tube?.artAccent)],
-                "want": [false, String(tube?.youtubeRed), "#ffffff"]
+                "name": "a YouTube tile keeps its own color and draws a red play button on a dark screen in place of the missing art",
+                "got": [tube?.mediaTinted, String(tube?.artPlaceholder), String(tube?.youtubeRed), Items.byName(tube, "videoLogo").some(l => l.visible)],
+                "want": [false, String(tube?.youtubeScreen), "#ff0033", true]
             },
             {
                 "name": "a vinyl treats a video as nothing playing",

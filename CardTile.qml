@@ -24,10 +24,10 @@ Item {
     readonly property bool hasData: !root.dimmed
     readonly property bool unrecognized: root.type !== "" && !CardLayouts.knownType(root.type)
     readonly property bool placeholder: root.unrecognized || (root.dimmed && root.type !== "value" && root.type !== "weather")
-    readonly property bool fullBleed: CardLayouts.fullBleed(root.widget) && !root.placeholder
+    readonly property bool fullBleed: CardLayouts.fullBleed(root.widget, root.media) && !root.placeholder
     readonly property bool wide: root.width > root.height
     readonly property bool loadRing: root.type === "value" && root.form === "ring" && ["cpu", "memory", "disk"].includes(root.widget?.source)
-    readonly property bool edgeToEdge: CardLayouts.edgeToEdge(root.widget) && !root.placeholder
+    readonly property bool edgeToEdge: CardLayouts.edgeToEdge(root.widget, root.media) && !root.placeholder
     readonly property real tileInset: CardLayouts.tileInset(root.width, root.height, root.shape)
     readonly property string chessModeText: ({
             "rapid": Translation.tr("Rapid"),
@@ -102,13 +102,14 @@ Item {
     }
 
     readonly property var colorKeys: CardLayouts.colorKeysOf(root.widget?.color)
-    readonly property bool youtube: root.type === "media" && /youtube/i.test(root.media?.player ?? "")
-    readonly property color youtubeRed: "#c94f4f"
+    readonly property bool youtube: root.type === "media" && CardLayouts.isYoutube(root.media)
+    readonly property color youtubeRed: "#ff0033"
+    readonly property color youtubeScreen: "#0f0f0f"
     readonly property bool paletteFromMedia: root.type === "media" && !!root.media && !root.youtube && !root.widget?.color && !root.widget?.background
     readonly property bool mediaTinted: root.paletteFromMedia && mediaArt.tinted
     readonly property color tint: root.mediaTinted ? mediaArt.fill : Appearance.colors[root.colorKeys[0]]
     readonly property color contentColor: root.fullBleed || root.backdropShown ? "white" : (root.mediaTinted ? mediaArt.content : Appearance.colors[root.colorKeys[1]])
-    readonly property color artPlaceholder: root.youtube ? root.youtubeRed : root.mediaTinted ? ColorUtils.mix(mediaArt.fill, mediaArt.content, 0.9) : Appearance.colors.colLayer1
+    readonly property color artPlaceholder: root.youtube ? root.youtubeScreen : root.mediaTinted ? ColorUtils.mix(mediaArt.fill, mediaArt.content, 0.9) : Appearance.colors.colLayer1
     readonly property color artAccent: root.youtube ? "white" : root.mediaTinted ? mediaArt.accent : Appearance.colors.colSubtext
 
     readonly property alias mediaPalette: mediaArt
@@ -267,7 +268,7 @@ Item {
                     id: formLoader
                     objectName: "tileForm"
                     anchors.fill: parent
-                    readonly property string file: root.placeholder ? "" : root.loadRing ? "TileLoad.qml" : root.unitCells ? "TileUnitCells.qml" : CardLayouts.formFile(root.widget, root.value)
+                    readonly property string file: root.placeholder ? "" : root.loadRing ? "TileLoad.qml" : root.unitCells ? "TileUnitCells.qml" : CardLayouts.formFile(root.widget, root.value, root.media)
 
                     function load(): void {
                         formLoader.setSource(formLoader.file ? Qt.resolvedUrl(formLoader.file) : "", {

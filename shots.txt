@@ -13,3 +13,4 @@
 -f demo/DemoFriendCard.qml -n friendCard -g 420x560 -s 1500
 -f demo/DemoChess.qml -n chess -g 420x560 -s 2500
 -f demo/DemoBatteryTiles.qml -n battery -g 820x1500 -s 1500
+-f demo/DemoYoutubeTiles.qml -n youtube -g 1180x900 -s 3000
