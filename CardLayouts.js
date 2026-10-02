@@ -312,6 +312,7 @@ function takesBackground(widget) {
     case "chess":
         return shownForm(widget) !== "board";
     case "value":
+    case "clock":
         return true;
     default:
         return false;

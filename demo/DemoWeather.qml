@@ -587,9 +587,9 @@ Item {
                 "want": [false, true, true, true, false]
             },
             {
-                "name": "only the sky lets go of the background",
+                "name": "only the sky lets go of the background, the clock takes it",
                 "got": ["sky", "temp", "moon", "sun"].map(f => CardLayouts.takesBackground(root.weatherWidget(f))).concat([CardLayouts.takesBackground(root.clockTile.widget)]),
-                "want": [false, true, true, true, false]
+                "want": [false, true, true, true, true]
             }
         ];
     }
